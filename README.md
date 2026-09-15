@@ -47,7 +47,7 @@ uv run python -m aura --demo --cerveau mamba     # real Mamba-1.4B SSM
 | Cerveau | Vitesse | Qualité | Besoin |
 |---|---|---|---|
 | Ollama 1.5B instruct | ~25 tok/s | bon en français | rien |
-| Mamba-130M (réel, CPU) | **~12 tok/s** | correct, léger | `uv sync --extra mamba` |
+| Mamba-790M (réel, CPU) | **~1,5 tok/s** | bon, français correct | `uv sync --extra mamba`, ~3 Go RAM |
 | Mamba-1.4B | ❌ pagefile | bon | 16 Go RAM |
 
 Les kernels CUDA (`mamba_ssm`, `causal_conv1d`) accéléreraient Mamba x3-x5 — mais nécessitent une GPU NVIDIA. Sur CPU, Mamba shine pour sa mémoire fixe (inputs de 1000 tokens = même RAM que 10 tokens).

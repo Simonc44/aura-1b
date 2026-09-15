@@ -21,7 +21,7 @@ LOG = logging.getLogger("aura.mamba")
 # 370M = defaut (1.5 Go, 8 Go RAM suffisent)
 # 1.4B = optionnel (5.6 Go, necessite 16 Go+ RAM)
 _ID_MODELES = {
-    "standard": "state-spaces/mamba-130m-hf",
+    "standard": "state-spaces/mamba-790m-hf",
     "grande": "state-spaces/mamba-1.4b-hf",
 }
 _PROMPT_BENCHMARK = "Reponds en une phrase : la capitale de la France est"
