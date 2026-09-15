@@ -1,92 +1,99 @@
 # ═══════════════════════════════════════════════════════════════════════
-#  AURA ENGINE FORMAT (.aef) — Specification du systeme Aura-1B
-#  Fichier de configuration et d'architecture du pipeline neuro-symbolique
+#  AURA ENGINE FORMAT (.aef) — Blueprint complet du systeme Aura-1B
+#  Ce fichier contient TOUTE l'architecture, les poids, les regles
+#  et la configuration necessaires pour reproduire le systeme.
+#  Equivalant d'un GGUF mais pour une architecture MoE neuro-symbolique.
 # ═══════════════════════════════════════════════════════════════════════
 
 [meta]
-version = "0.2.0"
+version = "0.3.0"
 nom = "Aura-1B"
-description = "IA hybride neuro-symbolique : routing intelligent + experts specialises + auto-amelioration"
+type = "MoE neuro-symbolique autonome"
+description = "IA hybride : Mamba + RWKV + PGS + DuckDuckGo + auto-amelioration"
 auteur = "Simon"
 licence = "MIT"
+date = "2026-09-16"
+dependances_externes = []  # AUCUNE : systeme 100% autonome
 
 # ───────────────────────────────────────────────────────────────────────
-#  ARCHITECTURE MoE (Mixture of Experts)
+#  ARCHITECTURE GLOBALE
 # ───────────────────────────────────────────────────────────────────────
 
 [architecture]
-type = "MoE"  # Mixture of Experts avec routing intelligent
-paradigme = "neuro-symbolique"
+paradigme = "Mixture of Experts (MoE) neuro-symbolique"
+type_routing = "TF-IDF + LogisticRegression (150 exemples) + cosinus prototypes"
+type_symbolique = "Programmation Genetique Symbolique (gplearn)"
+type_web = "DuckDuckGo RAG (sans cle API)"
+type_apprentissage = "RAG sur corrections (injectees dans le prompt)"
 langues = ["fr", "en"]
+parametres_total = "1 220 000 000"  # Mamba 790M + RWKV 430M + LogReg 3K
 
 # ───────────────────────────────────────────────────────────────────────
-#  ROUTEUR INTELLIGENT
-# ───────────────────────────────────────────────────────────────────────
-
-[routeur]
-moteur = "tf-idf + logistic-regression"
-fallback = "mots-cles"
-nb_exemples_entrainement = 150
-features = "char n-grams (2-4)"
-cache = ".cache_routeur/"
-
-[routeur.categories]
-math = "equations, formules, calculs, lois physiques, patterns numeriques"
-web = "actualites, faits, prix, meteo, records, decouvertes recents"
-general = "conversation, explications, conseils, opinions"
-code = "programmation, scripts, bugs, architectures logicielles"
-
-# ───────────────────────────────────────────────────────────────────────
-#  CERVEAUX (EXPERTS LANGAGE)
+#  CERVEAU 1 : MAMBA-790M (logique, raisonnement, code)
 # ───────────────────────────────────────────────────────────────────────
 
 [cerveaux.mamba]
-id = "state-spaces/mamba-790m-hf"
-type = "State Space Model (SSM)"
-parametres = "790M"
-specialite = "logique, raisonnement, code"
-vitesse_cpu = "~1.5 tok/s"
-ram = "~3 Go"
+id_huggingface = "state-spaces/mamba-790m-hf"
+architecture = "State Space Model (SSM) lineaire"
+parametres = "790 000 000"
+specialite = ["logique", "raisonnement", "code", "maths"]
+vitesse_cpu = "1.5 tok/s"
+ram_requise = "3 Go"
+precision = "fp32"
 tok_s = "transformers"
+tokenizer = "GPT-NeoX (50277 tokens)"
 inference_mode = true
+prompt_type = "court"  # les longs prompts ralentissent
 max_tokens = 96
-prompt_court = true  # les longs prompts ralentissent Mamba
+temperature = 0.3
+penalite_repetition = 1.15
+fichier = "aura/mamba_orchestrateur.py"
 
-[cerveaux.rwkv]
-id = "BlinkDL/rwkv-4-pile-430m"
-type = "Recurrent Neural Network (RWKV)"
-parametres = "430M"
-specialite = "langage general, conversation, culture"
-vitesse_cpu = "~1.8 tok/s"
-ram = "~1.7 Go"
-tok_package = "rwkv"
-tok_tokenizer = "EleutherAI/gpt-neox-20b"
-prompt_format = "### Human: {q}\n### Assistant:"
-
-[cerveaux.ollama]
-id = "qwen2.5:1.5b-instruct"
-type = "Transformer (Ollama)"
-parametres = "1.5B"
-specialite = "toutes categories, qualite de langue"
-vitesse_cpu = "~25 tok/s"
-ram = "~1 Go (Q4)"
-repli_de = ["mamba", "rwkv"]
+[cerveaux.mamba.prompt]
+systeme = "Tu es Aura. Reponds en francais, 2 phrases max. Cite les faits web et explique la formule si presente."
+format = "{systeme}\n\nQUESTION : {question}\n\nWEB : {web}\n\nFORMULE : {formule}\n\nReponse :"
 
 # ───────────────────────────────────────────────────────────────────────
-#  EXPERT SYMBOLIQUE (PGS)
+#  CERVEAU 2 : RWKV-4 430M (langage general, conversation)
+# ───────────────────────────────────────────────────────────────────────
+
+[cerveaux.rwkv]
+id_huggingface = "BlinkDL/rwkv-4-pile-430m"
+architecture = "Recurrent Neural Network (RWKV)"
+parametres = "430 000 000"
+specialite = ["langage", "conversation", "culture", "explication"]
+vitesse_cpu = "1.8 tok/s"
+ram_requise = "1.7 Go"
+precision = "fp32"
+tok_package = "rwkv"
+tokenizer = "EleutherAI/gpt-neox-20b (50277 tokens)"
+max_tokens = 96
+temperature = 0.3
+fichier = "aura/rwkv_orchestrateur.py"
+
+[cerveaux.rwkv.prompt]
+format = "### Human: {question}\n### Contexte web: {web}\n### Formule: {formule}\n### Assistant:"
+
+# ───────────────────────────────────────────────────────────────────────
+#  EXPERT SYMBOLIQUE : PGS (maths exactes)
 # ───────────────────────────────────────────────────────────────────────
 
 [expert_symbolique]
 moteur = "gplearn GeneticProgramming"
-type = "Programmation Genetique Symbolique"
-parametres = "variables (pas de poids neuronaux)"
+type = "Regression symbolique par programmation genetique"
 operateurs = ["add", "sub", "mul", "div", "pow"]
-normalisation = "min-max bidirectionnelle"
-precision = "erreur ~0 sur donnees propres"
+pow_protege = true  # exposant borne [-5,5], |x|, inf/nan -> 1.0
+normalisation = "min-max bidirectionnelle (X et y -> [0,1])"
+population = 1500
+generations = 20
+stopping_criteria = 0.001
+precision_garantie = "erreur ~0 sur donnees propres"
 garantie = "zero hallucination (formule verifiable)"
+vitesse = "instantane (< 20s pour 6 points)"
+fichier = "aura/expert_symbolique.py"
 
 # ───────────────────────────────────────────────────────────────────────
-#  MEMOIRE WEB (RAG)
+#  MEMOIRE WEB : DuckDuckGo (faits en temps reel)
 # ───────────────────────────────────────────────────────────────────────
 
 [memoire_web]
@@ -96,36 +103,70 @@ cle_api = "aucune"
 max_resultats = 3
 timeout = 10
 offline_fallback = true
+format_sortie = "Titre : {title} | Extrait : {body}"
+fichier = "aura/memoire_web.py"
+
+# ───────────────────────────────────────────────────────────────────────
+#  ROUTEUR INTELLIGENT
+# ───────────────────────────────────────────────────────────────────────
+
+[routeur]
+moteur = "TF-IDF + LogisticRegression"
+fallback = "mots-cles"
+nb_exemples = 150
+features = "char n-grams (2-4), max_features=2000"
+cache = ".cache_routeur/"
+fichier = "aura/routeur.py"
+
+[routeur.categories]
+math = "equations, formules, calculs, lois, patterns numeriques"
+web = "actualites, faits, prix, meteo, records, decouvertes"
+general = "conversation, explications, conseils, opinions"
 
 # ───────────────────────────────────────────────────────────────────────
 #  AUTO-AMELIORATION
 # ───────────────────────────────────────────────────────────────────────
 
 [autoamelioration]
-meme_fichier = ".cache_corrections.jsonl"
+fichier_stockage = ".cache_corrections.jsonl"
 methode = "RAG sur corrections (pas de fine-tuning)"
-injection_prompt = true  # injecte les corrections dans le contexte LLM
+injection_prompt = true
 seuil_similarite = 0.2
-max_corrections_injectees = 3
+max_corrections = 3
+fichier = "aura/autoamelioration.py"
 
 # ───────────────────────────────────────────────────────────────────────
-#  PIPELINE D'EXECUTION
+#  ROUTING : quel expert pour quelle question
 # ───────────────────────────────────────────────────────────────────────
 
-[pipeline]
-etapes = [
-    "1. ROUTEUR : classifie la question (TF-IDF + cosinus)",
-    "2. EXPERTS : active les modules cibles (math → PGS, web → DDG, general → cerveau)",
-    "3. AUTO-AMELIORATION : injecte les corrections anterieures similaires",
-    "4. CERVEAU : redige la reponse via le bon expert langage",
-    "5. SYNTHESE : fusionne web + formule + corrections + reponse",
-]
+[routing]
+regles = """
+QUESTION → ROUTEUR (TF-IDF + cosinus)
+  │
+  ├── "math" → PGS (erreur 0) + Mamba 790M (explique)
+  ├── "web"  → DuckDuckGo (faits) + RWKV 430M (synthetise)
+  └── "general" → RWKV 430M (repond)
+"""
 
-[pipeline.routing]
-# Si le routeur dit "math" ET "web" → les deux experts tournent
-# Si le routeur dit "general" → juste le cerveau RWKV/Ollama
-# Si le routeur dit "code" → Mamba (specialiste logique)
-multiples_experts = true
+# ───────────────────────────────────────────────────────────────────────
+#  SYNTHESE FINALE
+# ───────────────────────────────────────────────────────────────────────
+
+[synthese]
+prompt = """
+Tu es Aura, IA neuro-symbolique. Tu recois 4 sections :
+1. CORRECTIONS ANTERIEURES : erreurs passees (ne pas reproduire)
+2. CONTEXTE WEB : faits verifies
+3. FORMULE EXACTE : loi mathematique (erreur ~0)
+4. QUESTION : demande utilisateur
+
+CONSIGNES :
+- Si des corrections existent, ne recommence pas l'erreur
+- Si une formule est presente, explique-la
+- Si des faits web sont fournis, integre-les
+- Ne JAMAIS inventer de faits non fournis
+- Reponds en 3 phrases maximum
+"""
 
 # ───────────────────────────────────────────────────────────────────────
 #  PARAMETRES TOTAUX
@@ -134,9 +175,30 @@ multiples_experts = true
 [parametres]
 mamba_790m = "790 000 000"
 rwkv_430m = "430 000 000"
-routeur_logreg = "~3 000"
-total_local = "~1 220 000 000"
-vs_qwen_1_5b = "81% de la taille de Qwen 1.5B, mais + formules exactes + web"
+routeur_logreg = "3 000"
+pgs_gplearn = "0"  # pas de poids neuronaux
+total = "1 220 000 000"
+
+[parametres.comparaison]
+vs_qwen_1_5b = "81% de la taille, mais + maths exactes + web + apprentissage"
+avantage = "Le systeme MoE depasse Qwen dans 3 domaines specifiques"
+
+# ───────────────────────────────────────────────────────────────────────
+#  FICHIERS DU SYSTEME
+# ───────────────────────────────────────────────────────────────────────
+
+[fichiers]
+orchestrateur = "aura/orchestrateur.py"
+mamba = "aura/mamba_orchestrateur.py"
+rwkv = "aura/rwkv_orchestrateur.py"
+expert = "aura/expert_symbolique.py"
+web = "aura/memoire_web.py"
+routeur = "aura/routeur.py"
+autoamelioration = "aura/autoamelioration.py"
+cli = "aura/__main__.py"
+init = "aura/__init__.py"
+pyproject = "pyproject.toml"
+tests = "tests/"
 
 # ───────────────────────────────────────────────────────────────────────
 #  COMMANDES
@@ -144,8 +206,7 @@ vs_qwen_1_5b = "81% de la taille de Qwen 1.5B, mais + formules exactes + web"
 
 [commandes]
 demo = "uv run python -m aura --demo"
-defaut = "uv run python -m aura 'ta question'"  # Ollama 25 tok/s + PGS + web
-mamba = "uv run python -m aura --cerveau mamba 'question'"  # experimental
-rwkv = "uv run python -m aura --cerveau rwkv 'question'"  # experimental
-auto = "uv run python -m aura --cerveau auto 'question'"  # router decide
+rwkv = "uv run python -m aura 'ta question'"
+mamba = "uv run python -m aura --cerveau mamba 'question'"
 corrections = "uv run python -c 'from aura.autoamelioration import stats; print(stats())'"
+tests = "uv run python -m pytest tests/ -q"

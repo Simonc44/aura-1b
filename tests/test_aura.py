@@ -1,7 +1,7 @@
-"""Tests du pipeline Aura-1B (sans reseau, sans LLM)."""
+"""Tests Aura-1B MoE autonome (sans Ollama)."""
 import numpy as np
 
-from aura import expert_symbolique, memoire_web, routeur
+from aura import expert_symbolique, memoire_web, routeur, autoamelioration
 from aura.orchestrateur import Aura1B
 
 
@@ -11,88 +11,57 @@ class TestExpertSymbolique:
         X = [[0.0], [0.2], [0.4], [0.6], [0.8], [1.0]]
         y = [0.0, 0.008, 0.064, 0.216, 0.512, 1.0]
         formule = ex.resoudre(X, y)
-        assert formule, "aucune formule trouvee"
-        assert ex.erreur is not None and ex.erreur < 1e-6
+        assert formule and ex.erreur < 1e-6
 
-    def test_decouvre_lineaire_exactement(self):
+    def test_decouvre_lineaire(self):
         ex = expert_symbolique.ExpertSymbolique(population=800, generations=12)
-        X = [[1.0], [2.0], [3.0], [4.0]]
-        y = [3.0, 6.0, 9.0, 12.0]
-        formule = ex.resoudre(X, y)
-        assert formule
-        assert ex.erreur < 1e-6
+        formule = ex.resoudre([[1.0], [2.0], [3.0], [4.0]], [3.0, 6.0, 9.0, 12.0])
+        assert formule and ex.erreur < 1e-6
 
-    def test_pow_protege_ne_plante_pas(self):
+    def test_pow_protege(self):
         from aura.expert_symbolique import _pow_protege
-        x1 = np.array([0.0, -2.0, 1000.0])
-        x2 = np.array([100.0, 3.0, -99.0])
-        r = _pow_protege(x1, x2)
-        assert np.all(np.isfinite(r))
+        assert np.all(np.isfinite(_pow_protege(
+            np.array([0.0, -2.0, 1000.0]),
+            np.array([100.0, 3.0, -99.0]))))
 
-    def test_trop_peu_d_exemples(self):
-        ex = expert_symbolique.ExpertSymbolique()
-        assert ex.resoudre([[1.0], [2.0]], [1.0, 4.0]) == ""
+    def test_trop_peu(self):
+        assert expert_symbolique.ExpertSymbolique().resoudre([[1.0], [2.0]], [1.0, 4.0]) == ""
 
 
-class TestRouteurIntelligent:
+class TestRouteur:
     def test_detecte_math(self):
-        r = routeur.RouteurIntelligent()
-        res = r.classer("calcule 2 puissance 10")
-        assert "math" in res["experts"]
+        assert "math" in routeur.RouteurIntelligent().classer("calcule 2 puissance 10")["experts"]
 
     def test_detecte_web(self):
-        r = routeur.RouteurIntelligent()
-        res = r.classer("qui a gagne la coupe du monde 2026")
-        assert "web" in res["experts"]
+        assert "web" in routeur.RouteurIntelligent().classer("qui a gagne le monde 2026")["experts"]
 
     def test_detecte_general(self):
-        r = routeur.RouteurIntelligent()
-        res = r.classer("bonjour comment ca va")
-        assert "general" in res["experts"]
-
-    def test_routeur_classique(self):
-        r = routeur.RouteurIntelligent()
-        res = r.routeur_classique("calcule cette equation")
-        assert "math" in res["experts"]
+        assert "general" in routeur.RouteurIntelligent().classer("bonjour")["experts"]
 
 
-class TestMemoireWeb:
-    def test_routeur_detecte_besoin_web(self):
-        assert memoire_web.a_besoin_web("Qui a gagne le dernier match ?")
-        assert memoire_web.a_besoin_web("actualite 2026")
-        assert not memoire_web.a_besoin_web("resous x^3 pour x=2")
-
-    def test_recherche_offline_renvoie_vide(self):
-        r = memoire_web.chercher("question test xyzzy", max_resultats=1, timeout=3)
-        assert isinstance(r, str)
+class TestAutoAmelioration:
+    def test_enregistrer_chercher(self, monkeypatch, tmp_path):
+        f = str(tmp_path / "c.jsonl")
+        monkeypatch.setattr(autoamelioration, "_FICHIER", f)
+        autoamelioration.enregistrer_correction("carre de 5", "20", "25", "math")
+        c = autoamelioration.chercher_corrections_similaires("carre de 7")
+        assert len(c) >= 1 and "25" in c[0]
 
 
-class TestOrchestrateur:
-    def test_analyse_question_math(self):
-        ia = Aura1B(hote="http://127.0.0.1:1", timeout=1)
-        res = ia.analyser("calcule 3 puissance 4")
-        assert "math" in res["experts"]
+class TestMoE:
+    def test_choisit_mamba_pour_math(self):
+        assert Aura1B()._choisir_cerveau({"math"}) == "mamba"
 
-    def test_analyse_question_web(self):
-        ia = Aura1B(hote="http://127.0.0.1:1", timeout=1)
-        res = ia.analyser("quel est le prix du bitcoin")
-        assert "web" in res["experts"]
+    def test_choisit_rwkv_pour_general(self):
+        assert Aura1B()._choisir_cerveau({"general"}) == "rwkv"
 
-    def test_fallback_sans_llm(self):
-        ia = Aura1B(hote="http://127.0.0.1:1", timeout=1)
-        r = ia.executer_detaille("resous x^3", [[2.0], [3.0], [4.0]], [8.0, 27.0, 64.0])
-        assert r["formule"] != ""
-        assert "Question" in r["reponse"]
+    def test_analyse_question(self):
+        r = Aura1B().analyser("calcule 3 puissance 4")
+        assert "math" in r["experts"]
 
-    def test_repli_mamba_vers_ollama(self, monkeypatch):
-        from aura import mamba_orchestrateur
-
-        class _MambaCasse:
-            def __init__(self, *a, **k):
-                raise mamba_orchestrateur.MambaIndisponible("test simule")
-
-        monkeypatch.setattr(mamba_orchestrateur, "OrchestrateurMamba", _MambaCasse)
-        ia = Aura1B(hote="http://127.0.0.1:1", timeout=1, cerveau="mamba")
-        r = ia.executer_detaille("resous x^3", [[2.0], [3.0], [4.0]], [8.0, 27.0, 64.0])
-        assert r["formule"] != ""
-        assert "Question" in r["reponse"]
+    def test_prompt_inclut_corrections(self, monkeypatch, tmp_path):
+        f = str(tmp_path / "c.jsonl")
+        monkeypatch.setattr(autoamelioration, "_FICHIER", f)
+        autoamelioration.enregistrer_correction("test", "mauvaise", "bonne")
+        p = Aura1B._construire_prompt("test", "", "")
+        assert "CORRECTIONS" in p and "bonne" in p

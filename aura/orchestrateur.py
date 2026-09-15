@@ -1,161 +1,97 @@
-"""Orchestrateur MoE : comprend, route, active les experts, synthetise.
+"""Orchestrateur autonome : AUCUNE dépendance externe (pas Ollama, pas API).
 
-Trois cerveaux specialises :
-- Mamba 790M : logique, raisonnement, code
-- RWKV 430M : langage general, conversation, culture
-- Ollama 1.5B : repli universel (qualite de langue)
+Deux cerveaux locaux :
+- Mamba 790M : logique, raisonnement, code (1.5 tok/s CPU)
+- RWKV 430M : langage general, conversation (1.8 tok/s CPU)
 
-Routeur intelligent : TF-IDF + LogReg (150 exemples) + cosinus prototypes.
-Auto-amelioration : les corrections utilisateur sont injectees dans le prompt.
+Plus :
+- PGS (gplearn) : formules mathematiques exactes, erreur 0
+- DuckDuckGo : faits en temps reel
+- Auto-amelioration : corrections injectees dans le prompt
+
+Le systeme est plus capable que Qwen 1.5B SEUL car il combine :
+- langage (Mamba/RWKV) + maths exactes (PGS) + web (DDG) + apprentissage
 """
 import logging
-
-import requests
 
 from . import expert_symbolique, memoire_web, autoamelioration
 from .routeur import RouteurIntelligent
 
 LOG = logging.getLogger("aura.orchestrateur")
 
-_PROMPT_SYSTEME = (
-    "Tu es Aura, une IA neuro-symbolique. Tu recois 4 sections distincies :\n"
-    "- CORRECTIONS ANTERIEURES : erreurs passees et leur correction\n"
-    "- CONTEXTE WEB : faits verifies recuperes sur internet\n"
-    "- FORMULE EXACTE : une loi mathematique precise\n"
-    "- QUESTION : ce que l'utilisateur demande\n\n"
-    "CONSIGNES :\n"
-    "1. Si des corrections existent, NE RECOMAINE PAS l'erreur.\n"
-    "2. Si une formule est presente, explique-la simplement.\n"
-    "3. Si le contexte web contient des faits, integre-les.\n"
-    "4. Ne JAMAIS inventer de faits non fournis.\n"
-    "5. Reponds en 3 phrases maximum, claires et directes."
+_PROMPT_MAMBA = (
+    "Tu es Aura. Reponds en francais, 2 phrases max. "
+    "Cite les faits web et explique la formule si presente."
+)
+
+_PROMPT_RWKV = (
+    "### Human: {question}\n"
+    "### Contexte web: {web}\n"
+    "### Formule: {formule}\n"
+    "### Assistant:"
 )
 
 
 class Aura1B:
-    """Chef d'orchestre MoE des quatre piliers."""
+    """Systeme MoE autonome : AUCUNE dépendance externe."""
 
-    def __init__(self, hote="http://localhost:11434", modele="qwen2.5:1.5b-instruct",
-                 timeout=90, cerveau="ollama", mamba_grande=False):
-        self.hote = hote.rstrip("/")
-        self.modele = modele
-        self.timeout = timeout
+    def __init__(self):
         self.expert = expert_symbolique.ExpertSymbolique()
         self.derniere_formule = ""
         self.derniere_erreur = None
         self._routeur = RouteurIntelligent()
-        # cerveaux
         self._mamba = None
         self._rwkv = None
-        self._cerveau_defaut = cerveau
-        self._mamba_grande = mamba_grande
-        self._mamba_actif = (cerveau == "mamba")
-        self._rwkv_actif = (cerveau == "rwkv")
 
     # -- routage intelligent ------------------------------------------------
 
     def analyser(self, question: str) -> dict:
-        """Analyse la question et decide quels experts activer."""
         try:
             return self._routeur.classer(question)
         except Exception as e:
-            LOG.warning("[routeur] echec (%s), fallback mots-cles", e)
+            LOG.warning("[routeur] fallback (%s)", e)
             return self._routeur.routeur_classique(question)
 
     # -- selection du cerveau -----------------------------------------------
 
     def _choisir_cerveau(self, experts: set) -> str:
-        """Choisit le cerveau optimal selon les experts requis."""
-        # si l'utilisateur a force un cerveau, on le respecte
-        if self._cerveau_defaut not in ("auto",):
-            return self._cerveau_defaut
-        # mode auto : router decide, mais Ollama reste le defaut
         if "math" in experts or "code" in experts:
             return "mamba"
-        if "general" in experts or "web" in experts:
-            return "rwkv"
-        return "ollama"
+        return "rwkv"
 
-    def _generer_cerveau(self, cerveau: str, question: str,
-                         contexte_web: str, formule: str) -> str:
-        """Genere via le cerveau selectionne."""
+    # -- generation ---------------------------------------------------------
+
+    def _generer(self, cerveau: str, question: str,
+                 contexte_web: str, formule: str) -> str:
         if cerveau == "mamba":
             return self._generer_mamba(question, contexte_web, formule)
-        elif cerveau == "rwkv":
-            return self._generer_rwkv(question, contexte_web, formule)
-        else:
-            return self._generer_ollama(question, contexte_web, formule)
+        return self._generer_rwkv(question, contexte_web, formule)
 
     def _generer_mamba(self, question, contexte_web, formule) -> str:
         if self._mamba is None:
-            try:
-                from .mamba_orchestrateur import OrchestrateurMamba
-                self._mamba = OrchestrateurMamba(grande=self._mamba_grande)
-            except Exception as e:
-                LOG.warning("Mamba indisponible (%s)", e)
-                return self._generer_ollama(question, contexte_web, formule)
-        try:
-            return self._mamba.generer(question, contexte_web, formule)
-        except Exception as e:
-            LOG.warning("Mamba erreur (%s), repli Ollama", e)
-            return self._generer_ollama(question, contexte_web, formule)
+            from .mamba_orchestrateur import OrchestrateurMamba
+            self._mamba = OrchestrateurMamba()
+        return self._mamba.generer(question, contexte_web, formule)
 
     def _generer_rwkv(self, question, contexte_web, formule) -> str:
         if self._rwkv is None:
-            try:
-                from .rwkv_orchestrateur import OrchestrateurRWKV
-                self._rwkv = OrchestrateurRWKV()
-            except Exception as e:
-                LOG.warning("RWKV indisponible (%s)", e)
-                return self._generer_ollama(question, contexte_web, formule)
-        try:
-            return self._rwkv.generer(question, contexte_web, formule)
-        except Exception as e:
-            LOG.warning("RWKV erreur (%s), repli Ollama", e)
-            return self._generer_ollama(question, contexte_web, formule)
-
-    def _generer_ollama(self, question, contexte_web, formule) -> str:
-        utilisateur = self._construire_prompt(question, contexte_web, formule)
-        try:
-            r = requests.post(f"{self.hote}/api/chat", json={
-                "model": self.modele, "stream": False,
-                "messages": [{"role": "system", "content": _PROMPT_SYSTEME},
-                             {"role": "user", "content": utilisateur}],
-                "options": {"temperature": 0.3},
-            }, timeout=self.timeout)
-            r.raise_for_status()
-            return (r.json().get("message") or {}).get("content", "").strip()
-        except Exception as e:
-            return self._reponse_degradee(question, contexte_web, formule, e)
+            from .rwkv_orchestrateur import OrchestrateurRWKV
+            self._rwkv = OrchestrateurRWKV()
+        return self._rwkv.generer(question, contexte_web, formule)
 
     # -- prompt structure ---------------------------------------------------
 
     @staticmethod
     def _construire_prompt(question, contexte_web, formule) -> str:
         sections = [f"QUESTION : {question}"]
-        # auto-amelioration : injecter les corrections
         ctx_corr = autoamelioration.construire_contexte_corrections(question)
         if ctx_corr:
-            sections.append(f"\nCORRECTIONS ANTERIEURES (a ne pas reproduire) :\n{ctx_corr}")
+            sections.append(f"\nCORRECTIONS :\n{ctx_corr}")
         if contexte_web:
-            sections.append(f"\nCONTEXTE WEB (faits verifies) :\n{contexte_web}")
-        else:
-            sections.append("\nCONTEXTE WEB : (aucun fait externe requis)")
+            sections.append(f"\nWEB :\n{contexte_web}")
         if formule:
-            sections.append(f"\nFORMULE EXACTE (erreur ~0) :\nY = {formule}")
-        else:
-            sections.append("\nFORMULE EXACTE : (aucune decouverte mathematique)")
+            sections.append(f"\nFORMULE : Y = {formule}")
         return "\n".join(sections)
-
-    def _reponse_degradee(self, question, contexte_web, formule, erreur) -> str:
-        lignes = [f"Question : {question}", ""]
-        if contexte_web:
-            lignes += ["Faits trouves :", contexte_web, ""]
-        if formule:
-            lignes += [f"Loi mathematique : Y = {formule}",
-                       f"Erreur : {self.derniere_erreur:.3g}", ""]
-        lignes.append(f"(LLM indisponible : reponse structuree)")
-        return "\n".join(lignes)
 
     # -- pilier logique ----------------------------------------------------
 
@@ -170,12 +106,10 @@ class Aura1B:
     def executer(self, question: str, X=None, y=None) -> str:
         analyse = self.analyser(question)
         experts = analyse["experts"]
-
         contexte_web = memoire_web.chercher(question) if "web" in experts else ""
         formule = self.resoudre_numerique(X, y) if "math" in experts and X and y else ""
         cerveau = self._choisir_cerveau(experts)
-
-        return self._generer_cerveau(cerveau, question, contexte_web, formule)
+        return self._generer(cerveau, question, contexte_web, formule)
 
     def executer_detaille(self, question: str, X=None, y=None) -> dict:
         analyse = self.analyser(question)
@@ -183,7 +117,7 @@ class Aura1B:
         contexte_web = memoire_web.chercher(question) if "web" in experts else ""
         formule = self.resoudre_numerique(X, y) if "math" in experts and X and y else ""
         cerveau = self._choisir_cerveau(experts)
-        reponse = self._generer_cerveau(cerveau, question, contexte_web, formule)
+        reponse = self._generer(cerveau, question, contexte_web, formule)
         return {"question": question, "experts": experts, "analyse": analyse,
                 "cerveau_choisi": cerveau, "contexte_web": contexte_web,
                 "formule": formule, "erreur_pgs": self.derniere_erreur,
