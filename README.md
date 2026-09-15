@@ -5,35 +5,35 @@
 ## Architecture
 
 ```text
-              [ USER QUESTION ]
+              [ QUESTION UTILISATEUR ]
                       │
         ┌─────────────▼──────────────┐
-        │  1. ORCHESTRATOR           │  Local LLM (Mamba slot)
-        │     understand · route     │
+        │  ROUTEUR INTELLIGENT       │  TF-IDF + LogReg (150 exemples)
+        │  classifie l'intention     │  + cosinus prototypique
         └──────┬──────────────┬──────┘
- (needs facts)               (needs exact math)
-        │                            │
-        ▼                            ▼
-┌───────────────────────┐   ┌──────────────────────────┐
-│  2. WEB MEMORY (RAG)  │   │  3. SYMBOLIC EXPERT (PGS)│
-│  DuckDuckGo, no key   │   │  gplearn: add sub mul    │
-│  always up to date    │   │  div pow → exact formula │
-└───────────┬───────────┘   └────────────┬─────────────┘
-            └──────────────┬─────────────┘
-                           ▼
+  (besoin de faits)     (besoin de maths)
+        │                         │
+        ▼                         ▼
+┌───────────────────┐   ┌──────────────────────────┐
+│  WEB (DuckDuckGo) │   │  PGS (gplearn)           │
+│  0 hallucination  │   │  formule exacte, erreur 0 │
+└──────────┬────────┘   └──────────┬─────────────────┘
+           └─────────────┬────────┘
+                         ▼
         ┌──────────────────────────────────┐
-        │  4. FINAL ANSWER (Orchestrator)  │
-        │  grounded synthesis, FR/EN       │
+        │  SYNTHESE STRUCTUREE             │  Prompt 3 sections claires
+        │  (Mamba-130M ou Ollama 1.5B)     │  web + formule + question
         └──────────────────────────────────┘
 ```
 
-### The three pillars
+### The four pillars
 
 | Pillar | Tech | Why |
 |---|---|---|
-| **Orchestrator** | Any local OpenAI-compatible LLM (Ollama by default). *Mamba brain:* the real **`state-spaces/mamba-1.4b-hf`** SSM (fixed-size memory) is integrated with automatic fallback to Ollama — `--cerveau mamba`. | Understands, routes, writes. |
-| **Symbolic Expert (~50M eq.)** | Genetic Programming (gplearn) evolving equation trees with `add/sub/mul/div/pow`. Protected `pow` (clipped exponent, no inf/nan). Min-max normalization makes laws like Y = X³ representable. | Finds the **exact** law: `mul(mul(X0, X0), X0)` for the cube — error 0, verifiable, zero hallucination. |
-| **Web Memory** | DuckDuckGo RAG (`ddgs`), no API key. Triggered only when the question needs external facts. | Internet = external hard drive; model parameters stay free for language & logic. |
+| **Router** | TF-IDF + Logistic Regression (150 examples, `scikit-learn`) + cosine similarity with prototype sentences. Falls back to keywords if sklearn is missing. | Classifies any question (even typos) — no hard-coded if/else. |
+| **Orchestrator** | Ollama 1.5B instruct (default) or Mamba-130M (`--cerveau mamba`). | Understands, routes, writes the final answer. |
+| **Symbolic Expert** | Genetic Programming (gplearn). Protected `pow`, min-max normalization. | Finds the **exact** law: `mul(mul(X0, X0), X0)` for the cube — error 0, verifiable, zero hallucination. |
+| **Web Memory** | DuckDuckGo RAG (`ddgs`), no API key. | Internet = external hard drive; model parameters stay free for language & logic. |
 
 ## Orchestrator brains
 

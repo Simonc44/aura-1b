@@ -10,3 +10,4 @@ build/
 # Local
 *.log
 uv.lock
+aura/.cache_routeur/
