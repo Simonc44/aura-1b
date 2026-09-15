@@ -1,16 +1,19 @@
-"""Orchestrateur (emplacement Mamba-1B) : comprend, route, redige.
+"""Orchestrateur : comprend, route, redige.
 
-Aujourd'hui : n'importe quel LLM OpenAI-compatible local (Ollama par defaut).
-Demain : un vrai State Space Model Mamba-1B (memoire a taille fixe, rapide
-sur CPU) se branche sur la meme interface `generer()` — rien d'autre a changer.
+Deux cerveaux interchangeables (meme interface `generer()`) :
+- "ollama" (defaut) : n'importe quel LLM local OpenAI-compatible, fiable
+- "mamba" : vrai State Space Model lineaire (memoire a taille fixe, rapide CPU) —
+  repli automatique sur Ollama si torch/transformers ou le modele manquent
 """
-import json
+import logging
 
 import requests
 
 from . import expert_symbolique, memoire_web
 
-_PROMPT_SYSTEME = (
+LOG = logging.getLogger("aura.orchestrateur")
+
+PROMPT_SYSTEME = (
     "Tu es Aura, une IA hybride neuro-symbolique. On te donne une question "
     "utilisateur, un CONTEXTE WEB (faits recents, peut etre vide) et une "
     "FORMULE SYMBOLIQUE decouverte par un moteur mathematique exact (peut etre "
@@ -23,17 +26,33 @@ _PROMPT_SYSTEME = (
 class Aura1B:
     """Chef d'orchestre des trois piliers."""
 
-    def __init__(self, hote="http://localhost:11434", modele="qwen2.5:1.5b-instruct", timeout=90):
+    def __init__(self, hote="http://localhost:11434", modele="qwen2.5:1.5b-instruct",
+                 timeout=90, cerveau="ollama"):
         self.hote = hote.rstrip("/")
         self.modele = modele
         self.timeout = timeout
         self.expert = expert_symbolique.ExpertSymbolique()
         self.derniere_formule = ""
         self.derniere_erreur = None
+        self._mamba = None
+        self._mamba_actif = (cerveau == "mamba")
 
     # -- pilier langage ----------------------------------------------------
 
     def generer(self, question: str, contexte_web: str, formule: str) -> str:
+        """Redaction finale : Mamba si demande et dispo, sinon Ollama, sinon template."""
+        if self._mamba_actif:
+            try:
+                if self._mamba is None:
+                    from .mamba_orchestrateur import OrchestrateurMamba
+                    self._mamba = OrchestrateurMamba()
+                return self._mamba.generer(question, contexte_web, formule)
+            except Exception as e:  # torch absent, modele inaccessible, OOM...
+                LOG.warning("Mamba indisponible (%s) : repli sur Ollama", e)
+                self._mamba_actif = False
+        return self._generer_ollama(question, contexte_web, formule)
+
+    def _generer_ollama(self, question: str, contexte_web: str, formule: str) -> str:
         """Redaction finale par le modele de langage local (fallback template si absent)."""
         utilisateur = (
             f"QUESTION : {question}\n\nCONTEXTE WEB :\n{contexte_web or '(aucun)'}\n\n"
@@ -42,7 +61,7 @@ class Aura1B:
         try:
             r = requests.post(f"{self.hote}/api/chat", json={
                 "model": self.modele, "stream": False,
-                "messages": [{"role": "system", "content": _PROMPT_SYSTEME},
+                "messages": [{"role": "system", "content": PROMPT_SYSTEME},
                              {"role": "user", "content": utilisateur}],
                 "options": {"temperature": 0.3},
             }, timeout=self.timeout)

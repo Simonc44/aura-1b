@@ -59,3 +59,19 @@ class TestOrchestrateur:
         r = ia.executer_detaille("bonjour")
         assert r["web_actif"] is False
         assert r["formule"] == ""
+
+    def test_repli_mamba_vers_ollama(self, monkeypatch):
+        """Si Mamba est indisponible, Aura doit replier sur Ollama puis sur le template."""
+        import pytest
+
+        from aura import mamba_orchestrateur
+
+        class _MambaCassé:
+            def __init__(self, *a, **k):
+                raise mamba_orchestrateur.MambaIndisponible("test simulé")
+
+        monkeypatch.setattr(mamba_orchestrateur, "OrchestrateurMamba", _MambaCassé)
+        ia = Aura1B(hote="http://127.0.0.1:1", timeout=1, cerveau="mamba")
+        r = ia.executer_detaille("resous x^3", [[2.0], [3.0], [4.0]], [8.0, 27.0, 64.0])
+        assert r["formule"] != "", "le pipeline doit continuer malgré l'échec Mamba"
+        assert "Question" in r["reponse"]

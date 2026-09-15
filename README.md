@@ -31,14 +31,24 @@
 
 | Pillar | Tech | Why |
 |---|---|---|
-| **Orchestrator** | Any local OpenAI-compatible LLM (Ollama by default). *Mamba-1B slot:* a linear State Space Model has fixed-size memory — constant RAM regardless of input length, blazing CPU speed — and drops into the same `generer()` interface. | Understands, routes, writes. |
+| **Orchestrator** | Any local OpenAI-compatible LLM (Ollama by default). *Mamba brain:* the real **`state-spaces/mamba-1.4b-hf`** SSM (fixed-size memory) is integrated with automatic fallback to Ollama — `--cerveau mamba`. | Understands, routes, writes. |
 | **Symbolic Expert (~50M eq.)** | Genetic Programming (gplearn) evolving equation trees with `add/sub/mul/div/pow`. Protected `pow` (clipped exponent, no inf/nan). Min-max normalization makes laws like Y = X³ representable. | Finds the **exact** law: `mul(mul(X0, X0), X0)` for the cube — error 0, verifiable, zero hallucination. |
 | **Web Memory** | DuckDuckGo RAG (`ddgs`), no API key. Triggered only when the question needs external facts. | Internet = external hard drive; model parameters stay free for language & logic. |
+
+## Orchestrator brains
+
+```bash
+uv run python -m aura --demo                      # Ollama (default, fastest on CPU)
+uv run python -m aura --demo --cerveau mamba     # real Mamba-1.4B SSM
+```
+
+**Honest benchmark (CPU-only, RTX-less laptop):** Mamba-1.4B answers correctly but runs at ~2 tok/s in pure PyTorch (the optimized `mamba_ssm`/`causal_conv1d` kernels are CUDA-only). Ollama's 1.5B instruct stays ~10x faster. Mamba also needs the `mamba` extra (`uv sync --extra mamba`, ~2 GB torch). Fallback is automatic: torch missing, model unreachable or OOM → Ollama → grounded template. Mamba becomes the right choice on CUDA hardware or for very long inputs (fixed-size memory).
 
 ## Install
 
 ```bash
-uv sync            # or: pip install numpy scikit-learn gplearn ddgs requests
+uv sync                # core (gplearn, ddgs, requests)
+uv sync --extra mamba  # + torch/transformers for the Mamba brain (~2 GB)
 ```
 
 ## Run

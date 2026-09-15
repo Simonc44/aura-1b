@@ -32,10 +32,12 @@ def main(argv=None) -> int:
     p.add_argument("--y", help="liste JSON de valeurs, ex. '[1,8,27]'")
     p.add_argument("--hote", default="http://localhost:11434")
     p.add_argument("--modele", default="qwen2.5:1.5b-instruct", help="modele local (Ollama)")
+    p.add_argument("--cerveau", choices=["ollama", "mamba"], default="ollama",
+                   help="mamba = SSM lineaire (repli auto sur ollama)")
     p.add_argument("--demo", action="store_true", help="lancer la demo integree")
     args = p.parse_args(argv)
 
-    ia = Aura1B(hote=args.hote, modele=args.modele)
+    ia = Aura1B(hote=args.hote, modele=args.modele, cerveau=args.cerveau)
     if args.demo or (not args.question and not (args.x and args.y)):
         return _demo(ia)
 

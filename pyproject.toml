@@ -11,6 +11,9 @@ dependencies = [
     "requests>=2.31",
 ]
 
+[project.optional-dependencies]
+mamba = ["torch>=2.2", "transformers>=4.46"]
+
 [dependency-groups]
 dev = ["pytest>=8.0"]
 
