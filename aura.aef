@@ -144,7 +144,8 @@ vs_qwen_1_5b = "81% de la taille de Qwen 1.5B, mais + formules exactes + web"
 
 [commandes]
 demo = "uv run python -m aura --demo"
-mamba = "uv run python -m aura --cerveau mamba"
-rwkv = "uv run python -m aura --cerveau rwkv"
-ollama = "uv run python -m aura --cerveau ollama"
+defaut = "uv run python -m aura 'ta question'"  # Ollama 25 tok/s + PGS + web
+mamba = "uv run python -m aura --cerveau mamba 'question'"  # experimental
+rwkv = "uv run python -m aura --cerveau rwkv 'question'"  # experimental
+auto = "uv run python -m aura --cerveau auto 'question'"  # router decide
 corrections = "uv run python -c 'from aura.autoamelioration import stats; print(stats())'"

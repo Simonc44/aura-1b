@@ -66,13 +66,15 @@ class Aura1B:
 
     def _choisir_cerveau(self, experts: set) -> str:
         """Choisit le cerveau optimal selon les experts requis."""
+        # si l'utilisateur a force un cerveau, on le respecte
+        if self._cerveau_defaut not in ("auto",):
+            return self._cerveau_defaut
+        # mode auto : router decide, mais Ollama reste le defaut
         if "math" in experts or "code" in experts:
             return "mamba"
-        if "general" in experts:
+        if "general" in experts or "web" in experts:
             return "rwkv"
-        if "web" in experts:
-            return "rwkv"
-        return self._cerveau_defaut
+        return "ollama"
 
     def _generer_cerveau(self, cerveau: str, question: str,
                          contexte_web: str, formule: str) -> str:
