@@ -42,7 +42,17 @@ uv run python -m aura --demo                      # Ollama (default, fastest on 
 uv run python -m aura --demo --cerveau mamba     # real Mamba-1.4B SSM
 ```
 
-**Honest benchmark (CPU-only, RTX-less laptop):** Mamba-1.4B answers correctly but runs at ~2 tok/s in pure PyTorch (the optimized `mamba_ssm`/`causal_conv1d` kernels are CUDA-only). Ollama's 1.5B instruct stays ~10x faster. Mamba also needs the `mamba` extra (`uv sync --extra mamba`, ~2 GB torch). Fallback is automatic: torch missing, model unreachable or OOM → Ollama → grounded template. Mamba becomes the right choice on CUDA hardware or for very long inputs (fixed-size memory).
+**Honest benchmark (CPU-only, laptop 8 Go RAM):**
+
+| Cerveau | Vitesse | Qualité | Besoin |
+|---|---|---|---|
+| Ollama 1.5B instruct | ~25 tok/s | bon en français | rien |
+| Mamba-130M (réel, CPU) | **~12 tok/s** | correct, léger | `uv sync --extra mamba` |
+| Mamba-1.4B | ❌ pagefile | bon | 16 Go RAM |
+
+Les kernels CUDA (`mamba_ssm`, `causal_conv1d`) accéléreraient Mamba x3-x5 — mais nécessitent une GPU NVIDIA. Sur CPU, Mamba shine pour sa mémoire fixe (inputs de 1000 tokens = même RAM que 10 tokens).
+
+Fallback : torch absent, OOM ou modèle inaccessible → Ollama → template honnête (aucune hallucination).
 
 ## Install
 

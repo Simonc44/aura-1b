@@ -34,10 +34,13 @@ def main(argv=None) -> int:
     p.add_argument("--modele", default="qwen2.5:1.5b-instruct", help="modele local (Ollama)")
     p.add_argument("--cerveau", choices=["ollama", "mamba"], default="ollama",
                    help="mamba = SSM lineaire (repli auto sur ollama)")
+    p.add_argument("--grande", action="store_true",
+                   help="mamba 1.4B au lieu de 370M (necessite 16 Go RAM)")
     p.add_argument("--demo", action="store_true", help="lancer la demo integree")
     args = p.parse_args(argv)
 
-    ia = Aura1B(hote=args.hote, modele=args.modele, cerveau=args.cerveau)
+    ia = Aura1B(hote=args.hote, modele=args.modele, cerveau=args.cerveau,
+                mamba_grande=args.grande)
     if args.demo or (not args.question and not (args.x and args.y)):
         return _demo(ia)
 

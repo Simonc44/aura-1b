@@ -27,7 +27,7 @@ class Aura1B:
     """Chef d'orchestre des trois piliers."""
 
     def __init__(self, hote="http://localhost:11434", modele="qwen2.5:1.5b-instruct",
-                 timeout=90, cerveau="ollama"):
+                 timeout=90, cerveau="ollama", mamba_grande=False):
         self.hote = hote.rstrip("/")
         self.modele = modele
         self.timeout = timeout
@@ -36,6 +36,7 @@ class Aura1B:
         self.derniere_erreur = None
         self._mamba = None
         self._mamba_actif = (cerveau == "mamba")
+        self._mamba_grande = mamba_grande
 
     # -- pilier langage ----------------------------------------------------
 
@@ -45,7 +46,7 @@ class Aura1B:
             try:
                 if self._mamba is None:
                     from .mamba_orchestrateur import OrchestrateurMamba
-                    self._mamba = OrchestrateurMamba()
+                    self._mamba = OrchestrateurMamba(grande=self._mamba_grande)
                 return self._mamba.generer(question, contexte_web, formule)
             except Exception as e:  # torch absent, modele inaccessible, OOM...
                 LOG.warning("Mamba indisponible (%s) : repli sur Ollama", e)
