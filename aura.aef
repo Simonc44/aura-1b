@@ -1,0 +1,150 @@
+# ═══════════════════════════════════════════════════════════════════════
+#  AURA ENGINE FORMAT (.aef) — Specification du systeme Aura-1B
+#  Fichier de configuration et d'architecture du pipeline neuro-symbolique
+# ═══════════════════════════════════════════════════════════════════════
+
+[meta]
+version = "0.2.0"
+nom = "Aura-1B"
+description = "IA hybride neuro-symbolique : routing intelligent + experts specialises + auto-amelioration"
+auteur = "Simon"
+licence = "MIT"
+
+# ───────────────────────────────────────────────────────────────────────
+#  ARCHITECTURE MoE (Mixture of Experts)
+# ───────────────────────────────────────────────────────────────────────
+
+[architecture]
+type = "MoE"  # Mixture of Experts avec routing intelligent
+paradigme = "neuro-symbolique"
+langues = ["fr", "en"]
+
+# ───────────────────────────────────────────────────────────────────────
+#  ROUTEUR INTELLIGENT
+# ───────────────────────────────────────────────────────────────────────
+
+[routeur]
+moteur = "tf-idf + logistic-regression"
+fallback = "mots-cles"
+nb_exemples_entrainement = 150
+features = "char n-grams (2-4)"
+cache = ".cache_routeur/"
+
+[routeur.categories]
+math = "equations, formules, calculs, lois physiques, patterns numeriques"
+web = "actualites, faits, prix, meteo, records, decouvertes recents"
+general = "conversation, explications, conseils, opinions"
+code = "programmation, scripts, bugs, architectures logicielles"
+
+# ───────────────────────────────────────────────────────────────────────
+#  CERVEAUX (EXPERTS LANGAGE)
+# ───────────────────────────────────────────────────────────────────────
+
+[cerveaux.mamba]
+id = "state-spaces/mamba-790m-hf"
+type = "State Space Model (SSM)"
+parametres = "790M"
+specialite = "logique, raisonnement, code"
+vitesse_cpu = "~1.5 tok/s"
+ram = "~3 Go"
+tok_s = "transformers"
+inference_mode = true
+max_tokens = 96
+prompt_court = true  # les longs prompts ralentissent Mamba
+
+[cerveaux.rwkv]
+id = "BlinkDL/rwkv-4-pile-430m"
+type = "Recurrent Neural Network (RWKV)"
+parametres = "430M"
+specialite = "langage general, conversation, culture"
+vitesse_cpu = "~1.8 tok/s"
+ram = "~1.7 Go"
+tok_package = "rwkv"
+tok_tokenizer = "EleutherAI/gpt-neox-20b"
+prompt_format = "### Human: {q}\n### Assistant:"
+
+[cerveaux.ollama]
+id = "qwen2.5:1.5b-instruct"
+type = "Transformer (Ollama)"
+parametres = "1.5B"
+specialite = "toutes categories, qualite de langue"
+vitesse_cpu = "~25 tok/s"
+ram = "~1 Go (Q4)"
+repli_de = ["mamba", "rwkv"]
+
+# ───────────────────────────────────────────────────────────────────────
+#  EXPERT SYMBOLIQUE (PGS)
+# ───────────────────────────────────────────────────────────────────────
+
+[expert_symbolique]
+moteur = "gplearn GeneticProgramming"
+type = "Programmation Genetique Symbolique"
+parametres = "variables (pas de poids neuronaux)"
+operateurs = ["add", "sub", "mul", "div", "pow"]
+normalisation = "min-max bidirectionnelle"
+precision = "erreur ~0 sur donnees propres"
+garantie = "zero hallucination (formule verifiable)"
+
+# ───────────────────────────────────────────────────────────────────────
+#  MEMOIRE WEB (RAG)
+# ───────────────────────────────────────────────────────────────────────
+
+[memoire_web]
+moteur = "DuckDuckGo"
+package = "ddgs"
+cle_api = "aucune"
+max_resultats = 3
+timeout = 10
+offline_fallback = true
+
+# ───────────────────────────────────────────────────────────────────────
+#  AUTO-AMELIORATION
+# ───────────────────────────────────────────────────────────────────────
+
+[autoamelioration]
+meme_fichier = ".cache_corrections.jsonl"
+methode = "RAG sur corrections (pas de fine-tuning)"
+injection_prompt = true  # injecte les corrections dans le contexte LLM
+seuil_similarite = 0.2
+max_corrections_injectees = 3
+
+# ───────────────────────────────────────────────────────────────────────
+#  PIPELINE D'EXECUTION
+# ───────────────────────────────────────────────────────────────────────
+
+[pipeline]
+etapes = [
+    "1. ROUTEUR : classifie la question (TF-IDF + cosinus)",
+    "2. EXPERTS : active les modules cibles (math → PGS, web → DDG, general → cerveau)",
+    "3. AUTO-AMELIORATION : injecte les corrections anterieures similaires",
+    "4. CERVEAU : redige la reponse via le bon expert langage",
+    "5. SYNTHESE : fusionne web + formule + corrections + reponse",
+]
+
+[pipeline.routing]
+# Si le routeur dit "math" ET "web" → les deux experts tournent
+# Si le routeur dit "general" → juste le cerveau RWKV/Ollama
+# Si le routeur dit "code" → Mamba (specialiste logique)
+multiples_experts = true
+
+# ───────────────────────────────────────────────────────────────────────
+#  PARAMETRES TOTAUX
+# ───────────────────────────────────────────────────────────────────────
+
+[parametres]
+mamba_790m = "790 000 000"
+rwkv_430m = "430 000 000"
+routeur_logreg = "~3 000"
+total_local = "~1 220 000 000"
+vs_qwen_1_5b = "81% de la taille de Qwen 1.5B, mais + formules exactes + web"
+
+# ───────────────────────────────────────────────────────────────────────
+#  COMMANDES
+# ───────────────────────────────────────────────────────────────────────
+
+[commandes]
+demo = "uv run python -m aura --demo"
+mamba = "uv run python -m aura --cerveau mamba"
+rwkv = "uv run python -m aura --cerveau rwkv"
+ollama = "uv run python -m aura --cerveau ollama"
+corrections = "uv run python -c 'from aura.autoamelioration import stats; print(stats())'"

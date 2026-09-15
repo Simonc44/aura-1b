@@ -32,8 +32,9 @@ def main(argv=None) -> int:
     p.add_argument("--y", help="liste JSON de valeurs, ex. '[1,8,27]'")
     p.add_argument("--hote", default="http://localhost:11434")
     p.add_argument("--modele", default="qwen2.5:1.5b-instruct", help="modele local (Ollama)")
-    p.add_argument("--cerveau", choices=["ollama", "mamba"], default="ollama",
-                   help="mamba = SSM lineaire (repli auto sur ollama)")
+    p.add_argument("--cerveau", choices=["ollama", "mamba", "rwkv", "auto"],
+                   default="auto",
+                   help="auto = router decide (defaut), mamba/rwkv/ollama = force")
     p.add_argument("--grande", action="store_true",
                    help="mamba 1.4B au lieu de 370M (necessite 16 Go RAM)")
     p.add_argument("--demo", action="store_true", help="lancer la demo integree")

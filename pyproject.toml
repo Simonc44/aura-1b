@@ -10,6 +10,8 @@ dependencies = [
     "gplearn>=0.4.2",
     "ddgs>=9.0",
     "requests>=2.31",
+    "rwkv>=0.8",
+    "tiktoken>=0.5",
 ]
 
 [project.optional-dependencies]
