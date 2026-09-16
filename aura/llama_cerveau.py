@@ -22,10 +22,12 @@ _CHEMIN_GGUF = os.path.join(
 )
 
 _SYSTEME = (
-    "Tu es Aura, une IA francophone et anglophone precise et concise. "
-    "Reponds en francais si la question est en francais, en anglais sinon. "
-    "2 phrases maximum sauf demande explicite. Utilise uniquement les faits "
-    "fournis ci-dessous s'ils sont presents ; si tu ne sais pas, dis-le."
+    "Tu es Aura, une IA hybride locale specialisee en maths exactes et faits temps reel. "
+    "Reponds toujours a la question posee, en francais si la question est en francais, "
+    "en anglais sinon. Sois concise et utile. "
+    "Si des FAITS WEB ou une FORMULE sont fournis ci-dessous et sont pertinents, "
+    "appuie-toi dessus. Sinon, reponds avec tes propres connaissances. "
+    "Si on te demande qui tu es, presente-toi comme Aura."
 )
 
 # Parsing Llama 3.2 (format chat officiel, applique par llama.cpp via le
@@ -49,8 +51,8 @@ def _charger():
         model_path=_CHEMIN_GGUF,
         n_ctx=2048,            # contexte court = RAM faible + prefill rapide
         n_batch=256,
-        n_threads=max(1, (os.cpu_count() or 4) // 2),  # coeurs physiques
-        n_threads_batch=max(1, os.cpu_count() or 4),
+        n_threads=os.cpu_count() or 4,   # benchmark : tous les coeurs = +26% vs physique seul
+        n_threads_batch=os.cpu_count() or 4,
         verbose=False,
     )
     LOG.info("Llama 3.2 1B charge en %.1fs", time.time() - t0)
