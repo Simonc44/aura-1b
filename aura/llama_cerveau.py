@@ -102,8 +102,10 @@ def _charger():
     t0 = time.time()
     _llm = Llama(
         model_path=_CHEMIN_GGUF,
-        n_ctx=1024,            # CPU-native : prefill x2 plus rapide qu'a 2048
-        n_batch=512,           # gros batch = meilleur parallelisme CPU
+        n_ctx=1536,            # 1536 : plan multi-pass + contexte web + 380 tokens
+                               # de redaction ne tronquent jamais (1024 etait limite)
+        n_batch=768,           # compense le ctx 1536 : 13.4 tok/s mesures
+                               # (= vitesse du ctx 1024, headroom gratuit)
         n_threads=os.cpu_count() or 4,   # tous les coeurs : +26%
         n_threads_batch=os.cpu_count() or 4,
         flash_attn=True,       # attention fusionnee (impl. CPU llama.cpp)
