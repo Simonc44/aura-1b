@@ -5,7 +5,7 @@
 # ═══════════════════════════════════════════════════════════════════════
 
 [meta]
-version = "0.5.0"
+version = "0.6.0"
 nom = "Aura-1B"
 type = "MoE neuro-symbolique autonome, CPU-native"
 description = "IA hybride : filtre instantane (niveau 0) + Llama 3.2 1B (GGUF) + PGS + DuckDuckGo + auto-amelioration"
@@ -34,6 +34,7 @@ calcul_direct = "regex + eval AST securise (jamais eval()), < 1 ms"
 calculs_supported = ["carre", "racine", "puissance (exp<=64)", "pourcentage", "arithmetique + - * / %"]
 garde_fou = "puissance max 1e15, AST : aucun appel possible"
 cache_semantique = "TF-IDF char 2-4 grams + cosinus >= 0.85 -> reponse memorisee"
+regle_contextuelle = "questions avec mon/ma/je/tu/prenom... : JAMAIS cachees (reponse depend de la conversation)"
 cache_fichier = ".cache_reponses.jsonl"
 cache_taux_hit_vise = "60-70% des questions quotidiennes"
 mesures_reelles = "calculs : 0.1-5 ms | question repetee : 1.3 ms (vs 9.8s) = x7500"
@@ -47,7 +48,13 @@ fichier = "aura/filtre_instantane.py"
 id_huggingface = "bartowski/Llama-3.2-1B-Instruct-GGUF"
 fichier_gguf = "modeles/Llama-3.2-1B-Instruct-Q4_K_M.gguf"
 architecture = "Transformer decodeur, instruction-tuned (Meta)"
-quantification = "Q4_K_M (4 bits, ~807 Mo)"
+quantification = "Q4_K_M defaut (mesure 3/3 raisonnement) ou Q6_K via AURA_GGUF"
+flash_attn = true             # attention fusionnee CPU
+kv_cache = "q8_0 (type_k=8, type_v=8) : RAM cache /2"
+sampling = "temp 0.4, top_p 0.9, min_p 0.05, repeat 1.1"
+max_tokens = "adaptatif : 120 (faits) a 320 (explications)"
+raisonnement = "step-by-step injecte sur les questions de logique (plus que/moins que/si-alors/ages)"
+memoire_conversation = "6 derniers tours injectes ; reset via reinitialiser_conversation()"
 parametres = "1 240 000 000"
 specialite = ["langage", "raisonnement", "conversation", "synthese"]
 moteur = "llama.cpp (llama-cpp-python)"

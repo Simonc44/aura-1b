@@ -69,6 +69,36 @@ class TestCacheSemantique:
         f0.enregistrer("q", "[Aura] Erreur de generation : x")
         assert f0.stats()["entrees_cache"] == 0
 
+    @pytest.mark.parametrize("question", [
+        "Quel est mon prenom ?", "Comment je m appelle ?", "Quel est mon age ?",
+    ])
+    def test_questions_contextuelles_jamais_cachees(self, monkeypatch, tmp_path,
+                                                    question):
+        monkeypatch.setattr(f0, "_FICHIER", tmp_path / "cache.jsonl")
+        monkeypatch.setattr(f0, "_vectoriseur", None)
+        monkeypatch.setattr(f0, "_matrice", None)
+        monkeypatch.setattr(f0, "_entrees", [])
+
+        # l'enregistrement est refuse
+        f0.enregistrer(question, "Tu es Simon.")
+        assert f0.stats()["entrees_cache"] == 0
+        # la lecture ne touche jamais le cache pour ces questions
+        f0.enregistrer("autre question", "reponse neutre")
+        assert f0.repondre(question) is None
+
+    def test_purger_contextuelles(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(f0, "_vectoriseur", None)
+        monkeypatch.setattr(f0, "_matrice", None)
+        monkeypatch.setattr(f0, "_entrees", [])
+        monkeypatch.setattr(f0, "_FICHIER", tmp_path / "cache.jsonl")
+
+        (tmp_path / "cache.jsonl").write_text(
+            '{"q": "quel est mon prenom", "r": "Tu es Simon."}\n'
+            '{"q": "capitale de la france", "r": "Paris."}\n',
+            encoding="utf-8")
+        assert f0.purger_contextuelles() == 1
+        assert f0.stats()["entrees_cache"] == 1
+
 
 class TestPipelineNiveaux:
     def test_niveau0_passe_avant_llm(self):

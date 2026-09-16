@@ -29,6 +29,12 @@ LOG = logging.getLogger("aura.filtre0")
 _FICHIER = Path(__file__).parent / ".cache_reponses.jsonl"
 _SEUIL_SIMILARITE = 0.85
 
+# reponses contextuelles (liées a l'utilisateur ou a la conversation) :
+# a ne JAMAIS mettre en cache, la reponse serait fausse hors contexte.
+_MOTS_CONTEXTUELS = ("mon ", "ma ", "mes ", "je ", "j'", "moi", "tu ", "ton ",
+                     "ta ", "tes ", "nous ", "votre ", "vos ", "prenom",
+                     "mon nom", "mon age")
+
 # -- eval arithmetique securise (AST, jamais eval()) ------------------------
 
 _OPS = {
@@ -143,7 +149,10 @@ def repondre(question: str) -> str | None:
         LOG.info("[niveau0] calcul direct en %.1f ms", (time.time() - t0) * 1000)
         return r
 
-    # 2. cache semantique (~1 ms)
+    # 2. cache semantique (~1 ms) — JAMAIS pour une question contextuelle :
+    # sa reponse depend de la conversation en cours, pas du texte seul.
+    if any(m in question.lower() for m in _MOTS_CONTEXTUELS):
+        return None
     _charger_cache()
     if _entrees:
         i = _similar(question)
@@ -155,9 +164,16 @@ def repondre(question: str) -> str | None:
 
 
 def enregistrer(question: str, reponse: str):
-    """Memorise une reponse (apres generation LLM) pour les futures questions."""
+    """Memorise une reponse (apres generation LLM) pour les futures questions.
+
+    Les questions contextuelles (mon prenom, mon age...) sont exclues : leur
+    reponse depend de la conversation, pas du texte de la question.
+    """
     if not question or not reponse or reponse.startswith("[Aura]"):
         return
+    q = question.lower().strip()
+    if any(m in q for m in _MOTS_CONTEXTUELS):
+        return  # reponse contextuelle : jamais en cache
     _charger_cache()
     if _entrees and _similar(question) is not None:
         return  # deja connu
@@ -179,6 +195,27 @@ def enregistrer(question: str, reponse: str):
             _matrice = vstack([_matrice, nouvelle])
     except OSError as e:
         LOG.warning("[niveau0] cache non ecrit : %s", e)
+
+
+def purger_contextuelles():
+    """Retire du cache les entrees contextuelles (mises en cache avant le filtre)."""
+    global _vectoriseur, _matrice, _entrees
+    _charger_cache()
+    avant = len(_entrees)
+    garder = [e for e in _entrees
+              if not any(m in e["q"] for m in _MOTS_CONTEXTUELS)]
+    if len(garder) != avant:
+        _entrees = garder
+        _vectoriseur, _matrice = None, None   # recalcule au prochain acces
+        try:
+            with _FICHIER.open("w", encoding="utf-8") as f:
+                for e in _entrees:
+                    f.write(json.dumps(e, ensure_ascii=False) + "\n")
+        except OSError as e:
+            LOG.warning("[niveau0] purge non ecrite : %s", e)
+        LOG.info("[niveau0] purge : %d entrees contextuelles retirees",
+                 avant - len(garder))
+    return avant - len(_entrees)
 
 
 def stats() -> dict:

@@ -1,7 +1,8 @@
 """Orchestrateur autonome : AUCUNE dependance externe (pas Ollama, pas API).
 
 Cerveau unique :
-- Llama 3.2 1B Instruct (Q4_K_M, llama.cpp) : instruction-tuned, bon FR + EN
+- Llama 3.2 1B Instruct (llama.cpp) : instruction-tuned, bon FR + EN,
+  flash attention + KV cache q8_0 + memoire de conversation multi-tours
 
 Plus :
 - PGS (gplearn) : formules mathematiques exactes, erreur 0
@@ -27,6 +28,13 @@ class Aura1B:
         self.derniere_erreur = None
         self._routeur = RouteurIntelligent()
         self._llama = None
+        self._historique: list[dict] = []   # memoire de conversation
+
+    # -- memoire de conversation -------------------------------------------
+
+    def reinitialiser_conversation(self):
+        """Oublie la conversation en cours (nouveau sujet)."""
+        self._historique.clear()
 
     # -- routage intelligent ------------------------------------------------
 
@@ -43,7 +51,8 @@ class Aura1B:
         if self._llama is None:
             from .llama_cerveau import generer as llama_generer
             self._llama = llama_generer
-        return self._llama(question, contexte_web, formule)
+        return self._llama(question, contexte_web, formule,
+                           historique=self._historique)
 
     # -- prompt structure ---------------------------------------------------
 
@@ -90,8 +99,10 @@ class Aura1B:
         contexte_web = memoire_web.chercher(question) if "web" in experts else ""
         formule = self.resoudre_numerique(X, y) if "math" in experts and X and y else ""
         reponse = self._generer(question, contexte_web, formule)
-        # memorise pour les futures questions (cache semantique)
+        # memorise pour les futures questions (cache semantique + conversation)
         filtre_instantane.enregistrer(question, reponse)
+        self._historique.append({"role": "user", "content": question})
+        self._historique.append({"role": "assistant", "content": reponse})
         return {"question": question, "experts": experts, "analyse": analyse,
                 "cerveau_choisi": "llama-3.2-1b", "contexte_web": contexte_web,
                 "formule": formule, "erreur_pgs": self.derniere_erreur,

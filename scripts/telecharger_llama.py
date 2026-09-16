@@ -6,14 +6,14 @@ import sys
 from pathlib import Path
 
 REPO = "bartowski/Llama-3.2-1B-Instruct-GGUF"
-FICHIER = "Llama-3.2-1B-Instruct-Q4_K_M.gguf"
+FICHIER = "Llama-3.2-1B-Instruct-Q6_K.gguf"   # Q6_K : quasi sans perte, + intelligent
 DEST = Path(__file__).resolve().parent.parent / "modeles"
 
 
 def main() -> int:
     from huggingface_hub import hf_hub_download
     DEST.mkdir(exist_ok=True)
-    print(f"Telechargement de {REPO}/{FICHIER} (~807 Mo)...")
+    print(f"Telechargement de {REPO}/{FICHIER} (~1.05 Go)...")
     chemin = hf_hub_download(REPO, FICHIER, local_dir=str(DEST))
     print(f"OK : {chemin}")
     return 0
