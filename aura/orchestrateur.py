@@ -1,16 +1,14 @@
-"""Orchestrateur autonome : AUCUNE dépendance externe (pas Ollama, pas API).
+"""Orchestrateur autonome : AUCUNE dependance externe (pas Ollama, pas API).
 
-Deux cerveaux locaux :
-- Mamba 790M : logique, raisonnement, code (1.5 tok/s CPU)
-- RWKV 430M : langage general, conversation (1.8 tok/s CPU)
+Cerveau unique :
+- Llama 3.2 1B Instruct (Q4_K_M, llama.cpp) : instruction-tuned, bon FR + EN
 
 Plus :
 - PGS (gplearn) : formules mathematiques exactes, erreur 0
 - DuckDuckGo : faits en temps reel
 - Auto-amelioration : corrections injectees dans le prompt
 
-Le systeme est plus capable que Qwen 1.5B SEUL car il combine :
-- langage (Mamba/RWKV) + maths exactes (PGS) + web (DDG) + apprentissage
+Le routeur (TF-IDF + LogReg) choisit les experts a activer ; Llama synthetise.
 """
 import logging
 
@@ -19,29 +17,16 @@ from .routeur import RouteurIntelligent
 
 LOG = logging.getLogger("aura.orchestrateur")
 
-_PROMPT_MAMBA = (
-    "Tu es Aura. Reponds en francais, 2 phrases max. "
-    "Cite les faits web et explique la formule si presente."
-)
-
-_PROMPT_RWKV = (
-    "### Human: {question}\n"
-    "### Contexte web: {web}\n"
-    "### Formule: {formule}\n"
-    "### Assistant:"
-)
-
 
 class Aura1B:
-    """Systeme MoE autonome : AUCUNE dépendance externe."""
+    """Systeme MoE autonome : cerveau Llama + experts PGS / web."""
 
     def __init__(self):
         self.expert = expert_symbolique.ExpertSymbolique()
         self.derniere_formule = ""
         self.derniere_erreur = None
         self._routeur = RouteurIntelligent()
-        self._mamba = None
-        self._rwkv = None
+        self._llama = None
 
     # -- routage intelligent ------------------------------------------------
 
@@ -52,32 +37,13 @@ class Aura1B:
             LOG.warning("[routeur] fallback (%s)", e)
             return self._routeur.routeur_classique(question)
 
-    # -- selection du cerveau -----------------------------------------------
+    # -- cerveau ------------------------------------------------------------
 
-    def _choisir_cerveau(self, experts: set) -> str:
-        if "math" in experts or "code" in experts:
-            return "mamba"
-        return "rwkv"
-
-    # -- generation ---------------------------------------------------------
-
-    def _generer(self, cerveau: str, question: str,
-                 contexte_web: str, formule: str) -> str:
-        if cerveau == "mamba":
-            return self._generer_mamba(question, contexte_web, formule)
-        return self._generer_rwkv(question, contexte_web, formule)
-
-    def _generer_mamba(self, question, contexte_web, formule) -> str:
-        if self._mamba is None:
-            from .mamba_orchestrateur import OrchestrateurMamba
-            self._mamba = OrchestrateurMamba()
-        return self._mamba.generer(question, contexte_web, formule)
-
-    def _generer_rwkv(self, question, contexte_web, formule) -> str:
-        if self._rwkv is None:
-            from .rwkv_orchestrateur import OrchestrateurRWKV
-            self._rwkv = OrchestrateurRWKV()
-        return self._rwkv.generer(question, contexte_web, formule)
+    def _generer(self, question: str, contexte_web: str, formule: str) -> str:
+        if self._llama is None:
+            from .llama_cerveau import generer as llama_generer
+            self._llama = llama_generer
+        return self._llama(question, contexte_web, formule)
 
     # -- prompt structure ---------------------------------------------------
 
@@ -108,17 +74,15 @@ class Aura1B:
         experts = analyse["experts"]
         contexte_web = memoire_web.chercher(question) if "web" in experts else ""
         formule = self.resoudre_numerique(X, y) if "math" in experts and X and y else ""
-        cerveau = self._choisir_cerveau(experts)
-        return self._generer(cerveau, question, contexte_web, formule)
+        return self._generer(question, contexte_web, formule)
 
     def executer_detaille(self, question: str, X=None, y=None) -> dict:
         analyse = self.analyser(question)
         experts = analyse["experts"]
         contexte_web = memoire_web.chercher(question) if "web" in experts else ""
         formule = self.resoudre_numerique(X, y) if "math" in experts and X and y else ""
-        cerveau = self._choisir_cerveau(experts)
-        reponse = self._generer(cerveau, question, contexte_web, formule)
+        reponse = self._generer(question, contexte_web, formule)
         return {"question": question, "experts": experts, "analyse": analyse,
-                "cerveau_choisi": cerveau, "contexte_web": contexte_web,
+                "cerveau_choisi": "llama-3.2-1b", "contexte_web": contexte_web,
                 "formule": formule, "erreur_pgs": self.derniere_erreur,
                 "reponse": reponse}

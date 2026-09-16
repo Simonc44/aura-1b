@@ -1,6 +1,6 @@
 # 🧬 Aura-1B — Hybrid Neuro-Symbolic AI
 
-**Aura-1B** is an asymmetric AI architecture that splits language, exact math and factual memory into three specialized modules — instead of asking a single Transformer to do everything (and hallucinate when it can't).
+**Aura-1B** is an autonomous, 100% local AI architecture that splits language, exact math and factual memory into specialized modules — instead of asking a single model to do everything (and hallucinate when it can't).
 
 ## Architecture
 
@@ -16,13 +16,13 @@
         ▼                         ▼
 ┌───────────────────┐   ┌──────────────────────────┐
 │  WEB (DuckDuckGo) │   │  PGS (gplearn)           │
-│  0 hallucination  │   │  formule exacte, erreur 0 │
+│  temps réel       │   │  formule exacte, erreur 0 │
 └──────────┬────────┘   └──────────┬─────────────────┘
            └─────────────┬────────┘
                          ▼
         ┌──────────────────────────────────┐
-        │  SYNTHESE STRUCTUREE             │  Prompt 3 sections claires
-        │  (Mamba-130M ou Ollama 1.5B)     │  web + formule + question
+        │  CERVEAU : LLAMA 3.2 1B          │  instruction-tuned FR+EN
+        │  Q4_K_M via llama.cpp            │  9-14 tok/s CPU
         └──────────────────────────────────┘
 ```
 
@@ -30,48 +30,31 @@
 
 | Pillar | Tech | Why |
 |---|---|---|
-| **Router** | TF-IDF + Logistic Regression (150 examples, `scikit-learn`) + cosine similarity with prototype sentences. Falls back to keywords if sklearn is missing. | Classifies any question (even typos) — no hard-coded if/else. |
-| **Orchestrator** | Ollama 1.5B instruct (default) or Mamba-130M (`--cerveau mamba`). | Understands, routes, writes the final answer. |
+| **Router** | TF-IDF + Logistic Regression (150 examples, `scikit-learn`) + cosine similarity with prototypes. Falls back to keywords. | Classifies any question (even typos) — no hard-coded if/else. |
+| **Brain** | **Llama 3.2 1B Instruct (Q4_K_M, ~807 Mo)** via `llama-cpp-python`. | Instruction-tuned: good French AND English out of the box. 9-14 tok/s on CPU, 3.4 s load. |
 | **Symbolic Expert** | Genetic Programming (gplearn). Protected `pow`, min-max normalization. | Finds the **exact** law: `mul(mul(X0, X0), X0)` for the cube — error 0, verifiable, zero hallucination. |
 | **Web Memory** | DuckDuckGo RAG (`ddgs`), no API key. | Internet = external hard drive; model parameters stay free for language & logic. |
 
-## Orchestrator brains
-
-```bash
-uv run python -m aura --demo                      # Ollama (default, fastest on CPU)
-uv run python -m aura --demo --cerveau mamba     # real Mamba-1.4B SSM
-```
-
-**Honest benchmark (CPU-only, laptop 8 Go RAM):**
-
-| Cerveau | Vitesse | Qualité | Besoin |
-|---|---|---|---|
-| Ollama 1.5B instruct | ~25 tok/s | bon en français | rien |
-| Mamba-790M (réel, CPU) | **~1,5 tok/s** | bon, français correct | `uv sync --extra mamba`, ~3 Go RAM |
-| Mamba-1.4B | ❌ pagefile | bon | 16 Go RAM |
-
-Les kernels CUDA (`mamba_ssm`, `causal_conv1d`) accéléreraient Mamba x3-x5 — mais nécessitent une GPU NVIDIA. Sur CPU, Mamba shine pour sa mémoire fixe (inputs de 1000 tokens = même RAM que 10 tokens).
-
-Fallback : torch absent, OOM ou modèle inaccessible → Ollama → template honnête (aucune hallucination).
+Plus **auto-improvement**: corrections (`enregistrer_correction`) are stored and injected into the prompt so the same mistake is never made twice.
 
 ## Install
 
 ```bash
-uv sync                # core (gplearn, ddgs, requests)
-uv sync --extra mamba  # + torch/transformers for the Mamba brain (~2 GB)
+uv sync                                        # core deps (llama.cpp included)
+python scripts/telecharger_llama.py            # downloads the 807 Mo GGUF
 ```
 
 ## Run
 
 ```bash
-# Built-in demo: discover Y = X³ + fetch physics news (works even without Ollama)
+# Built-in demo: discover Y = X³ + fetch physics news
 uv run python -m aura --demo
 
-# Free-form question with numeric data (JSON)
-uv run python -m aura "model this" --x "[[1],[2],[3],[4]]" --y "[1,8,27,64]"
+# Free-form question
+uv run python -m aura "Quelle est la capitale de la France ?"
 
-# Choose your local brain
-uv run python -m aura --demo --modele qwen2.5:1.5b-instruct
+# Question + numeric data (JSON) → exact formula
+uv run python -m aura "model this" --x "[[1],[2],[3],[4]]" --y "[1,8,27,64]"
 ```
 
 ## Python API
@@ -79,7 +62,7 @@ uv run python -m aura --demo --modele qwen2.5:1.5b-instruct
 ```python
 from aura import Aura1B
 
-ia = Aura1B()  # Ollama defaults
+ia = Aura1B()
 report = ia.executer_detaille(
     "Quelles sont les dernieres decouvertes en physique ?",
     X=[[0.0], [0.25], [0.5], [0.75], [1.0]],
@@ -87,23 +70,24 @@ report = ia.executer_detaille(
 )
 print(report["formule"])       # mul(mul(X0, X0), X0)
 print(report["erreur_pgs"])    # 0.0
-print(report["reponse"])       # grounded synthesis
+print(report["reponse"])       # grounded synthesis (Llama 3.2)
 ```
 
-Without a running LLM the pipeline degrades honestly (web facts + exact formula, clearly labeled) — it never fabricates a "generated" answer.
+Without the GGUF file the pipeline degrades honestly (web facts + exact formula, clearly labeled) — it never fabricates a "generated" answer.
+
+## Benchmark (CPU-only, 8 Go RAM laptop)
+
+| Brain | Speed | French | Load |
+|---|---|---|---|
+| **Llama 3.2 1B Q4_K_M** (current) | **9-14 tok/s** | ✅ instruction-tuned | 3.4 s |
+| Mamba-790M (removed) | 1.5 tok/s | ❌ base model | 30-408 s |
+| RWKV-4 430M (removed) | 1.8 tok/s | ❌ base model | ~60 s |
 
 ## Tests
 
 ```bash
-uv run pytest -q        # 8 tests: law discovery, protected pow, routing, fallback
+uv run pytest -q        # 15 tests: law discovery, protected pow, routing, Llama, fallback
 ```
-
-## Roadmap
-
-- [ ] Swap the orchestrator slot to a real **Mamba-1B** SSM (same interface)
-- [ ] Cache layer for web results (respectful rate limiting)
-- [ ] Multi-variable laws (X already supports n columns)
-- [ ] Unit-aware symbolic regression (quantities, not just floats)
 
 ## License
 

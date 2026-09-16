@@ -11,3 +11,7 @@ build/
 *.log
 uv.lock
 aura/.cache_routeur/
+
+# Modeles (trop gros pour git : telecharge via scripts/telecharger_llama.py)
+modeles/
+.cache_corrections.jsonl

@@ -1,19 +1,18 @@
 # ═══════════════════════════════════════════════════════════════════════
 #  AURA ENGINE FORMAT (.aef) — Blueprint complet du systeme Aura-1B
-#  Ce fichier contient TOUTE l'architecture, les poids, les regles
-#  et la configuration necessaires pour reproduire le systeme.
-#  Equivalant d'un GGUF mais pour une architecture MoE neuro-symbolique.
+#  Architecture, regles et configuration pour reproduire le systeme.
+#  (Les poids neuronaux restent dans le GGUF : format texte = blueprint.)
 # ═══════════════════════════════════════════════════════════════════════
 
 [meta]
-version = "0.3.0"
+version = "0.4.0"
 nom = "Aura-1B"
 type = "MoE neuro-symbolique autonome"
-description = "IA hybride : Mamba + RWKV + PGS + DuckDuckGo + auto-amelioration"
+description = "IA hybride : Llama 3.2 1B (GGUF) + PGS + DuckDuckGo + auto-amelioration"
 auteur = "Simon"
 licence = "MIT"
 date = "2026-09-16"
-dependances_externes = []  # AUCUNE : systeme 100% autonome
+dependances_externes = []  # AUCUNE API cloud : systeme 100% local
 
 # ───────────────────────────────────────────────────────────────────────
 #  ARCHITECTURE GLOBALE
@@ -26,53 +25,34 @@ type_symbolique = "Programmation Genetique Symbolique (gplearn)"
 type_web = "DuckDuckGo RAG (sans cle API)"
 type_apprentissage = "RAG sur corrections (injectees dans le prompt)"
 langues = ["fr", "en"]
-parametres_total = "1 220 000 000"  # Mamba 790M + RWKV 430M + LogReg 3K
+parametres_total = "1 238 000 000"  # Llama 3.2 1.24B + LogReg 3K
 
 # ───────────────────────────────────────────────────────────────────────
-#  CERVEAU 1 : MAMBA-790M (logique, raisonnement, code)
+#  CERVEAU UNIQUE : LLAMA 3.2 1B INSTRUCT (Q4_K_M)
 # ───────────────────────────────────────────────────────────────────────
 
-[cerveaux.mamba]
-id_huggingface = "state-spaces/mamba-790m-hf"
-architecture = "State Space Model (SSM) lineaire"
-parametres = "790 000 000"
-specialite = ["logique", "raisonnement", "code", "maths"]
-vitesse_cpu = "1.5 tok/s"
-ram_requise = "3 Go"
-precision = "fp32"
-tok_s = "transformers"
-tokenizer = "GPT-NeoX (50277 tokens)"
-inference_mode = true
-prompt_type = "court"  # les longs prompts ralentissent
-max_tokens = 96
-temperature = 0.3
-penalite_repetition = 1.15
-fichier = "aura/mamba_orchestrateur.py"
+[cerveau.llama]
+id_huggingface = "bartowski/Llama-3.2-1B-Instruct-GGUF"
+fichier_gguf = "modeles/Llama-3.2-1B-Instruct-Q4_K_M.gguf"
+architecture = "Transformer decodeur, instruction-tuned (Meta)"
+quantification = "Q4_K_M (4 bits, ~807 Mo)"
+parametres = "1 240 000 000"
+specialite = ["langage", "raisonnement", "conversation", "synthese"]
+moteur = "llama.cpp (llama-cpp-python)"
+vitesse_cpu = "9-14 tok/s"
+chargement = "3.4 s"
+ram_requise = "~1.2 Go"
+contexte = 2048
+temperature = 0.4          # faible variance : ancre sur les faits
+top_p = 0.9
+penalite_repetition = 1.1
+threads = "coeurs physiques (cpu_count / 2)"
+max_tokens = 220
+fichier = "aura/llama_cerveau.py"
 
-[cerveaux.mamba.prompt]
-systeme = "Tu es Aura. Reponds en francais, 2 phrases max. Cite les faits web et explique la formule si presente."
-format = "{systeme}\n\nQUESTION : {question}\n\nWEB : {web}\n\nFORMULE : {formule}\n\nReponse :"
-
-# ───────────────────────────────────────────────────────────────────────
-#  CERVEAU 2 : RWKV-4 430M (langage general, conversation)
-# ───────────────────────────────────────────────────────────────────────
-
-[cerveaux.rwkv]
-id_huggingface = "BlinkDL/rwkv-4-pile-430m"
-architecture = "Recurrent Neural Network (RWKV)"
-parametres = "430 000 000"
-specialite = ["langage", "conversation", "culture", "explication"]
-vitesse_cpu = "1.8 tok/s"
-ram_requise = "1.7 Go"
-precision = "fp32"
-tok_package = "rwkv"
-tokenizer = "EleutherAI/gpt-neox-20b (50277 tokens)"
-max_tokens = 96
-temperature = 0.3
-fichier = "aura/rwkv_orchestrateur.py"
-
-[cerveaux.rwkv.prompt]
-format = "### Human: {question}\n### Contexte web: {web}\n### Formule: {formule}\n### Assistant:"
+[cerveau.llama.prompt]
+systeme = "Tu es Aura, une IA francophone et anglophone precise et concise. Reponds en francais si la question est en francais, en anglais sinon. 2 phrases maximum sauf demande explicite. Utilise uniquement les faits fournis ci-dessous s'ils sont presents ; si tu ne sais pas, dis-le."
+format_sections = "QUESTION / CORRECTIONS / WEB / FORMULE (injectees au besoin)"
 
 # ───────────────────────────────────────────────────────────────────────
 #  EXPERT SYMBOLIQUE : PGS (maths exactes)
@@ -136,36 +116,16 @@ max_corrections = 3
 fichier = "aura/autoamelioration.py"
 
 # ───────────────────────────────────────────────────────────────────────
-#  ROUTING : quel expert pour quelle question
+#  ROUTING : quels experts pour quelle question
 # ───────────────────────────────────────────────────────────────────────
 
 [routing]
 regles = """
 QUESTION → ROUTEUR (TF-IDF + cosinus)
   │
-  ├── "math" → PGS (erreur 0) + Mamba 790M (explique)
-  ├── "web"  → DuckDuckGo (faits) + RWKV 430M (synthetise)
-  └── "general" → RWKV 430M (repond)
-"""
-
-# ───────────────────────────────────────────────────────────────────────
-#  SYNTHESE FINALE
-# ───────────────────────────────────────────────────────────────────────
-
-[synthese]
-prompt = """
-Tu es Aura, IA neuro-symbolique. Tu recois 4 sections :
-1. CORRECTIONS ANTERIEURES : erreurs passees (ne pas reproduire)
-2. CONTEXTE WEB : faits verifies
-3. FORMULE EXACTE : loi mathematique (erreur ~0)
-4. QUESTION : demande utilisateur
-
-CONSIGNES :
-- Si des corrections existent, ne recommence pas l'erreur
-- Si une formule est presente, explique-la
-- Si des faits web sont fournis, integre-les
-- Ne JAMAIS inventer de faits non fournis
-- Reponds en 3 phrases maximum
+  ├── "math"    → PGS (erreur 0) + Llama (explique)
+  ├── "web"     → DuckDuckGo (faits) + Llama (synthetise)
+  └── "general" → Llama (repond directement)
 """
 
 # ───────────────────────────────────────────────────────────────────────
@@ -173,15 +133,14 @@ CONSIGNES :
 # ───────────────────────────────────────────────────────────────────────
 
 [parametres]
-mamba_790m = "790 000 000"
-rwkv_430m = "430 000 000"
+llama_3_2_1b = "1 240 000 000"
 routeur_logreg = "3 000"
 pgs_gplearn = "0"  # pas de poids neuronaux
-total = "1 220 000 000"
+total = "1 243 000 000"
 
 [parametres.comparaison]
-vs_qwen_1_5b = "81% de la taille, mais + maths exactes + web + apprentissage"
-avantage = "Le systeme MoE depasse Qwen dans 3 domaines specifiques"
+vs_ancien_moe = "Mamba 790M + RWKV 430M (1.22B) remplaces : +7x vitesse, FR/EN instruction-tuned"
+vs_qwen_1_5b = "82% de la taille, + maths exactes + web temps reel + apprentissage"
 
 # ───────────────────────────────────────────────────────────────────────
 #  FICHIERS DU SYSTEME
@@ -189,14 +148,14 @@ avantage = "Le systeme MoE depasse Qwen dans 3 domaines specifiques"
 
 [fichiers]
 orchestrateur = "aura/orchestrateur.py"
-mamba = "aura/mamba_orchestrateur.py"
-rwkv = "aura/rwkv_orchestrateur.py"
+llama = "aura/llama_cerveau.py"
 expert = "aura/expert_symbolique.py"
 web = "aura/memoire_web.py"
 routeur = "aura/routeur.py"
 autoamelioration = "aura/autoamelioration.py"
 cli = "aura/__main__.py"
 init = "aura/__init__.py"
+telechargeur = "scripts/telecharger_llama.py"
 pyproject = "pyproject.toml"
 tests = "tests/"
 
@@ -205,8 +164,8 @@ tests = "tests/"
 # ───────────────────────────────────────────────────────────────────────
 
 [commandes]
+install_modele = "python scripts/telecharger_llama.py"
 demo = "uv run python -m aura --demo"
-rwkv = "uv run python -m aura 'ta question'"
-mamba = "uv run python -m aura --cerveau mamba 'question'"
+question = "uv run python -m aura 'ta question'"
 corrections = "uv run python -c 'from aura.autoamelioration import stats; print(stats())'"
 tests = "uv run python -m pytest tests/ -q"

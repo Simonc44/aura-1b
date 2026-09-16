@@ -1,10 +1,9 @@
-"""CLI Aura-1B : systeme neuro-symbolique autonome (sans Ollama).
+"""CLI Aura-1B : cerveau Llama 3.2 1B (Q4_K_M) + experts symboliques.
 
 Usage :
   python -m aura "question"
-  python -m aura --cerveau mamba "question"
-  python -m aura --cerveau rwkv "question"
   python -m aura --demo
+  python -m aura "question" --x "[[1],[2],[3]]" --y "[1,8,27]"
 """
 import argparse
 import json
@@ -19,10 +18,10 @@ def _demo(ia: Aura1B) -> int:
     r = ia.executer_detaille(
         "Dernieres decouvertes en physique et resous X cube", X, y)
     print("=" * 60)
-    print(" AURA-1B — MoE neuro-symbolique autonome")
+    print(" AURA-1B — Llama 3.2 1B + PGS + Web (autonome)")
     print("=" * 60)
     print(f"Experts actives : {r['experts']}")
-    print(f"Cerveau choisi  : {r['cerveau_choisi']}")
+    print(f"Cerveau         : {r['cerveau_choisi']}")
     if r["contexte_web"]:
         print(f"\nWeb :\n{r['contexte_web'][:300]}")
     print(f"\nFormule PGS    : Y = {r['formule']}  (erreur {r['erreur_pgs']:.3g})")
@@ -35,8 +34,6 @@ def main(argv=None) -> int:
     p.add_argument("question", nargs="?", default="")
     p.add_argument("--x", help="liste JSON de vecteurs, ex. '[[1],[2],[3]]'")
     p.add_argument("--y", help="liste JSON de valeurs, ex. '[1,8,27]'")
-    p.add_argument("--cerveau", choices=["mamba", "rwkv"], default="rwkv",
-                   help="rwkv = langage (defaut), mamba = logique/code")
     p.add_argument("--demo", action="store_true")
     args = p.parse_args(argv)
 

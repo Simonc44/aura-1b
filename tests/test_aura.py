@@ -1,4 +1,4 @@
-"""Tests Aura-1B MoE autonome (sans Ollama)."""
+"""Tests Aura-1B : cerveau Llama 3.2 1B + experts symboliques."""
 import numpy as np
 
 from aura import expert_symbolique, memoire_web, routeur, autoamelioration
@@ -48,16 +48,40 @@ class TestAutoAmelioration:
         assert len(c) >= 1 and "25" in c[0]
 
 
-class TestMoE:
-    def test_choisit_mamba_pour_math(self):
-        assert Aura1B()._choisir_cerveau({"math"}) == "mamba"
+class TestLlamaCerveau:
+    def test_gguf_present(self):
+        from aura import llama_cerveau
+        # Le fichier GGUF doit etre telecharge (sinon le test saute proprement)
+        if not llama_cerveau.disponible():
+            import pytest
+            pytest.skip("GGUF Llama non telecharge (scripts/telecharger_llama.py)")
 
-    def test_choisit_rwkv_pour_general(self):
-        assert Aura1B()._choisir_cerveau({"general"}) == "rwkv"
+    def test_reponse_fr(self):
+        from aura import llama_cerveau
+        if not llama_cerveau.disponible():
+            import pytest
+            pytest.skip("GGUF Llama non telecharge")
+        r = llama_cerveau.generer("Quelle est la capitale de la France ?",
+                                  max_tokens=30)
+        assert "Paris" in r
 
+    def test_repli_sans_gguf(self, monkeypatch, tmp_path):
+        from aura import llama_cerveau
+        monkeypatch.setattr(llama_cerveau, "_CHEMIN_GGUF",
+                            str(tmp_path / "inexistant.gguf"))
+        monkeypatch.setattr(llama_cerveau, "_llm", None)
+        r = llama_cerveau.generer("test")
+        assert "pas disponible" in r or "introuvable" in r
+
+
+class TestOrchestrateur:
     def test_analyse_question(self):
         r = Aura1B().analyser("calcule 3 puissance 4")
         assert "math" in r["experts"]
+
+    def test_cerveau_est_llama(self):
+        r = Aura1B().executer_detaille("bonjour")
+        assert r["cerveau_choisi"] == "llama-3.2-1b"
 
     def test_prompt_inclut_corrections(self, monkeypatch, tmp_path):
         f = str(tmp_path / "c.jsonl")
@@ -65,3 +89,7 @@ class TestMoE:
         autoamelioration.enregistrer_correction("test", "mauvaise", "bonne")
         p = Aura1B._construire_prompt("test", "", "")
         assert "CORRECTIONS" in p and "bonne" in p
+
+    def test_prompt_inclut_web_et_formule(self):
+        p = Aura1B._construire_prompt("q", "fait web", "mul(X0,X0)")
+        assert "WEB" in p and "FORMULE" in p

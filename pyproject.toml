@@ -10,12 +10,13 @@ dependencies = [
     "gplearn>=0.4.2",
     "ddgs>=9.0",
     "requests>=2.31",
-    "rwkv>=0.8",
-    "tiktoken>=0.5",
+    "llama-cpp-python>=0.3",
+    "huggingface-hub>=0.25",
 ]
 
 [project.optional-dependencies]
 mamba = ["torch>=2.2", "transformers>=4.46"]
+rwkv_legacy = ["rwkv>=0.8", "tiktoken>=0.5"]
 
 [dependency-groups]
 dev = ["pytest>=8.0"]
