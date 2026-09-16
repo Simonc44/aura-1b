@@ -43,6 +43,16 @@
 
 Plus **auto-improvement**: corrections (`enregistrer_correction`) are stored and injected into the prompt so the same mistake is never made twice.
 
+### Rich mode for open-ended questions (writing quality)
+
+Fact questions stay fast (single pass). Open questions (≥ 9 words or `explique/analyse/compare/redige...`) trigger a **3-step rich pipeline**:
+
+1. **Enriched search** — dual query (facts + "analyse synthese essai") + extracts a domain **lexicon** (rare/technical words) injected as "Mots-clés pertinents à utiliser".
+2. **Masked Chain-of-Thought** — the model plans inside `<thinking>` tags (analyse → stratégie → plan); a regex strips them, the user only sees the polished answer, the reasoning goes to logs.
+3. **Multi-pass generation** — pass 1 produces a detailed 3-part plan + 5 logical connectors; pass 2 writes the final answer following that plan with strict style rules. Splitting "what to say" from "how to say it" is what lets a 1B rival bigger models on structure.
+
+Cost: ~2× latency (59 s measured vs ~15-25 s) — reserved for questions that deserve it.
+
 ## Install
 
 ```bash
@@ -92,7 +102,7 @@ Without the GGUF file the pipeline degrades honestly (web facts + exact formula,
 ## Tests
 
 ```bash
-uv run pytest -q        # 31 tests: level-0 math/cache, law discovery, routing, Llama, fallback
+uv run pytest -q        # 44 tests: level-0, lexicon, masked CoT, multi-pass, routing, Llama, fallback
 ```
 
 ## License

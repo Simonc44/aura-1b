@@ -16,6 +16,7 @@ Optimisations d'intelligence :
 """
 import logging
 import os
+import re
 import time
 
 LOG = logging.getLogger("aura.llama")
@@ -45,6 +46,45 @@ _SYSTEME = (
 _MOTS_LOGIQUE = ("plus que", "moins que", "si ", "alors", "avant", "apres",
                  "pourquoi", "deduis", "en deduis", "logique", "ordre",
                  "qui est le plus", "quel age", "différence entre", "difference entre")
+
+# ── Étape 2 : Chain-of-Thought masque ──────────────────────────────────
+
+_COT_SYSTEME = (
+    "Tu es Aura-1B, un systeme d'IA de niveau expert. Avant de repondre a "
+    "l'utilisateur, tu dois OBLIGATOIREMENT mener une reflexion approfondie "
+    "pas a pas. Ta reponse doit suivre strictement cette structure :\n"
+    "<thinking>\n"
+    "1. Analyse de la demande : de quoi s'agit-il precisement ?\n"
+    "2. Strategie : quel ton, quels mots-cles du contexte integrer ?\n"
+    "3. Plan : redige le plan de la reponse en 3 sections maximum.\n"
+    "</thinking>\n"
+    "[Ta reponse finale redigee avec un style riche et soutenu commence ici, "
+    "hors des balises]"
+)
+
+# ── Étape 3 : prompts de la generation multi-pass ─────────────────────
+
+_PROMPT_PLAN = (
+    "En te basant sur ces faits :\n{contexte}\n\n"
+    "et sur cette question : {question}\n\n"
+    "Genere UNIQUEMENT un plan ultra-detaille en 3 parties et liste 5 "
+    "connecteurs logiques avances (ex : 'Neanmoins', 'Par consequent') "
+    "que tu utiliseras."
+)
+
+_PROMPT_STYLE = (
+    "Tu es un redacteur litteraire et scientifique de haut niveau.\n"
+    "En te basant sur ce plan :\n{plan}\n\n"
+    "Redige l'analyse finale de la question : {question}\n\n"
+    "CONSIGNES DE STYLE STRICTES :\n"
+    "- Utilise un vocabulaire riche, precis et varie (evite les mots valises "
+    "comme 'faire', 'dire', 'chose').\n"
+    "- Fais des phrases courtes mais percutantes, reliees par les connecteurs "
+    "logiques listes.\n"
+    "- Interdiction de repeter la meme structure de phrase.\n"
+    "- Integre naturellement les faits suivants : {contexte_court}\n"
+    "- Reponds en francais, sans balises ni commentaires."
+)
 
 _llm = None
 
@@ -155,3 +195,80 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
 
 def disponible() -> bool:
     return os.path.exists(_CHEMIN_GGUF)
+
+
+# ── Étape 2 : nettoyage du CoT ─────────────────────────────────────────
+
+def separer_reflexion(reponse_brute: str) -> tuple[str, str]:
+    """Extrait la reflexion <thinking>...</thinking> et renvoie (propre, reflexion).
+
+    L'utilisateur ne voit que la reponse propre ; la reflexion part dans les
+    logs (audit qualite) via LOG.debug.
+    """
+    reflexion = ""
+    m = re.search(r"<thinking>(.*?)</thinking>", reponse_brute, re.DOTALL)
+    if m:
+        reflexion = m.group(1).strip()
+        LOG.debug("[cot] reflexion : %s", reflexion[:400])
+    propre = re.sub(r"<thinking>.*?</thinking>", "", reponse_brute,
+                    flags=re.DOTALL).strip()
+    # balise fermante orpheline (generation coupee) : on coupe avant
+    if "<thinking>" in propre and "</thinking>" not in propre:
+        propre = propre.split("<thinking>")[0].strip()
+    return propre, reflexion
+
+
+# ── Étape 3 : generation multi-pass (plan -> redaction stylisee) ──────
+
+def generer_riche(question: str, contexte_web: str = "",
+                  formule: str = "", historique: list[dict] | None = None) -> str:
+    """Generation en 2 passes pour les reponses longues : plan puis style.
+
+    Passe 1 : plan detaille + 5 connecteurs logiques (la feuille de route).
+    Passe 2 : redaction stylisee guidee par le plan (le modele se concentre
+    sur la forme, les rails sont deja poses).
+
+    Repli : si une passe echoue, retour a la generation simple.
+    """
+    contexte = _formater_contexte(contexte_web, formule)
+    contexte_court = contexte[:600]
+
+    try:
+        llm = _charger()
+    except Exception as e:
+        LOG.error("[llama] chargement impossible : %s", e)
+        return generer(question, contexte_web, formule, historique=historique)
+
+    # ── Passe 1 : plan + connecteurs ──
+    try:
+        p1 = llm.create_chat_completion(
+            messages=[{"role": "user", "content": _PROMPT_PLAN.format(
+                contexte=contexte or "(aucun contexte fourni)",
+                question=question)}],
+            max_tokens=220, temperature=0.3,
+            stop=["<|eot_id|>"])
+        plan = (p1.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
+    except Exception as e:
+        LOG.warning("[multi-pass] passe 1 echouee : %s", e)
+        plan = ""
+    if not plan:
+        return generer(question, contexte_web, formule, historique=historique)
+
+    # ── Passe 2 : redaction stylisee ──
+    try:
+        messages = [{"role": "system", "content": _PROMPT_STYLE.format(
+            plan=plan, question=question, contexte_court=contexte_court)}]
+        for tour in (historique or [])[-4:]:
+            messages.append({"role": tour["role"], "content": tour["content"]})
+        p2 = llm.create_chat_completion(
+            messages=messages, max_tokens=380, temperature=0.5,
+            top_p=0.95, min_p=0.05, repeat_penalty=1.1,
+            stop=["<|eot_id|>"])
+        redaction = (p2.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
+    except Exception as e:
+        LOG.warning("[multi-pass] passe 2 echouee : %s", e)
+        return generer(question, contexte_web, formule, historique=historique)
+
+    if not redaction:
+        return generer(question, contexte_web, formule, historique=historique)
+    return redaction

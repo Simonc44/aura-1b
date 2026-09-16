@@ -47,10 +47,15 @@ class Aura1B:
 
     # -- cerveau ------------------------------------------------------------
 
-    def _generer(self, question: str, contexte_web: str, formule: str) -> str:
+    def _generer(self, question: str, contexte_web: str, formule: str,
+                 riche: bool = False) -> str:
         if self._llama is None:
             from .llama_cerveau import generer as llama_generer
             self._llama = llama_generer
+        if riche:
+            from .llama_cerveau import generer_riche
+            return generer_riche(question, contexte_web, formule,
+                                 historique=self._historique)
         return self._llama(question, contexte_web, formule,
                            historique=self._historique)
 
@@ -76,6 +81,22 @@ class Aura1B:
         self.derniere_erreur = self.expert.erreur
         return formule
 
+    # -- detection de complexite --------------------------------------------
+
+    @staticmethod
+    def _est_complexe(question: str) -> bool:
+        """Les questions ouvertes meritent le mode riche (multi-pass, +style).
+
+        Les questions factuelles (qui/ou/quand + fait precis) restent en
+        mode simple : reponse courte rapide. Le mode riche coute 2 passes.
+        """
+        q = question.lower()
+        if len(q.split()) >= 9:                      # question developpee
+            return True
+        return any(m in q for m in (
+            "explique", "analyse", "compare", "pourquoi", "discute",
+            "redige", "essai", "opinion", "avis", "argumente", "dissertation"))
+
     # -- pipeline complet ---------------------------------------------------
 
     def executer(self, question: str, X=None, y=None) -> str:
@@ -96,9 +117,14 @@ class Aura1B:
         # ── NIVEAUX 1-2 : experts + LLM ───────────────────────────────
         analyse = self.analyser(question)
         experts = analyse["experts"]
-        contexte_web = memoire_web.chercher(question) if "web" in experts else ""
+        riche = self._est_complexe(question)
+        # mode riche : recherche enrichie (faits + analyses + lexique)
+        if "web" in experts and riche:
+            contexte_web = memoire_web.chercher_enrichi(question)
+        else:
+            contexte_web = memoire_web.chercher(question) if "web" in experts else ""
         formule = self.resoudre_numerique(X, y) if "math" in experts and X and y else ""
-        reponse = self._generer(question, contexte_web, formule)
+        reponse = self._generer(question, contexte_web, formule, riche=riche)
         # memorise pour les futures questions (cache semantique + conversation)
         filtre_instantane.enregistrer(question, reponse)
         self._historique.append({"role": "user", "content": question})
