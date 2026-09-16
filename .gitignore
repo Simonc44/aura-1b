@@ -16,3 +16,5 @@ aura/.cache_routeur/
 modeles/
 .cache_corrections.jsonl
 aura/.cache_reponses.jsonl
+aura_system.aef
+.cache_aef/

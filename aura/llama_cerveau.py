@@ -32,6 +32,15 @@ _CHEMINS = {
 }
 _CHEMIN_GGUF = _CHEMINS[os.environ.get("AURA_GGUF", "Q4_K_M").upper()]
 
+# Config compilee du kernel (.aef) : prioritaire sur les reglages par defaut
+if os.environ.get("AURA_CONFIG"):
+    try:
+        import json as _json
+        _cfg = _json.loads(os.environ["AURA_CONFIG"])
+        _CHEMIN_GGUF = _cfg.get("chemin_gguf", _CHEMIN_GGUF)
+    except Exception:
+        pass
+
 _SYSTEME = (
     "Tu es Aura, une IA hybride locale specialisee en maths exactes et faits temps reel. "
     "Reponds toujours a la question posee, en francais si la question est en francais, "
