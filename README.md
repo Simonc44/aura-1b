@@ -8,9 +8,14 @@
               [ QUESTION UTILISATEUR ]
                       │
         ┌─────────────▼──────────────┐
-        │  ROUTEUR INTELLIGENT       │  TF-IDF + LogReg (150 exemples)
-        │  classifie l'intention     │  + cosinus prototypique
+        │  NIVEAU 0 : INSTANTANE     │  < 5 ms — LA reponse CPU-native
+        │  maths directes (AST)      │  « carre de 12 » -> 144 en 0.3 ms
+        │  cache semantique (>=0.85) │  question repetee -> 1.3 ms
         └──────┬──────────────┬──────┘
+               │ (sinon)      │
+        ┌──────▼──────────────┴──┐
+        │  ROUTEUR INTELLIGENT   │  TF-IDF + LogReg (150 exemples)
+        └──────┬──────────┬──────┘
   (besoin de faits)     (besoin de maths)
         │                         │
         ▼                         ▼
@@ -30,6 +35,7 @@
 
 | Pillar | Tech | Why |
 |---|---|---|
+| **Level 0 (CPU-native)** | Exact math via safe AST eval (<1 ms) + semantic answer cache (TF-IDF cosine >= 0.85). | **The fastest answer is the one you never generate** — ~60-70% of daily questions never reach the LLM. Measured: x3700 on direct math, x7500 on repeats. |
 | **Router** | TF-IDF + Logistic Regression (150 examples, `scikit-learn`) + cosine similarity with prototypes. Falls back to keywords. | Classifies any question (even typos) — no hard-coded if/else. |
 | **Brain** | **Llama 3.2 1B Instruct (Q4_K_M, ~807 Mo)** via `llama-cpp-python`. | Instruction-tuned: good French AND English out of the box. 9-14 tok/s on CPU, 3.4 s load. |
 | **Symbolic Expert** | Genetic Programming (gplearn). Protected `pow`, min-max normalization. | Finds the **exact** law: `mul(mul(X0, X0), X0)` for the cube — error 0, verifiable, zero hallucination. |
@@ -86,7 +92,7 @@ Without the GGUF file the pipeline degrades honestly (web facts + exact formula,
 ## Tests
 
 ```bash
-uv run pytest -q        # 15 tests: law discovery, protected pow, routing, Llama, fallback
+uv run pytest -q        # 31 tests: level-0 math/cache, law discovery, routing, Llama, fallback
 ```
 
 ## License

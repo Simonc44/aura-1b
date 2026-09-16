@@ -15,3 +15,4 @@ aura/.cache_routeur/
 # Modeles (trop gros pour git : telecharge via scripts/telecharger_llama.py)
 modeles/
 .cache_corrections.jsonl
+aura/.cache_reponses.jsonl

@@ -49,8 +49,8 @@ def _charger():
     t0 = time.time()
     _llm = Llama(
         model_path=_CHEMIN_GGUF,
-        n_ctx=2048,            # contexte court = RAM faible + prefill rapide
-        n_batch=256,
+        n_ctx=1024,            # CPU-native : prefill x2 plus rapide qu'a 2048
+        n_batch=512,           # gros batch = meilleur parallelisme CPU
         n_threads=os.cpu_count() or 4,   # benchmark : tous les coeurs = +26% vs physique seul
         n_threads_batch=os.cpu_count() or 4,
         verbose=False,
@@ -98,6 +98,7 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
             max_tokens=max_tokens,
             temperature=0.4,      # faible variance : ancre sur les faits
             top_p=0.9,
+            min_p=0.05,           # CPU-native : coupe la queue de distribution -> moins de tokens a traiter
             repeat_penalty=1.1,
             stop=["<|eot_id|>", "\nUtilisateur:", "\nUser:"],
         )

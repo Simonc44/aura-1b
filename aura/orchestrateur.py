@@ -12,7 +12,7 @@ Le routeur (TF-IDF + LogReg) choisit les experts a activer ; Llama synthetise.
 """
 import logging
 
-from . import expert_symbolique, memoire_web, autoamelioration
+from . import expert_symbolique, memoire_web, autoamelioration, filtre_instantane
 from .routeur import RouteurIntelligent
 
 LOG = logging.getLogger("aura.orchestrateur")
@@ -70,18 +70,28 @@ class Aura1B:
     # -- pipeline complet ---------------------------------------------------
 
     def executer(self, question: str, X=None, y=None) -> str:
-        analyse = self.analyser(question)
-        experts = analyse["experts"]
-        contexte_web = memoire_web.chercher(question) if "web" in experts else ""
-        formule = self.resoudre_numerique(X, y) if "math" in experts and X and y else ""
-        return self._generer(question, contexte_web, formule)
+        return self.executer_detaille(question, X, y)["reponse"]
 
     def executer_detaille(self, question: str, X=None, y=None) -> dict:
+        # ── NIVEAU 0 : reponse instantanee (0.1s) ─────────────────────
+        # maths directes + cache semantique : la majorite des questions
+        # quotidiennes n'ont PAS besoin du LLM (composant le plus lent).
+        instant = filtre_instantane.repondre(question)
+        if instant is not None and not (X and y):
+            return {"question": question, "experts": {"instantane"},
+                    "analyse": {"methodes": ["niveau0"]},
+                    "cerveau_choisi": "niveau0-instantane",
+                    "contexte_web": "", "formule": "",
+                    "erreur_pgs": None, "reponse": instant}
+
+        # ── NIVEAUX 1-2 : experts + LLM ───────────────────────────────
         analyse = self.analyser(question)
         experts = analyse["experts"]
         contexte_web = memoire_web.chercher(question) if "web" in experts else ""
         formule = self.resoudre_numerique(X, y) if "math" in experts and X and y else ""
         reponse = self._generer(question, contexte_web, formule)
+        # memorise pour les futures questions (cache semantique)
+        filtre_instantane.enregistrer(question, reponse)
         return {"question": question, "experts": experts, "analyse": analyse,
                 "cerveau_choisi": "llama-3.2-1b", "contexte_web": contexte_web,
                 "formule": formule, "erreur_pgs": self.derniere_erreur,
