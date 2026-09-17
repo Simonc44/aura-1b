@@ -47,9 +47,21 @@ from aura import chiffrement                    # noqa: E402
 from aura import profil_materiel as pm          # noqa: E402
 
 MAGIC = b"AURA"
-VERSION = (0, 7, 8)
+VERSION = (0, 8, 0)
 HEADER_FORMAT = "<4sBBBB8sIIIIIQQ32s32s32s"   # 16 champs, 148 octets
 HEADER_TAILLE = struct.calcsize(HEADER_FORMAT)
+
+
+def _build_court() -> str:
+    """Hash court du commit git courant (8 car.), 'unknown' hors git."""
+    import subprocess
+    try:
+        return subprocess.run(
+            ["git", "rev-parse", "--short=8", "HEAD"], cwd=RACINE,
+            capture_output=True, text=True, timeout=5,
+            check=True).stdout.strip()
+    except Exception:
+        return "unknown"
 
 GGUF_DEFAUT = RACINE / "modeles" / "Llama-3.2-1B-Instruct-Q4_K_M.gguf"
 SORTIE = RACINE / "aura_system.aef"
@@ -121,7 +133,7 @@ def forger(gguf: Path = GGUF_DEFAUT, sortie: Path = SORTIE,
     header = struct.pack(
         HEADER_FORMAT,
         MAGIC, VERSION[0], VERSION[1], VERSION[2], 0,
-        b"8531f71\x00",
+        _build_court().encode("ascii")[:8].ljust(8, b"\x00"),
         0,                       # flags : poids brutes (chargement direct)
         1536, 768, os.cpu_count() or 4,
         len(config), len(code), taille_gguf,
@@ -145,6 +157,20 @@ def forger(gguf: Path = GGUF_DEFAUT, sortie: Path = SORTIE,
 
     taille_mo = sortie.stat().st_size / (1024 * 1024)
     print(f"== forge OK : {sortie.name} ({taille_mo:.1f} Mo) ==")
+
+    # Signature Ed25519 automatique : si la cle privee est a cote, le .aef
+    # est signe (provenance authentifiee). Un seul .sig sert au .aef clair
+    # ET au .aef.chiffre : il porte le SHA-256 du payload clair commun.
+    cle_privee = RACINE / "cle_privee.pem"
+    if cle_privee.exists():
+        from aura import signature
+        cle = signature.charger_cle_privee(cle_privee)
+        path_sig = signature.ecrire_signature(sortie, cle, identite="Simonc44")
+        empreinte = signature.empreinte_publique(
+            signature.cle_privee_vers_publique_brute(cle))
+        print(f"  signature Ed25519 -> {path_sig.name} (cle {empreinte})")
+    else:
+        print("  (non signe : cle_privee.pem absent — generate via aura.signature)")
 
     # Option chiffrement : conteneur AES-256-GCM pour publication
     if secret:

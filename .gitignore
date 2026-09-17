@@ -19,5 +19,10 @@ aura/.cache_reponses.jsonl
 aura_system.aef
 .cache_aef/
 secret_aef.txt
+
+# cles de signature : JAMAIS commitées
+*aef.sig
+cle_privee.pem
+cle_publique.pub
 Aura.spec
 aura_system.aef.enc

@@ -1,23 +1,10 @@
 """Tests du format .aef : forge, boot, integrite cryptographique."""
-import hashlib
 import struct
 
 import pytest
 
-from scripts.forger_aef import HEADER_FORMAT, HEADER_TAILLE, MAGIC, VERSION
+from scripts.forger_aef import HEADER_FORMAT, HEADER_TAILLE, MAGIC
 from aura import kernel
-
-
-@pytest.fixture(scope="module")
-def aef_forge(tmp_path_factory):
-    """Forge un mini .aef (faux GGUF de 1 Mo) pour tester vite."""
-    from scripts.forger_aef import forger
-    tmp = tmp_path_factory.mktemp("aef")
-    faux_gguf = tmp / "faux.gguf"
-    faux_gguf.write_bytes(bytes(range(256)) * 4096)  # 1 Mo
-    sortie = tmp / "test.aef"
-    forger(faux_gguf, sortie)
-    return sortie
 
 
 class TestFormat:
