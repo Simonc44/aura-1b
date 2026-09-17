@@ -1,5 +1,7 @@
 # 🧬 Aura-1B — Hybrid Neuro-Symbolic AI
 
+[![Tests](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml/badge.svg)](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml)
+
 **Aura-1B** is an autonomous, 100% local AI architecture that splits language, exact math and factual memory into specialized modules — instead of asking a single small model to do everything (and hallucinate when it can't).
 
 ## Architecture
@@ -102,6 +104,28 @@ Protection layers:
 
 ## Install
 
+### Windows — one command, then `aura` in PowerShell
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/installer.ps1
+```
+
+The installer copies the package to `%LOCALAPPDATA%\Aura`, creates the venv,
+installs the dependencies, downloads the brain (807 MB, once), and registers a
+`aura` function in your PowerShell profile. Then, in any **new** PowerShell:
+
+```powershell
+aura "quel est le carre de 7"        # -> 49
+aura                                  # interactive chat
+aura --verifier "question"            # force full crypto verification
+```
+
+It prefers the sealed `aura_system.aef.enc` (AES-256-GCM + Ed25519 signature),
+falls back to the plain `.aef`, and reads `secret_aef.txt` automatically
+(provide it at install time via the `AURA_SECRET_INSTALL` environment variable).
+
+### Development install
+
 ```bash
 uv sync                                        # core deps (llama.cpp included)
 python scripts/telecharger_llama.py            # downloads the 807 Mo GGUF
@@ -161,8 +185,13 @@ System-level quiz vs Qwen 2.5 1.5B: **Aura 5/5 vs 4/5** (exact math, real-time f
 ## Tests
 
 ```bash
-uv run pytest -q        # 50 tests: level-0, lexicon, masked CoT, multi-pass, routing, .aef crypto, encryption
+uv run pytest -q        # 64 tests: level-0, lexicon, masked CoT, multi-pass, routing, .aef crypto, Ed25519 signature, fast boot
 ```
+
+CI (GitHub Actions) runs the full suite on Ubuntu + Windows (Python 3.11/3.12,
+no GGUF needed — the brain tests skip themselves), re-validates the whole
+`.aef` chain (forge → Ed25519 signature → boot → tamper detection) on Linux,
+and syntax-checks the PowerShell installer.
 
 ## License
 

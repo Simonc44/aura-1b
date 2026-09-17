@@ -1,0 +1,135 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: ${{ matrix.os }} · py${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Dépendances (sans llama-cpp — la CI n'a ni GGUF ni GPU)
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy scikit-learn joblib gplearn ddgs requests cryptography pytest
+
+      - name: Tests (les tests GGUF savent se sauter seuls)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python -m pytest -q
+
+  # Le format .aef est la signature du projet : on vérifie sa chaîne
+  # complète (forge → signature → boot) sur Linux, où elle n'a jamais tourné
+  chaine-aef:
+    name: Chaîne .aef (forge → signature → boot)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Dépendances
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy scikit-learn joblib gplearn ddgs requests cryptography pytest
+
+      - name: Forge + signature + boot d'un mini .aef (faux GGUF)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python - <<'PY'
+          import os, tempfile
+          from pathlib import Path
+          from scripts.forger_aef import forger
+          from aura import signature, kernel
+
+          tmp = Path(tempfile.mkdtemp())
+          faux = tmp / "faux.gguf"
+          faux.write_bytes(bytes(range(256)) * 4096)   # 1 Mo
+          aef = tmp / "ci.aef"
+
+          # 1. forge (profil_materiel a un repli portable hors Windows)
+          forger(faux, aef)
+
+          # 2. signature par une cle de test (la cle de confiance du code
+          #    est neutralisee : en CI, la cle reelle n'existe pas)
+          import aura.signature as sig
+          sig._CLE_CONFIANCE_DEFAUT = ""
+          privee, _ = sig.generer_paire(tmp / "k.pem", tmp / "k.pub")
+          cle = sig.charger_cle_privee(privee)
+          sig.ecrire_signature(aef, cle, identite="CI")
+
+          # 3. boot : verification complete + signature validee
+          kernel.CACHE = tmp / "cache"
+          cfg = kernel.ouvrir_et_verifier(aef)
+          assert cfg["n_ctx"] > 0
+          print("Chaine .aef OK sur Linux :", cfg["build"])
+          PY
+
+      - name: Altération détectée (un octet changé = refus)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          python - <<'PY'
+          import tempfile
+          from pathlib import Path
+          from scripts.forger_aef import forger
+          from aura import kernel
+
+          tmp = Path(tempfile.mkdtemp())
+          faux = tmp / "faux.gguf"
+          faux.write_bytes(bytes(range(256)) * 4096)
+          aef = tmp / "ci.aef"
+          forger(faux, aef)
+
+          corrompu = tmp / "corrompu.aef"
+          data = bytearray(aef.read_bytes())
+          data[-100] ^= 0xFF
+          corrompu.write_bytes(bytes(data))
+
+          kernel.CACHE = tmp / "cache"
+          try:
+              kernel.ouvrir_et_verifier(corrompu)
+          except ValueError as e:
+              print("Alteration detectee comme prevu :", e)
+          else:
+              raise SystemExit("ECHEC : un fichier altere a ete accepte !")
+          PY
+
+  installateur:
+    name: Syntaxe de l'installeur PowerShell
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vérification de syntaxe (PSParser)
+        shell: pwsh
+        run: |
+          $errors = $null
+          [System.Management.Automation.PSParser]::Tokenize(
+            (Get-Content -Raw "scripts/installer.ps1"), [ref]$errors) | Out-Null
+          if ($errors -and $errors.Count) {
+            $errors | ForEach-Object {
+              Write-Error "ligne $($_.Token.StartLine): $($_.Message)" }
+            exit 1
+          }
+          Write-Host "Syntaxe de l'installeur : OK"
