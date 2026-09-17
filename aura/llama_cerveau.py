@@ -32,6 +32,17 @@ _CHEMINS = {
 }
 _CHEMIN_GGUF = _CHEMINS[os.environ.get("AURA_GGUF", "Q4_K_M").upper()]
 
+# Candidats de repli : le GGUF peut vivre dans le cache du kernel (.aef)
+# plutot que dans modeles/ (machine qui n'a que le .aef, ou doublon evite).
+# AURA_GGUF_CHEMIN impose un emplacement precis.
+_CANDIDATS = [
+    os.environ.get("AURA_GGUF_CHEMIN"),
+    _CHEMIN_GGUF,
+    os.path.join(_DOSSIER, "..", ".cache_aef", "cerveau.gguf"),
+]
+_CHEMIN_GGUF = next((os.path.abspath(c) for c in _CANDIDATS
+                     if c and os.path.exists(c)), _CHEMIN_GGUF)
+
 # Config compilee du kernel (.aef) : prioritaire sur les reglages par defaut.
 # Elle contient les reglages AUTO-TUNES pour la machine de forge (profil
 # materiel detecte a la forge). AURA_TUNING=1 force l'auto-tuning LOCAL

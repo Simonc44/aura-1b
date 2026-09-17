@@ -64,6 +64,10 @@ def _build_court() -> str:
         return "unknown"
 
 GGUF_DEFAUT = RACINE / "modeles" / "Llama-3.2-1B-Instruct-Q4_K_M.gguf"
+if not GGUF_DEFAUT.exists():            # doublon evite : le cache du kernel
+    _cache_gguf = RACINE / ".cache_aef" / "cerveau.gguf"
+    if _cache_gguf.exists():
+        GGUF_DEFAUT = _cache_gguf
 SORTIE = RACINE / "aura_system.aef"
 
 
