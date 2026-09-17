@@ -12,6 +12,7 @@ dependencies = [
     "requests>=2.31",
     "llama-cpp-python>=0.3",
     "huggingface-hub>=0.25",
+    "cryptography>=50.0.1",
 ]
 
 [project.optional-dependencies]
@@ -19,7 +20,10 @@ mamba = ["torch>=2.2", "transformers>=4.46"]
 rwkv_legacy = ["rwkv>=0.8", "tiktoken>=0.5"]
 
 [dependency-groups]
-dev = ["pytest>=8.0"]
+dev = [
+    "pyinstaller>=6.22.3",
+    "pytest>=8.0",
+]
 
 [build-system]
 requires = ["hatchling"]

@@ -99,6 +99,58 @@ Without the GGUF file the pipeline degrades honestly (web facts + exact formula,
 | Mamba-790M (removed) | 1.5 tok/s | ❌ base model | 30-408 s |
 | RWKV-4 430M (removed) | 1.8 tok/s | ❌ base model | ~60 s |
 
+## Hardware profile (auto-tuning)
+
+Aura inspects the machine it runs on (CPU model, logical cores, RAM, AVX2, disk) and derives optimal llama.cpp settings — no manual tuning:
+
+```bash
+python -m aura.profil_materiel      # inspect + auto-tuned settings
+```
+
+| Machine detected | Settings derived |
+|---|---|
+| RAM ≥ 6 Go | ctx 1536, batch 768, threads = all logical cores |
+| RAM < 6 Go | ctx 1024, batch 512 (guaranteed fit) |
+
+The forge bakes these into the `.aef` config; the kernel applies them at boot. The `.aef` also records a machine fingerprint and refuses to load a GGUF that cannot fit in RAM (OOM guard *before* the crash).
+
+## The `.aef` format + Aura.exe (encrypted distribution)
+
+The whole system ships as **one sealed binary file**:
+
+```text
+aura_system.aef (770 Mo, monolithic)
+├── HEADER (148 B)  magic "AURA" · version · build · CPU config · 3× SHA-256
+├── CONFIG (LZMA)   auto-tuned settings compiled for the target machine
+├── CODE (ZIP)      the entire aura/ python package (verified by hash)
+└── WEIGHTS (raw)   the GGUF byte-for-byte (loaded directly, zero-copy)
+```
+
+**Integrity**: one altered byte anywhere → boot refused (SHA-256 over config, code and weights; tested).
+
+**Confidential publication** (put it on Hugging Face without exposing the code or weights):
+
+```bash
+uv run python scripts/construire_exe.py            # -> dist/Aura.exe (8.6 Mo)
+uv run python scripts/forger_aef.py --chiffrer     # -> aura_system.aef.enc (AES-256-GCM)
+```
+
+Then distribute **Aura.exe + aura_system.aef.enc**. On the user machine:
+
+```bash
+Aura.exe aura_system.aef.enc "your question"       # decrypts, verifies, extracts, answers
+Aura.exe --cache "your question"                    # next runs: instant start
+```
+
+- The key derives from a secret via **PBKDF2 (600 000 iterations)** — never stored in the file; wrong secret → clean refusal.
+- Two independent integrity layers: AEAD (decryption) + SHA-256 (header).
+- Aura.exe embeds **compiled bytecode only** (no readable sources) and delegates execution to the local python after cryptographic verification.
+- Honest note: no binary is unbreakable (static analysis is always possible in theory) — this blocks passive copying, not a determined reverse-engineer. See also the security section of the README for limits.
+
+## Publish on Hugging Face
+
+Upload `dist/Aura.exe` + `aura_system.aef.enc` (770 Mo) to a HF model repo. Keep `secret_aef.txt` **private**: without the secret the weights are indistinguishable from random noise.
+
 ## Tests
 
 ```bash

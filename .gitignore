@@ -18,3 +18,5 @@ modeles/
 aura/.cache_reponses.jsonl
 aura_system.aef
 .cache_aef/
+secret_aef.txt
+Aura.spec

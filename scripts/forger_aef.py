@@ -41,6 +41,10 @@ import zipfile
 from pathlib import Path
 
 RACINE = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RACINE))
+
+from aura import chiffrement                    # noqa: E402
+from aura import profil_materiel as pm          # noqa: E402
 
 MAGIC = b"AURA"
 VERSION = (0, 7, 8)
@@ -76,25 +80,35 @@ def _pack_code() -> bytes:
 
 
 def _pack_config() -> bytes:
-    """Config compilee : reglages CPU mesurees + reglages du systeme."""
+    """Config compilee : reglages AUTO-TUNES pour la machine de forge
+    (profil materiel detecte) + reglages du systeme + empreinte machine."""
+    profil = pm.profiler()
+    reg = pm.reglages_optimaux(profil)
     cfg = {
-        "n_ctx": 1536, "n_batch": 768, "n_threads": os.cpu_count() or 4,
-        "flash_attn": True, "type_kv": 8,
+        "n_ctx": reg["n_ctx"], "n_batch": reg["n_batch"],
+        "n_threads": reg["n_threads"], "n_threads_batch": reg["n_threads_batch"],
+        "flash_attn": reg["flash_attn"], "type_kv": reg["type_kv"],
         "quantification": "Q4_K_M",
         "niveau0_seuil": 0.85,
         "mode_riche_seuil_mots": 9,
         "max_tokens_faits": 120, "max_tokens_explications": 320,
         "build": ".".join(map(str, VERSION)),
+        "machine": pm.empreinte(profil),          # provenance (pc de forge)
+        "machine_desc": f"{profil['cpu_modele']} / {profil['ram_go']} Go RAM",
     }
     return lzma.compress(json.dumps(cfg).encode("utf-8"), preset=6)
 
 
-def forger(gguf: Path = GGUF_DEFAUT, sortie: Path = SORTIE) -> Path:
+def forger(gguf: Path = GGUF_DEFAUT, sortie: Path = SORTIE,
+           secret: str | None = None) -> Path:
     if not gguf.exists():
         raise FileNotFoundError(
             f"GGUF introuvable : {gguf} (scripts/telecharger_llama.py)")
 
     print("== AURA FORGE ==")
+    profil = pm.profiler()
+    print(f"  machine : {profil['cpu_modele']} | {profil['ram_go']} Go RAM "
+          f"| empreinte {pm.empreinte(profil)}")
     config = _pack_config()
     code = _pack_code()
     taille_gguf = gguf.stat().st_size
@@ -131,9 +145,27 @@ def forger(gguf: Path = GGUF_DEFAUT, sortie: Path = SORTIE) -> Path:
 
     taille_mo = sortie.stat().st_size / (1024 * 1024)
     print(f"== forge OK : {sortie.name} ({taille_mo:.1f} Mo) ==")
+
+    # Option chiffrement : conteneur AES-256-GCM pour publication
+    if secret:
+        chemin_chiffre = sortie.with_suffix(".aef.enc")
+        print(f"  chiffrement AES-256-GCM -> {chemin_chiffre.name} ...")
+        with open(sortie, "rb") as f:
+            clair = f.read()
+        chemin_chiffre.write_bytes(chiffrement.chiffrer(clair, secret))
+        del clair
+        print(f"== chiffre OK : {chemin_chiffre.name} "
+              f"({chemin_chiffre.stat().st_size / (1024 * 1024):.1f} Mo) ==")
+        return chemin_chiffre
     return sortie
 
 
 if __name__ == "__main__":
-    gguf = Path(sys.argv[1]) if len(sys.argv) > 1 else GGUF_DEFAUT
-    sys.exit(forger(gguf) and 0)
+    gguf = Path(sys.argv[1]) if len(sys.argv) > 1 and not \
+        sys.argv[1].startswith("--") else GGUF_DEFAUT
+    secret = None
+    if "--chiffrer" in sys.argv:
+        import getpass
+        secret = os.environ.get("AURA_SECRET") or getpass.getpass(
+            "Secret de chiffrement (ne le partage qu'avec toi) : ")
+    sys.exit(forger(gguf, secret=secret) and 0)

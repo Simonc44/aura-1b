@@ -32,7 +32,10 @@ _CHEMINS = {
 }
 _CHEMIN_GGUF = _CHEMINS[os.environ.get("AURA_GGUF", "Q4_K_M").upper()]
 
-# Config compilee du kernel (.aef) : prioritaire sur les reglages par defaut
+# Config compilee du kernel (.aef) : prioritaire sur les reglages par defaut.
+# Elle contient les reglages AUTO-TUNES pour la machine de forge (profil
+# materiel detecte a la forge). AURA_TUNING=1 force l'auto-tuning LOCAL
+# (machine differente de celle de forge, ex : quelqu'un qui execute le .aef).
 if os.environ.get("AURA_CONFIG"):
     try:
         import json as _json
@@ -40,6 +43,39 @@ if os.environ.get("AURA_CONFIG"):
         _CHEMIN_GGUF = _cfg.get("chemin_gguf", _CHEMIN_GGUF)
     except Exception:
         pass
+
+
+def _reglages_materiel() -> dict:
+    """Reglages llama.cpp : config compilee du .aef, ou auto-tuning local."""
+    if os.environ.get("AURA_TUNING"):
+        try:
+            from . import profil_materiel as pm
+            reg = pm.reglages_optimaux()
+            LOG.info("[profil] auto-tuning local : %s", reg)
+            return reg
+        except Exception:
+            pass
+    try:
+        import json as _json
+        cfg = _json.loads(os.environ.get("AURA_CONFIG", "{}"))
+        if cfg:
+            return {"n_ctx": cfg.get("n_ctx", 1536),
+                    "n_batch": cfg.get("n_batch", 768),
+                    "n_threads": cfg.get("n_threads", os.cpu_count() or 4),
+                    "n_threads_batch": cfg.get("n_threads_batch",
+                                               cfg.get("n_threads", 4)),
+                    "flash_attn": cfg.get("flash_attn", True),
+                    "type_kv": cfg.get("type_kv", 8)}
+    except Exception:
+        pass
+    # ni .aef ni tuning : profil de la machine locale
+    try:
+        from . import profil_materiel as pm
+        return pm.reglages_optimaux()
+    except Exception:
+        n = os.cpu_count() or 4
+        return {"n_ctx": 1536, "n_batch": 768, "n_threads": n,
+                "n_threads_batch": n, "flash_attn": True, "type_kv": 8}
 
 _SYSTEME = (
     "Tu es Aura, une IA hybride locale specialisee en maths exactes et faits temps reel. "
@@ -108,18 +144,17 @@ def _charger():
             "Telecharge-le avec : python scripts/telecharger_llama.py")
 
     from llama_cpp import Llama
+    reg = _reglages_materiel()
     t0 = time.time()
     _llm = Llama(
         model_path=_CHEMIN_GGUF,
-        n_ctx=1536,            # 1536 : plan multi-pass + contexte web + 380 tokens
-                               # de redaction ne tronquent jamais (1024 etait limite)
-        n_batch=768,           # compense le ctx 1536 : 13.4 tok/s mesures
-                               # (= vitesse du ctx 1024, headroom gratuit)
-        n_threads=os.cpu_count() or 4,   # tous les coeurs : +26%
-        n_threads_batch=os.cpu_count() or 4,
-        flash_attn=True,       # attention fusionnee (impl. CPU llama.cpp)
-        type_k=8,              # KV cache q8_0 : RAM /2, contexte utile x2
-        type_v=8,
+        n_ctx=reg["n_ctx"],
+        n_batch=reg["n_batch"],
+        n_threads=reg["n_threads"],
+        n_threads_batch=reg["n_threads_batch"],
+        flash_attn=reg["flash_attn"],
+        type_k=reg["type_kv"],          # KV cache q8_0 : RAM /2
+        type_v=reg["type_kv"],
         verbose=False,
     )
     LOG.info("Llama 3.2 1B charge en %.1fs (%s)", time.time() - t0,
