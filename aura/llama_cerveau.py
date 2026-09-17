@@ -134,6 +134,44 @@ _PROMPT_STYLE = (
 _llm = None
 
 
+def _couches_gpu() -> int:
+    """Couches à offloader au GPU si le build llama.cpp le supporte.
+
+    - build CUDA/Vulkan/RoceM + GPU présent -> -1 (tout sur GPU, vitesse max)
+    - sinon -> 0 (CPU pur : c'est le cas de CE PC, Intel UHD = iGPU sans
+      build GPU de llama.cpp, et c'est volontaire : CPU = 13,4 tok/s)
+    La variable AURA_GPU=0 force le CPU même si un GPU est détecté.
+    """
+    if os.environ.get("AURA_GPU") == "0":
+        return 0
+    try:
+        import importlib
+        llama_cpp = importlib.import_module("llama_cpp")
+        llama_cpp2 = importlib.import_module("llama_cpp.llama_cpp")
+        # un build GPU expose ces fonctions C ; un build CPU pur, non
+        if not (hasattr(llama_cpp2, "ggml_backend_cuda_init")
+                or hasattr(llama_cpp2, "ggml_backend_vk_init")):
+            return 0
+        if os.name == "nt":
+            import ctypes
+            if not ctypes.windll.d3d12:
+                return 0
+            # présence d'un adaptateur non-cpu ? heuristique wmic légère
+            try:
+                import subprocess
+                out = subprocess.run(
+                    ["wmic", "path", "win32_VideoController", "get", "name"],
+                    capture_output=True, text=True, timeout=5).stdout.lower()
+            except Exception:
+                out = ""
+            gpu_presente = any(m in out for m in ("nvidia", "radeon", "arc",
+                                                   "geforce", "rtx", "gtx"))
+            return -1 if gpu_presente else 0
+        return -1 if os.path.exists("/dev/dri") else 0
+    except Exception:
+        return 0
+
+
 def _charger():
     global _llm
     if _llm is not None:
@@ -145,6 +183,7 @@ def _charger():
 
     from llama_cpp import Llama
     reg = _reglages_materiel()
+    couches_gpu = _couches_gpu()
     t0 = time.time()
     _llm = Llama(
         model_path=_CHEMIN_GGUF,
@@ -155,10 +194,11 @@ def _charger():
         flash_attn=reg["flash_attn"],
         type_k=reg["type_kv"],          # KV cache q8_0 : RAM /2
         type_v=reg["type_kv"],
+        n_gpu_layers=couches_gpu,       # GPU si dispo, sinon 0 (CPU)
         verbose=False,
     )
-    LOG.info("Llama 3.2 1B charge en %.1fs (%s)", time.time() - t0,
-             os.path.basename(_CHEMIN_GGUF))
+    LOG.info("Llama 3.2 1B charge en %.1fs (%s, gpu_layers=%d)",
+             time.time() - t0, os.path.basename(_CHEMIN_GGUF), couches_gpu)
     return _llm
 
 

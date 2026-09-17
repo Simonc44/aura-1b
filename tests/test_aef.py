@@ -35,10 +35,16 @@ class TestFormat:
 
 class TestBoot:
     def test_boot_extrait_tout(self, aef_forge, monkeypatch, tmp_path):
+        # ouvrir_et_verifier = la logique crypto + extraction sans re-import
+        # du paquet (le re-import de boot() polluerait sys.modules en tests)
         monkeypatch.setattr(kernel, "CACHE", tmp_path / "cache")
-        infos = kernel.boot(aef_forge)
-        assert infos["config"]["n_ctx"] == 1536
+        cfg = kernel.ouvrir_et_verifier(aef_forge)
+        assert cfg["n_ctx"] == 1536
         assert (tmp_path / "cache" / "cerveau.gguf").exists()
+        assert (tmp_path / "cache" / "config.json").exists()
+        # 2e appel : le cache est reutilise (pas de re-extraction)
+        cfg2 = kernel.ouvrir_et_verifier(aef_forge)
+        assert cfg2 == cfg
 
     def test_altération_poids_refusee(self, aef_forge, monkeypatch, tmp_path):
         monkeypatch.setattr(kernel, "CACHE", tmp_path / "cache2")
