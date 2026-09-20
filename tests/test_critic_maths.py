@@ -133,7 +133,8 @@ class TestVerificationCritic:
                                             "l'Australie depuis 1913.")
         monkeypatch.setattr(llama_cerveau, "generer",
                             lambda q, contexte_web="", formule="",
-                            max_tokens=None, historique=None:
+                            max_tokens=None, historique=None, systeme=None,
+                            contexte_faits="":
                             ("Canberra." if contexte_web else "Sydney."))
         ia = Aura1B()
         monkeypatch.setattr(

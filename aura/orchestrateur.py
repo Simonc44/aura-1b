@@ -25,7 +25,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 
 from . import expert_symbolique, memoire_web, autoamelioration, filtre_instantane
-from . import llama_cerveau
+from . import llama_cerveau, raisonneur, graphe_faits
 from .routeur import RouteurIntelligent
 
 LOG = logging.getLogger("aura.orchestrateur")
@@ -235,7 +235,7 @@ class Aura1B:
     # -- cerveau ------------------------------------------------------------
 
     def _generer(self, question: str, contexte_web: str, formule: str,
-                 riche: bool = False) -> str:
+                 riche: bool = False, contexte_faits: str = "") -> str:
         if self._llama is None:
             from .llama_cerveau import generer as llama_generer
             self._llama = llama_generer
@@ -244,7 +244,8 @@ class Aura1B:
             return generer_riche(question, contexte_web, formule,
                                  historique=self._historique)
         return self._llama(question, contexte_web, formule,
-                           historique=self._historique)
+                           historique=self._historique,
+                           contexte_faits=contexte_faits)
 
     # -- prompt structure ---------------------------------------------------
 
@@ -284,6 +285,49 @@ class Aura1B:
             "explique", "analyse", "compare", "pourquoi", "discute",
             "redige", "essai", "opinion", "avis", "argumente", "dissertation"))
 
+    # -- raisonnement Program-of-Thoughts -----------------------------------
+
+    @staticmethod
+    def _est_puzzle(question: str) -> bool:
+        """Puzzle d'ages/relations : le terrain ou PoT rapporte le plus."""
+        try:
+            return raisonneur.est_puzzle(question)
+        except Exception:
+            return False
+
+    def _resoudre_par_pot(self, question: str) -> str | None:
+        """Passe PoT : le 1B ecrit les etapes, l'AST verifie chaque calcul.
+
+        Renvoie None si le modele ne produit pas >= 2 etapes calculables —
+        dans ce cas on retombe sur le chemin normal (jamais pire qu'avant).
+        """
+        try:
+            brut = llama_cerveau.generer(question, systeme=raisonneur._SYSTEME_POT,
+                                         max_tokens=280)
+        except Exception as e:
+            LOG.info("[pot] generation impossible : %s", e)
+            return None
+        etapes = raisonneur.extraire_etapes(brut)
+        if len(etapes) < 2:
+            LOG.info("[pot] pas assez d'etapes calculables (%d) -> chemin normal",
+                     len(etapes))
+            return None
+        try:
+            resultats = raisonneur.verifier_calculs(etapes)
+        except ValueError as e:
+            LOG.info("[pot] calcul illisible (%s) -> chemin normal", e)
+            return None
+        verification = raisonneur.construire_verification(etapes, resultats)
+        try:
+            finale = llama_cerveau.generer(question,
+                                           contexte_web=verification,
+                                           max_tokens=120)
+        except Exception as e:
+            LOG.info("[pot] synthese impossible : %s", e)
+            return None
+        LOG.info("[pot] puzzle resolu : %d etapes verifiees", len(etapes))
+        return finale
+
     # -- pipeline complet ---------------------------------------------------
 
     def executer(self, question: str, X=None, y=None) -> str:
@@ -309,13 +353,44 @@ class Aura1B:
         # FAN-OUT PARALLELE (idea JEV #1) : web ∥ PGS en un aller-retour
         contexte_web, formule = self._executer_experts(
             experts, question, X, y, riche)
-        reponse = self._generer(question, contexte_web, formule, riche=riche)
+
+        # RAISONNEMENT PoT (Program-of-Thoughts) : les puzzles d'ages/
+        # relations sans donnees numeriques vont au raisonneur — le 1B
+        # ecrit les etapes, l'AST les verifie exactement. Repli auto.
+        # PAS de condition !riche : les puzzles sont structurellement
+        # longs (>= 9 mots = mode riche) — leur signature (ages+relations)
+        # est plus fiable que le comptage de mots.
+        if not (X and y) and not contexte_web and self._est_puzzle(question):
+            pot = self._resoudre_par_pot(question)
+            if pot is not None:
+                filtre_instantane.enregistrer(question, pot)
+                return {"question": question, "experts": experts | {"pot"},
+                        "analyse": analyse, "cerveau_choisi": "pot-1b+ast",
+                        "contexte_web": "", "formule": "",
+                        "erreur_pgs": None, "reponse": pot}
+
+        # GRAPHE DE FAITS (MiniRAG-lite) : retrouver au lieu de deviner —
+        # uniquement des faits VERIFIES web (jamais d'hallucination dedans).
+        contexte_faits = "" if contexte_web else \
+            graphe_faits.chercher(question)
+        reponse = self._generer(question, contexte_web, formule, riche=riche,
+                                contexte_faits=contexte_faits)
         # VERIFICATION OUTILLEE (pattern CRITIC) : preuve web avant livraison
+        verifiee = False
         if self._a_besoin_verification(question, contexte_web, reponse):
             reponse = self._verifier_au_web(question, reponse)
+            verifiee = True
             # RECONSOLIDATION : la reponse verifiee remplace l'ancienne au
             # cache (sinon une reponse fausse d'avant reste collée a vie)
             filtre_instantane.mettre_a_jour(question, reponse)
+        # APPRENTISSAGE DU GRAPHE : les reponses verifiees web nourrissent
+        # le graphe de faits (extraction conservatrice) — le systeme devient
+        # plus savant a chaque question factuelle confirmee.
+        if verifiee:
+            try:
+                graphe_faits.apprendre_de_reponse(reponse, verifiee_web=True)
+            except Exception as e:
+                LOG.info("[graphe] apprentissage impossible : %s", e)
         # memorise pour les futures questions (cache semantique + conversation)
         filtre_instantane.enregistrer(question, reponse)
         self._historique.append({"role": "user", "content": question})

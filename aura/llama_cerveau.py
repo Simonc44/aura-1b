@@ -130,6 +130,16 @@ _PROMPT_PLAN = (
     "CONNECTEURS : <5 connecteurs logiques avances separes par des virgules>"
 )
 
+_PROMPT_SECTION = (
+    "Redige la section {numero}/{total} de l'analyse de : {question}\n"
+    "SECTION A REDIGER : {titre}\n"
+    "Sections deja ecrites (ne te repete pas, enchaine naturellement) :\n"
+    "{memoire}\n"
+    "Faits disponibles :\n{contexte_court}\n"
+    "CONSIGNES : vocabulaire riche et precis, phrases courtes reliees par "
+    "des connecteurs logiques, 60 a 110 mots, sans titres ni balises."
+)
+
 _PROMPT_STYLE = (
     "Tu es un redacteur litteraire et scientifique de haut niveau.\n"
     "En te basant sur ce plan :\n{plan}\n\n"
@@ -279,11 +289,15 @@ def _avec_raisonnement(question: str) -> str:
 
 def generer(question: str, contexte_web: str = "", formule: str = "",
             max_tokens: int | None = None,
-            historique: list[dict] | None = None) -> str:
+            historique: list[dict] | None = None,
+            systeme: str | None = None,
+            contexte_faits: str = "") -> str:
     """Genere une reponse avec Llama 3.2 1B.
 
     historique : liste de {'role': 'user'|'assistant', 'content': str} pour
     les conversations multi-tours (memoire courte, le modele se souvient).
+    systeme : prompt systeme de remplacement (mode PoT du raisonneur).
+    contexte_faits : triplets du graphe de faits VERIFIES (MiniRAG-lite).
     """
     try:
         llm = _charger()
@@ -293,13 +307,18 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
                 f"Details : {e}")
 
     contexte = _formater_contexte(contexte_web, formule)
-    messages = [{"role": "system", "content": _SYSTEME}]
+    messages = [{"role": "system", "content": systeme or _SYSTEME}]
     for tour in (historique or [])[-6:]:          # memoire : 6 derniers tours
         messages.append({"role": tour["role"], "content": tour["content"]})
     if contexte:
         messages.append({"role": "user", "content": contexte})
         messages.append({"role": "assistant",
                          "content": "Compris, j'utilise uniquement ces faits."})
+    if contexte_faits:
+        messages.append({"role": "user", "content":
+            f"BASE DE FAITS (verifiee) :\n{contexte_faits}"})
+        messages.append({"role": "assistant",
+                         "content": "Compris, je m'appuie sur ces faits verifies."})
     messages.append({"role": "user", "content": _avec_raisonnement(question)})
 
     if max_tokens is None:
@@ -400,7 +419,37 @@ def generer_riche(question: str, contexte_web: str = "",
     if not plan:
         return generer(question, contexte_web, formule, historique=historique)
 
-    # ── Passe 2 : redaction stylisee ──
+    # ── Passe 2 : redaction SECTION PAR SECTION (inspiree de StoryWriter) ──
+    # chaque section est une generation COURTE : le 1B reste dans sa zone
+    # (peu de tokens = moins de derape) et la memoire des sections deja
+    # ecrites garantit la coherence d'ensemble. Repli : passe unique.
+    sections = [l for l in plan.splitlines()
+                if l.strip().upper().startswith("PARTIE")]
+    if len(sections) >= 2:
+        redige = []
+        for num, titre in enumerate(sections, 1):
+            memoire = "\n\n".join(redige)[-900:]
+            try:
+                ps = llm.create_chat_completion(
+                    messages=[{"role": "user", "content":
+                        _PROMPT_SECTION.format(
+                            numero=num, total=len(sections),
+                            titre=titre.strip(), question=question,
+                            contexte_court=contexte_court,
+                            memoire=memoire or "(premiere section)")}],
+                    max_tokens=220, temperature=0.5, top_p=0.95,
+                    min_p=0.05, repeat_penalty=1.1, stop=["<|eot_id|>"])
+                texte = (ps.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
+            except Exception as e:
+                LOG.warning("[storywriter] section %d echouee : %s", num, e)
+                texte = ""
+            if texte:
+                redige.append(texte)
+        if redige:
+            return "\n\n".join(redige)
+        LOG.warning("[storywriter] aucune section redigee -> passe unique")
+
+    # ── repli : passe unique (comportement d'avant) ──
     try:
         messages = [{"role": "system", "content": _PROMPT_STYLE.format(
             plan=plan, question=question, contexte_court=contexte_court)}]
