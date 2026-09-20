@@ -23,6 +23,7 @@ rwkv_legacy = ["rwkv>=0.8", "tiktoken>=0.5"]
 dev = [
     "pyinstaller>=6.22.3",
     "pytest>=8.0",
+    "mypy>=1.10",
 ]
 
 [build-system]
@@ -34,3 +35,14 @@ packages = ["aura"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+# Stubs absents pour les libs scientifiques : on n'insiste pas dessus.
+[[tool.mypy.overrides]]
+module = [
+    "sklearn.*", "joblib.*", "scipy.*", "gplearn.*",
+    "ddgs.*", "duckduckgo_search.*", "llama_cpp.*",
+    "chiffrement", "signature", "kernel",
+]
+ignore_missing_imports = true

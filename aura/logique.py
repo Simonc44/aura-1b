@@ -144,7 +144,10 @@ def parser_puzzle(texte: str) -> dict:
 
     Leve ValueError a la moindre ligne illicite : jamais de devinette.
     """
-    entites, domaine, contraintes, tous_diff = [], [], [], False
+    entites: list[str] = []
+    domaine: list[str] = []
+    contraintes: list[tuple] = []
+    tous_diff = False
     for brut in texte.splitlines():
         ligne = unicodedata.normalize("NFKD", brut.strip())
         ligne = "".join(c for c in ligne if not unicodedata.combining(c))
@@ -187,7 +190,7 @@ def parser_puzzle(texte: str) -> dict:
         if c[0] == "dit" and c[1] not in ents:
             raise ValueError(f"locuteur inconnu : {c[1]!r}")
 
-    arbres = []
+    arbres: list[tuple] = []
     for c in contraintes:
         if c[0] == "cond":
             arbres.append(("cond", _Parser(_tokeniser(c[1]), ents).parser()))

@@ -46,7 +46,7 @@ def chercher(requete: str, max_resultats: int = 3, timeout: int = 10) -> str:
         try:
             from ddgs import DDGS
         except ImportError:  # ancien nom de paquet
-            from duckduckgo_search import DDGS
+            from duckduckgo_search import DDGS  # type: ignore[no-redef]
     except ImportError:
         LOG.warning("paquet ddgs absent : memoire web desactivee")
         return ""

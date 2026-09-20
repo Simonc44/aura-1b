@@ -103,21 +103,6 @@ _MOTS_LOGIQUE = ("plus que", "moins que", "si ", "alors", "avant", "apres",
                  "pourquoi", "deduis", "en deduis", "logique", "ordre",
                  "qui est le plus", "quel age", "différence entre", "difference entre")
 
-# ── Étape 2 : Chain-of-Thought masque ──────────────────────────────────
-
-_COT_SYSTEME = (
-    "Tu es Aura-1B, un systeme d'IA de niveau expert. Avant de repondre a "
-    "l'utilisateur, tu dois OBLIGATOIREMENT mener une reflexion approfondie "
-    "pas a pas. Ta reponse doit suivre strictement cette structure :\n"
-    "<thinking>\n"
-    "1. Analyse de la demande : de quoi s'agit-il precisement ?\n"
-    "2. Strategie : quel ton, quels mots-cles du contexte integrer ?\n"
-    "3. Plan : redige le plan de la reponse en 3 sections maximum.\n"
-    "</thinking>\n"
-    "[Ta reponse finale redigee avec un style riche et soutenu commence ici, "
-    "hors des balises]"
-)
-
 # ── Étape 3 : prompts de la generation multi-pass ─────────────────────
 
 _PROMPT_PLAN = (
@@ -429,7 +414,7 @@ def generer_riche(question: str, contexte_web: str = "",
     sections = [l for l in plan.splitlines()
                 if l.strip().upper().startswith("PARTIE")]
     if len(sections) >= 2:
-        redige = []
+        redige: list[str] = []
         for num, titre in enumerate(sections, 1):
             memoire = "\n\n".join(redige)[-900:]
             try:

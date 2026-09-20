@@ -46,7 +46,8 @@ try:
     )
     _DISPO = True
 except ImportError:                      # pragma: no cover
-    Ed25519PrivateKey = Ed25519PublicKey = None
+    Ed25519PrivateKey = None             # type: ignore[assignment, misc]
+    Ed25519PublicKey = None              # type: ignore[assignment, misc]
     _DISPO = False
 
 
@@ -87,8 +88,9 @@ def charger_cle_privee(chemin: str | Path) -> "Ed25519PrivateKey":
     if not _DISPO:
         raise RuntimeError("cryptography indisponible")
     from cryptography.hazmat.primitives import serialization
-    return serialization.load_pem_private_key(
+    cle = serialization.load_pem_private_key(
         Path(chemin).read_bytes(), password=None)
+    return cle  # type: ignore[return-value]
 
 
 def cle_privee_vers_publique_brute(cle_privee) -> bytes:

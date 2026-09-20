@@ -12,16 +12,22 @@
                     ▼
 NIVEAU 0 — INSTANTANÉ (< 5 ms)          ← CPU-native core
   ├─ Exact math (safe AST eval)         « square of 12 » → 144 in 0.3 ms
+  ├─ PAL (dates · units · %)            « 5 miles en km » · « dans 45 jours »
   └─ Semantic cache (cosine ≥ 0.85)     repeated question → 1.3 ms
      │ (otherwise, ~60-70% of the time)
      ▼
 NIVEAU 1 — EXPERTS
-  ├─ 📐 PGS (genetic programming)       exact formula, zero error
-  └─ 🌐 DuckDuckGo (real-time facts)    the internet = external hard drive
+  ├─ 🧩 Program-of-Thoughts (puzzles)    1B writes steps, AST guarantees them
+  ├─ ⚖️ Logic solver (mini-SAT)          knights/knaves, attributions — pure Python
+  ├─ 💻 PoT-code (sandboxed)             1B writes code + asserts → verified or refused
+  ├─ 📐 PGS (genetic programming)        exact formula, zero error
+  ├─ 📚 Fact graph (MiniRAG-lite)        triplets fed by verified answers only
+  └─ 🌐 DuckDuckGo (real-time facts)     the internet = external hard drive
      │
      ▼
 NIVEAU 2 — LLAMA 3.2 1B (Q4_K_M)        ← only what remains
   instruction-tuned FR+EN, 9-14 tok/s on CPU
+  └─ 🔍 CRITIC check                     short factual answers re-anchored on web proof
 ```
 
 ### The pillars
@@ -36,6 +42,20 @@ NIVEAU 2 — LLAMA 3.2 1B (Q4_K_M)        ← only what remains
 
 Plus **auto-improvement**: wrong answers recorded via `enregistrer_correction()` are injected into future prompts — the same mistake is never made twice.
 
+### The verified-intelligence layer (why a 1B stops hallucinating)
+
+Every mechanism below shares one rule: **the small model proposes, the program proves** — anything unproven is either verified or refused, never invented.
+
+| Mechanism | What it fixes | How |
+|---|---|---|
+| **CRITIC check** | factual LLM answers from memory (the classic 1B slip) | short factual answers are re-generated anchored on web proof before delivery; the verified answer **replaces** the old one in the semantic cache (reconsolidation) |
+| **Fact graph** (`graphe_faits.py`) | offline long-tail knowledge | triplets `(subject, relation, object)` in JSONL, multi-word coverage lookup (natural multi-hop). Fed **only** from web-verified answers + your `knowledge.jsonl` (223 entries) — it can never contain a hallucination |
+| **PAL** (`pal.py`) | dates, units, compound percentages | « 15% de 200 plus 30% de 100 » → 60, « 100 f en c », « combien de jours jusqu'au 25 décembre » — deterministic, < 1 ms |
+| **Program-of-Thoughts** (`raisonneur.py`) | word puzzles with numbers | the 1B writes `ETAPE 1/ETAPE 2` lines, the safe AST evaluates each step; a puzzle like « Léo a 4 ans, Marie le double, Paul 3 de plus » → **11, every step verified** |
+| **Logic solver** (`logique.py`) | number-free logic (knights & knaves, attributions) | the 1B formalizes `ENTITES/DOMAINE/CONDITION`, a pure-Python mini-SAT deduces exactly; invented constraints are detected → graceful fallback |
+| **PoT-code** (`potcode.py`) | broken code generation | the 1B writes a function + asserts, a sandbox (restricted builtins + instruction budget via `settrace`) executes everything; a failing assert = the code is never delivered |
+| **StoryWriter-lite** | long-form depth | rich mode writes each section of the plan separately, with memory of previous sections — short generations stay inside the 1B's comfort zone |
+
 ### Rich mode (writing quality)
 
 Open questions (≥ 9 words or *explique/analyse/compare...*) trigger a 3-step pipeline:
@@ -44,6 +64,40 @@ Open questions (≥ 9 words or *explique/analyse/compare...*) trigger a 3-step p
 3. **Multi-pass generation** — pass 1: detailed plan + 5 logical connectors; pass 2: styled writing following that plan.
 
 Cost: ~2× latency — reserved for questions that deserve it. Measured on this machine: fact 0.3 s, math 0.0 s, rich essay 66 s.
+
+## Teaching your AI (it learns from you)
+
+Aura improves from feedback with no retraining. Three levers, from easiest to deepest:
+
+1. **Correct a wrong answer** (auto-improvement):
+
+   ```python
+   from aura import autoamelioration
+   autoamelioration.enregistrer_correction(
+       "quel est le carre de 5", "20",   # its wrong answer
+       "25",                             # the right one
+       "math")
+   ```
+
+   The correction is stored (`.cache_corrections.jsonl`) and injected into future prompts: the same mistake is never made twice.
+
+2. **Feed the fact graph** — anything web-verified is learned automatically, and you can add curated facts:
+
+   ```python
+   from aura import graphe_faits
+   graphe_faits.ajouter("Canberra", "est la capitale de", "l'Australie",
+                        source="manuel")
+   ```
+
+   Or in bulk from a knowledge file: `python scripts/nourrir_graphe.py knowledge.jsonl`
+   (skips identity entries, tags health/law as *general information*).
+
+3. **Rehearse** (spaced repetition): the semantic cache remembers verified answers —
+   ask again tomorrow and the answer comes back in ~1 ms. Wrong entries are replaced
+   by reconsolidation (`mettre_a_jour`), never duplicated.
+
+Roadmap: LoRA fine-tuning (reasoning) + MEMIT fact editing on Colab — the two
+levers that raise the *weights* themselves while keeping the 807 Mo size and speed.
 
 ## Hardware profile (auto-tuning)
 
@@ -185,7 +239,8 @@ System-level quiz vs Qwen 2.5 1.5B: **Aura 5/5 vs 4/5** (exact math, real-time f
 ## Tests
 
 ```bash
-uv run pytest -q        # 64 tests: level-0, lexicon, masked CoT, multi-pass, routing, .aef crypto, Ed25519 signature, fast boot
+uv run pytest -q        # 173 tests
+uv run mypy aura/       # 0 error (strict-ish config in pyproject.toml)
 ```
 
 CI (GitHub Actions) runs the full suite on Ubuntu + Windows (Python 3.11/3.12,

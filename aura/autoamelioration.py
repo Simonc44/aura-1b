@@ -98,7 +98,7 @@ def construire_contexte_corrections(question: str) -> str:
 def stats() -> dict:
     """Retourne les statistiques d'apprentissage."""
     corrections = _charger_corrections()
-    categories = {}
+    categories: dict[str, int] = {}
     for c in corrections:
         cat = c.get("categorie", "general")
         categories[cat] = categories.get(cat, 0) + 1

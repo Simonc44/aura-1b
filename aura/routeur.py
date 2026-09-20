@@ -292,6 +292,7 @@ class RouteurIntelligent:
 
         # methode 1 : classifieur TF-IDF + LogReg
         self._charger_ou_entrainer()
+        assert self._vectoriseur is not None and self._classifieur is not None
         X = self._vectoriseur.transform([q])
         pred = self._classifieur.predict(X)[0]
         probas = dict(zip(self._classifieur.classes_, self._classifieur.predict_proba(X)[0]))
@@ -299,6 +300,7 @@ class RouteurIntelligent:
         # methode 2 : similarité cosinus avec prototypes
         self._charger_protos()
         from sklearn.metrics.pairwise import cosine_similarity
+        assert self._proto_vect is not None
         vec_q = self._proto_vect.transform([q])
         sims = cosine_similarity(vec_q, self._proto_vecs)[0]
         best_proto = self._proto_labels[np.argmax(sims)]

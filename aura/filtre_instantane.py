@@ -8,6 +8,9 @@ generer. Deux detecteurs, du plus rapide au plus cher :
    « carre de 12 », « 2 puissance 10 », « 45*12 », « 15% de 200 » et les
    expressions dictees en mots (« 15 divise par 3 plus 4 puissance 2 »).
    Resultat EXACT, zero hallucination, zero token genere.
+1bis. **PAL** (< 1 ms) — dates (« dans 45 jours », « combien de jours
+   jusqu'au 25 decembre »), unites (« 5 miles en km », « 100 f en c »),
+   pourcentages composes (« 15% de 200 plus 30% de 100 ») : voir pal.py.
 2. **Cache semantique** (~1 ms) — TF-IDF char n-grams + cosinus sur les
    reponses deja donnees : une question similaire (>= 0.85) renvoie la
    reponse enregistree. Le systeme « apprend » ses reponses.
@@ -184,6 +187,8 @@ def _charger_cache():
 def _similar(question: str) -> int | None:
     """Index de l'entree la plus similaire si >= seuil, sinon None."""
     from sklearn.metrics.pairwise import cosine_similarity
+    if _vectoriseur is None or _matrice is None:
+        return None
     vec = _vectoriseur.transform([question.lower().strip()])
     sims = cosine_similarity(vec, _matrice)[0]
     i = int(np.argmax(sims))
@@ -198,6 +203,14 @@ def repondre(question: str) -> str | None:
     r = _calcul_direct(question)
     if r is not None:
         LOG.info("[niveau0] calcul direct en %.1f ms", (time.time() - t0) * 1000)
+        return r
+
+    # 1bis. PAL (< 1 ms) : dates, unites, pourcentages composes —
+    # import paresseux (pal importe filtre_instantane pour l'AST garde)
+    from . import pal
+    r = pal.repondre(question)
+    if r is not None:
+        LOG.info("[niveau0] PAL en %.1f ms", (time.time() - t0) * 1000)
         return r
 
     # 2. cache semantique (~1 ms) — JAMAIS pour une question contextuelle :
@@ -260,8 +273,7 @@ def mettre_a_jour(question: str, reponse: str) -> bool:
     if not question or not reponse or reponse.startswith("[Aura]"):
         return False
     _charger_cache()
-    if not _entrees:
-        return False
+    assert _vectoriseur is not None and _matrice is not None
     i = _similar(question.lower().strip())
     if i is None:
         return False

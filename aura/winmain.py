@@ -21,7 +21,9 @@ from pathlib import Path
 # En exe gele : les fichiers embarques (kernel.py, chiffrement.py) sont
 # extraits dans _MEIPASS — il faut y pointer sys.path pour les importer.
 if getattr(sys, "frozen", False):
-    sys.path.insert(0, sys._MEIPASS)
+    _meipass: str = getattr(sys, "_MEIPASS", "")
+    if _meipass:
+        sys.path.insert(0, _meipass)
 
 
 def _import_kernel():
