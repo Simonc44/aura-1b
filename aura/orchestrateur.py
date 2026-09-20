@@ -15,8 +15,10 @@ Cycle de decision inspire de JEV ultrafast (browser-use) :
 - un seul passage : niveau 0 + routeur en parallele (max des durees, pas somme)
 - validation de chaque expert AVANT execution (pas de PGS sans donnees)
 - fan-out parallele : web ∥ PGS en un aller-retour, echecs isoles
+- confiance calibree (style RouteLLM) : classifieur peu sur -> chemin sur
 """
 import logging
+import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
@@ -24,6 +26,14 @@ from . import expert_symbolique, memoire_web, autoamelioration, filtre_instantan
 from .routeur import RouteurIntelligent
 
 LOG = logging.getLogger("aura.orchestrateur")
+
+# Seuil de confiance (style RouteLLM) : sous ce score max du classifieur,
+# on ne fait pas confiance a son choix -> chemin sur 'general' (le LLM
+# tranche avec tout son contexte). Calibre sur 14 questions reelles :
+# cas clairs 0.50-0.85, ambigus 0.47-0.55 -> 0.50 ne demote que l'incertain
+# reel ; les maths timides sont de toute facon rattrapees par le niveau 0.
+# AURA_SEUIL_CONFIANCE=0.45 pour desserrer, 0.60 pour durcir.
+_SEUIL_CONFIANCE = float(os.environ.get("AURA_SEUIL_CONFIANCE", "0.50"))
 
 
 class Aura1B:
@@ -88,14 +98,24 @@ class Aura1B:
         except TypeError:
             return False
 
-    def _valider_experts(self, experts, X=None, y=None) -> set:
-        """Garde-fou : verifier chaque expert AVANT de le lancer.
+    def _valider_experts(self, analyse, X=None, y=None) -> set:
+        """Garde-fou : verifier la confiance PUIS chaque expert AVANT exécution.
 
-        JEV verifie chaque cible avant le clic ; ici on refuse de lancer le
-        PGS sans donnees numeriques exploitables (myroutage 'math' = calcul
-        genetique lance pour rien). Un ensemble vide retombe sur 'general'.
+        JEV verifie chaque cible avant le clic ; RouteLLM route selon la
+        qualite predite. Ici, deux controles :
+        1. confiance : le score max du classifieur sous _SEUIL_CONFIANCE ->
+           son choix n'est pas fiable, on prend le chemin sur ('general') ;
+        2. PGS sans donnees numeriques exploitables -> ignore (calcul
+           genetique lance pour rien). Un ensemble vide retombe sur 'general'.
         """
-        experts = set(experts)
+        experts = set(analyse.get("experts") or ())
+        scores = analyse.get("scores") or {}
+        if scores:
+            meilleure = max(scores.values())
+            if meilleure < _SEUIL_CONFIANCE:
+                LOG.info("[routeur] confiance %.2f < %.2f -> chemin sur 'general'",
+                         meilleure, _SEUIL_CONFIANCE)
+                return {"general"}
         if "math" in experts and not self._donnees_valides(X, y):
             LOG.info("[garde-fou] 'math' route sans donnees numeriques -> ignore")
             experts.discard("math")
@@ -220,9 +240,9 @@ class Aura1B:
                     "erreur_pgs": None, "reponse": instant}
 
         # ── NIVEAUX 1-2 : experts + LLM ───────────────────────────────
-        # VALIDATION AVANT EXECUTION (idea JEV #2) : chaque expert est
-        # verifie avant d'etre lance.
-        experts = self._valider_experts(analyse["experts"], X, y)
+        # VALIDATION AVANT EXECUTION (idea JEV #2 + confiance RouteLLM) :
+        # chaque expert est verifie avant d'etre lance.
+        experts = self._valider_experts(analyse, X, y)
         riche = self._est_complexe(question)
         # FAN-OUT PARALLELE (idea JEV #1) : web ∥ PGS en un aller-retour
         contexte_web, formule = self._executer_experts(

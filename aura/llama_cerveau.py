@@ -123,9 +123,11 @@ _COT_SYSTEME = (
 _PROMPT_PLAN = (
     "En te basant sur ces faits :\n{contexte}\n\n"
     "et sur cette question : {question}\n\n"
-    "Genere UNIQUEMENT un plan ultra-detaille en 3 parties et liste 5 "
-    "connecteurs logiques avances (ex : 'Neanmoins', 'Par consequent') "
-    "que tu utiliseras."
+    "Genere UNIQUEMENT le plan de ta reponse, au format exact :\n"
+    "PARTIE 1 : <titre developpe de la premiere partie>\n"
+    "PARTIE 2 : <titre developpe de la deuxieme partie>\n"
+    "PARTIE 3 : <titre developpe de la troisieme partie>\n"
+    "CONNECTEURS : <5 connecteurs logiques avances separes par des virgules>"
 )
 
 _PROMPT_STYLE = (
@@ -143,6 +145,42 @@ _PROMPT_STYLE = (
 )
 
 _llm = None
+
+# ── Sorties contraintes (GBNF) ────────────────────────────────────────
+
+# Le plan multi-pass DOIT etre complet et parsable : 3 parties + connecteurs.
+# Le decodage contraint garantit ce format au niveau du token (100 % conforme,
+# jamais tronque ni deforme) — la passe 2 recoit toujours des rails propres,
+# meme quand le 1B derape. Alignement prompt/grammaire : _PROMPT_PLAN montre
+# le format exact que la grammaire impose.
+_GBNF_PLAN = (
+    "root ::= partie{3} connecteurs\n"
+    'partie ::= "PARTIE " [1-3] " : " ligne "\\n"\n'
+    "ligne ::= [^\\n]{10,220}\n"
+    'connecteurs ::= "CONNECTEURS : " ligne\n'
+)
+
+_grammaire_plan_cache = None
+
+
+def grammaire_plan():
+    """LlamaGrammar du plan multi-pass, ou None si GBNF indisponible.
+
+    Compilee une seule fois puis mise en cache ; tout echec (build sans
+    support grammaire, version ancienne) retombe proprement sur un plan
+    libre = comportement d'avant.
+    """
+    global _grammaire_plan_cache
+    if _grammaire_plan_cache is None:
+        try:
+            from llama_cpp import LlamaGrammar
+            g = LlamaGrammar.from_string(_GBNF_PLAN)
+            _grammaire_plan_cache = (True, g)
+            LOG.info("[gbnf] grammaire plan chargee : sortie contrainte active")
+        except Exception as e:
+            LOG.info("[gbnf] grammaire indisponible (%s) -> plan libre", e)
+            _grammaire_plan_cache = (False, None)
+    return _grammaire_plan_cache[1]
 
 
 def _couches_gpu() -> int:
@@ -317,6 +355,23 @@ def separer_reflexion(reponse_brute: str) -> tuple[str, str]:
 
 # ── Étape 3 : generation multi-pass (plan -> redaction stylisee) ──────
 
+def _generer_plan(llm, question: str, contexte: str) -> str:
+    """Passe 1 : plan 3 parties + connecteurs, sortie CONTRAINTE par GBNF.
+
+    La grammaire force aussi l'arret : le modele emet EOS des que 'root'
+    est complete (max_tokens n'est qu'un garde-fou).
+    """
+    p1 = llm.create_chat_completion(
+        messages=[{"role": "user", "content": _PROMPT_PLAN.format(
+            contexte=contexte or "(aucun contexte fourni)",
+            question=question)}],
+        max_tokens=400, temperature=0.3,
+        stop=["<|eot_id|>"],
+        grammar=grammaire_plan(),
+    )
+    return (p1.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
+
+
 def generer_riche(question: str, contexte_web: str = "",
                   formule: str = "", historique: list[dict] | None = None) -> str:
     """Generation en 2 passes pour les reponses longues : plan puis style.
@@ -336,15 +391,9 @@ def generer_riche(question: str, contexte_web: str = "",
         LOG.error("[llama] chargement impossible : %s", e)
         return generer(question, contexte_web, formule, historique=historique)
 
-    # ── Passe 1 : plan + connecteurs ──
+    # ── Passe 1 : plan + connecteurs (sortie contrainte par grammaire) ──
     try:
-        p1 = llm.create_chat_completion(
-            messages=[{"role": "user", "content": _PROMPT_PLAN.format(
-                contexte=contexte or "(aucun contexte fourni)",
-                question=question)}],
-            max_tokens=220, temperature=0.3,
-            stop=["<|eot_id|>"])
-        plan = (p1.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
+        plan = _generer_plan(llm, question, contexte)
     except Exception as e:
         LOG.warning("[multi-pass] passe 1 echouee : %s", e)
         plan = ""
