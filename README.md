@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/aura.jpg" alt="Aura-1B" width="720"/>
+<img src="assets/aura.jpg" alt="Aura-1B" width="420"/>
 
 **The fastest answer is the one you never generate.**
 
@@ -83,30 +83,6 @@ uv run python -m aura --chat                   # chat with memory
 ## 🏗 Architecture
 
 <img src="assets/architecture.png" alt="Aura-1B architecture diagram" width="100%"/>
-
-```text
-              [ QUESTION ]
-                    │
-                    ▼
-NIVEAU 0 — INSTANTANÉ (< 5 ms)          ← CPU-native core
-  ├─ Exact math (safe AST eval)         « square of 12 » → 144 in 0.3 ms
-  ├─ PAL (dates · units · %)            « 5 miles en km » · « dans 45 jours »
-  └─ Semantic cache (cosine ≥ 0.85)     repeated question → 1.3 ms
-     │ (otherwise, ~60-70% of the time)
-     ▼
-NIVEAU 1 — EXPERTS
-  ├─ 🧩 Program-of-Thoughts (puzzles)    1B writes steps, AST guarantees them
-  ├─ ⚖️ Logic solver (mini-SAT)          knights/knaves, attributions — pure Python
-  ├─ 💻 PoT-code (sandboxed)             1B writes code + asserts → verified or refused
-  ├─ 📐 PGS (genetic programming)        exact formula, zero error
-  ├─ 📚 Fact graph (MiniRAG-lite)        triplets fed by verified answers only
-  └─ 🌐 DuckDuckGo (real-time facts)     the internet = external hard drive
-     │
-     ▼
-NIVEAU 2 — LLAMA 3.2 1B (Q4_K_M)        ← only what remains
-  instruction-tuned FR+EN, 9-14 tok/s on CPU
-  └─ 🔍 CRITIC check                     short factual answers re-anchored on web proof
-```
 
 ### The pillars
 
