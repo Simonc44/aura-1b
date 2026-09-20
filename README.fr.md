@@ -108,6 +108,7 @@ uv run python -m aura --chat                   # chat avec mémoire
 | **Solveur logique** (`logique.py`) | logique sans nombres (chevaliers & menteurs, attributions) | le 1B formalise `ENTITES/DOMAINE/CONDITION`, un mini-SAT en pur Python déduit exactement ; les contraintes inventées sont détectées → repli propre |
 | **PoT-code** (`potcode.py`) | génération de code cassé | le 1B écrit une fonction + des asserts, une sandbox (builtins restreints + budget d'instructions via `settrace`) exécute tout ; un assert raté = le code n'est jamais livré |
 | **Agents cognitifs** (`agents.py`) | fragilité du petit modèle | 5 agents légers orchestrent le 1B : planificateur (les tâches complexes sont découpées en 2-3 étapes avant rédaction), compresseur RAG (seules les 3 phrases web utiles atteignent le LLM), rédacteur (retrait des tics de langage du 1B), debugger récursif (le code raté est relancé avec l'erreur exacte de la sandbox, max 3), masqueur de personnalité (prompt système adapté à la catégorie routée) |
+| **Hot-swap LoRA** (`adaptateurs.py`) | un cerveau, une spécialité | permutation dynamique d'adaptateurs via la C-API llama.cpp : le GGUF de base est chargé une fois, les adaptateurs par catégorie (~10-40 Mo, entraînés sur Colab avec PEFT) se montent/démontent sans recharger. Registre LRU en mémoire (défaut 1 adaptateur = empreinte quasi nulle). `AURA_ADAPTATEURS=1` pour activer |
 | **Auto-amélioration** | erreurs répétées | les mauvaises réponses enregistrées via `enregistrer_correction()` sont injectées dans les futurs prompts — la même erreur n'est plus jamais faite |
 
 ### Mode riche (qualité de rédaction)
@@ -239,6 +240,7 @@ les questions vérifiables.
 - [x] Niveau 0 : maths exactes, cache sémantique, PAL
 - [x] Couche d'intelligence vérifiée : CRITIC, graphe de faits, PoT, solveur logique, PoT-code
 - [x] Agents cognitifs : planificateur, compresseur RAG, rédacteur, debugger récursif, masqueur de personnalité
+- [x] Hot-swap LoRA dynamique : adaptateurs par catégorie montés sur le contexte vivant (C-API), registre LRU en mémoire
 - [x] Format scellé `.aef` + Ed25519 + distribution chiffrée
 - [x] CI verte (matrices OS/py + chaîne `.aef` + syntaxe installeur)
 - [ ] **Fine-tune LoRA** sur Colab — profondeur de raisonnement, taille 807 Mo inchangée

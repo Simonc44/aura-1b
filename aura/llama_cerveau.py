@@ -228,6 +228,16 @@ def _couches_gpu() -> int:
         return 0
 
 
+def llm_charge():
+    """Llama charge, ou None si le modele n'est pas (encore) en memoire.
+
+    Pour le hot-swap d'adaptateurs : il faut les attrs bas niveau
+    (_model/_ctx) d'un Llama DEJA charge — jamais de chargement force
+    ici (une question qui va vers le cerveau le chargera de toute facon).
+    """
+    return _llm
+
+
 def _charger():
     global _llm
     if _llm is not None:

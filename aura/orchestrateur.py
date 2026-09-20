@@ -29,6 +29,7 @@ from . import llama_cerveau, raisonneur, graphe_faits
 from . import logique as solveur_logique
 from . import potcode
 from . import agents
+from . import adaptateurs
 from .routeur import RouteurIntelligent
 
 LOG = logging.getLogger("aura.orchestrateur")
@@ -525,6 +526,19 @@ class Aura1B:
         except Exception:
             personnalite = None
         question_envoyee = f"{question}\n\nPLAN A SUIVRE :\n{plan}" if plan else question
+        # HOT-SWAP ADAPTATEUR (LoRA) : si un adaptateur existe pour la
+        # categorie routee, il est monte sur le contexte charge SANS
+        # recharger le modele (AURA_ADAPTATEURS=1 pour activer ; defaut
+        # OFF = zero surcout, chemin inchange). Echec -> cerveau brut.
+        categorie = ("web" if "web" in experts else
+                     "math" if "math" in experts else "general")
+        try:
+            from .llama_cerveau import llm_charge as _llm_charge
+            _llm = _llm_charge()
+            if _llm is not None:
+                adaptateurs.appliquer(_llm, categorie)
+        except Exception as e:
+            LOG.info("[adaptateurs] hot-swap impossible (%s) -> cerveau brut", e)
         reponse = self._generer(question_envoyee, contexte_web, formule,
                                 riche=riche, contexte_faits=contexte_faits,
                                 personnalite=personnalite)
