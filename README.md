@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🧬 Aura-1B
+<img src="assets/aura.jpg" alt="Aura-1B" width="720"/>
 
 **The fastest answer is the one you never generate.**
 
@@ -81,6 +81,8 @@ uv run python -m aura --chat                   # chat with memory
 ```
 
 ## 🏗 Architecture
+
+<img src="assets/architecture.png" alt="Aura-1B architecture diagram" width="100%"/>
 
 ```text
               [ QUESTION ]
