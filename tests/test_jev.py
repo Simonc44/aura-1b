@@ -84,10 +84,12 @@ class TestFanOutParallele:
         ident = {}
 
         def web(q, **k):
-            ident["web"] = threading.get_ident()
-            return "FAIT"
+            time.sleep(0.05)   # les 2 threads vivent en meme temps :
+            ident["web"] = threading.get_ident()   # sans ca, un ident peut
+            return "FAIT"                          # etre recycle (test flaky)
 
         def pgs(X, y):
+            time.sleep(0.05)
             ident["pgs"] = threading.get_ident()
             return "mul(X0,X0)"
 
