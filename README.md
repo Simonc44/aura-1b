@@ -8,18 +8,20 @@ A 100% local, CPU-native AI system that splits language, exact math and factual
 memory into specialized modules — instead of asking one small model to do
 everything (and hallucinate when it can't).
 
-[![Tests](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml/badge.svg)](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
-![Static Badge](https://img.shields.io/badge/mypy-checked-brightgreen)
-![GitHub last commit](https://img.shields.io/github/last-commit/Simonc44/aura-1b/main?label=last%20commit)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Simonc44/aura-1b/pulls)
-![GitHub stars](https://img.shields.io/github/stars/Simonc44/aura-1b?style=social)
+[![Tests](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml/badge.svg?style=flat-square)](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-5bc0de.svg)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-5bc0de)
+![mypy](https://img.shields.io/badge/mypy-checked-5bc0de)
+![Last commit](https://img.shields.io/github/last-commit/Simonc44/aura-1b/main?label=last%20commit&color=5bc0de)
+![PRs](https://img.shields.io/badge/PRs-welcome-5bc0de)
+![Stars](https://img.shields.io/github/stars/Simonc44/aura-1b?style=flat&color=5bc0de)
 
-![GPU](https://img.shields.io/badge/GPU-not%20required-success)
-![Brain](https://img.shields.io/badge/brain-807%20MB%20Q4__K__M-orange)
-![Engine](https://img.shields.io/badge/powered%20by-llama.cpp-2CA5A0)
-![Format](https://img.shields.io/badge/sealed%20format-.aef-blueviolet)
+![GPU](https://img.shields.io/badge/GPU-not%20required-5bc0de)
+![Brain](https://img.shields.io/badge/brain-807%20MB%20Q4__K__M-5bc0de)
+![Engine](https://img.shields.io/badge/powered%20by-llama.cpp-5bc0de)
+![Format](https://img.shields.io/badge/sealed%20format-.aef-5bc0de)
+
+**Other languages:** [Français](README.fr.md)
 
 [Why](#-why-aura-1b) •
 [Quickstart](#-quickstart) •
