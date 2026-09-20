@@ -106,6 +106,7 @@ uv run python -m aura --chat                   # chat with memory
 | **Program-of-Thoughts** (`raisonneur.py`) | word puzzles with numbers | the 1B writes `ETAPE 1/ETAPE 2` lines, the safe AST evaluates each step: « Léo a 4 ans, Marie le double, Paul 3 de plus » → **11, every step verified** |
 | **Logic solver** (`logique.py`) | number-free logic (knights & knaves, attributions) | the 1B formalizes `ENTITES/DOMAINE/CONDITION`, a pure-Python mini-SAT deduces exactly; invented constraints are detected → graceful fallback |
 | **PoT-code** (`potcode.py`) | broken code generation | the 1B writes a function + asserts, a sandbox (restricted builtins + instruction budget via `settrace`) executes everything; a failing assert = the code is never delivered |
+| **Cognitive agents** (`agents.py`) | small-model brittleness | 5 lightweight agents orchestrate the 1B: task planner (complex asks split into 2-3 steps before writing), RAG compressor (only the 3 useful web sentences reach the LLM), style cleaner (removes 1B language tics), recursive debugger (failed code is retried with the exact sandbox error, max 3), persona router (system prompt adapted per category) |
 | **Auto-improvement** | repeated mistakes | wrong answers recorded via `enregistrer_correction()` are injected into future prompts — the same mistake is never made twice |
 
 ### Rich mode (writing quality)
@@ -225,6 +226,7 @@ facts, memory) — the organization beats the bigger brain on verifiable questio
 
 - [x] Level 0: exact math, semantic cache, PAL
 - [x] Verified-intelligence layer: CRITIC, fact graph, PoT, logic solver, PoT-code
+- [x] Cognitive agents: planner, RAG compressor, style cleaner, recursive code debugger, persona router
 - [x] `.aef` sealed format + Ed25519 + encrypted distribution
 - [x] Green CI (4 OS/py matrices + `.aef` chain + installer syntax)
 - [ ] **LoRA fine-tune** on Colab — reasoning depth, keeps the 807 MB size

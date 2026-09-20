@@ -193,7 +193,8 @@ class TestRoutageSpeciaux:
 
     def test_code_route_vers_sandbox(self, monkeypatch):
         monkeypatch.setattr(Aura1B, "_resoudre_par_code",
-                            lambda self, q: "def resoudre(): pass")
+                            lambda self, q, mode_auto=False:
+                            "def resoudre(): pass")
         r = Aura1B()._expert_special(
             "ecris une fonction python qui trie une liste", None, None)
         assert r["cerveau_choisi"] == "potcode-1b+sandbox"

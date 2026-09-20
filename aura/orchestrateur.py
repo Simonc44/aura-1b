@@ -28,6 +28,7 @@ from . import expert_symbolique, memoire_web, autoamelioration, filtre_instantan
 from . import llama_cerveau, raisonneur, graphe_faits
 from . import logique as solveur_logique
 from . import potcode
+from . import agents
 from .routeur import RouteurIntelligent
 
 LOG = logging.getLogger("aura.orchestrateur")
@@ -247,7 +248,8 @@ class Aura1B:
     # -- cerveau ------------------------------------------------------------
 
     def _generer(self, question: str, contexte_web: str, formule: str,
-                 riche: bool = False, contexte_faits: str = "") -> str:
+                 riche: bool = False, contexte_faits: str = "",
+                 personnalite: str | None = None) -> str:
         if self._llama is None:
             from .llama_cerveau import generer as llama_generer
             self._llama = llama_generer
@@ -257,7 +259,8 @@ class Aura1B:
                                  historique=self._historique)
         return self._llama(question, contexte_web, formule,
                            historique=self._historique,
-                           contexte_faits=contexte_faits)
+                           contexte_faits=contexte_faits,
+                           systeme=personnalite)
 
     # -- prompt structure ---------------------------------------------------
 
@@ -352,10 +355,13 @@ class Aura1B:
 
     # -- demande de code (PoT-code) -----------------------------------------
 
-    def _resoudre_par_code(self, question: str) -> str | None:
+    def _resoudre_par_code(self, question: str, mode_auto: bool = False) -> str | None:
         """Le 1B ecrit fonction + asserts, la sandbox les execute.
 
         Un assert rate = code refuse = None (jamais de code casse livre).
+        mode_auto : l'agent debugger recursif prend le relais (jusqu'a 3
+        essais, l'erreur exacte renvoyee au modele a chaque relance) ;
+        echec de la boucle = None (chemin normal, jamais pire qu'avant).
         """
         try:
             brut = llama_cerveau.generer(question,
@@ -370,7 +376,14 @@ class Aura1B:
                    f"{rapport['nb_asserts']} asserts passes en sandbox.)"
         except (ValueError, Exception) as e:      # noqa: B014 — jamais bloquant
             LOG.info("[potcode] code refuse (%s) -> chemin normal", e)
-            return None
+            if not mode_auto:
+                return None
+            # AGENT 4 (debugger recursif) : boucle de self-debug max 3
+            try:
+                return agents.boucle_code(question, max_tentatives=3)
+            except Exception as e2:
+                LOG.info("[agents] boucle code impossible (%s) -> chemin normal", e2)
+                return None
 
     def _expert_special(self, question: str, X, y) -> dict | None:
         """Routage des experts speciaux, dans l'ordre de specialisation.
@@ -385,7 +398,7 @@ class Aura1B:
             if rep is not None:
                 return self._resultat_special(question, rep, "logique-1b+sat")
         if _DEMANDE_CODE.search(question.lower()):
-            rep = self._resoudre_par_code(question)
+            rep = self._resoudre_par_code(question, mode_auto=True)
             if rep is not None:
                 return self._resultat_special(question, rep, "potcode-1b+sandbox")
         return None
@@ -464,6 +477,26 @@ class Aura1B:
         contexte_web, formule = self._executer_experts(
             experts, question, X, y, riche)
 
+        # AGENT 2 (compresseur RAG) : le contexte web brut est filtre —
+        # seules les phrases utiles a la question alimentent le LLM
+        if contexte_web:
+            try:
+                contexte_web = agents.compresser(contexte_web, question,
+                                                 riche=riche)
+            except Exception as e:
+                LOG.info("[agents] compression impossible (%s) -> texte brut", e)
+
+        # AGENT 1 (planificateur) : les taches actionables complexes sont
+        # decoupees en 2-3 etapes AVANT la redaction
+        plan = ""
+        if not riche and not formule:
+            try:
+                plan = agents.planifier(question) or ""
+            except Exception as e:
+                LOG.info("[agents] planification impossible (%s) -> sans plan", e)
+            if plan:
+                LOG.info("[agents] plan insere : %d lignes", len(plan.splitlines()))
+
         # RAISONNEMENT PoT (Program-of-Thoughts) : les puzzles d'ages/
         # relations sans donnees numeriques vont au raisonneur — le 1B
         # ecrit les etapes, l'AST les verifie exactement. Repli auto.
@@ -483,8 +516,23 @@ class Aura1B:
         # uniquement des faits VERIFIES web (jamais d'hallucination dedans).
         contexte_faits = "" if contexte_web else \
             graphe_faits.chercher(question)
-        reponse = self._generer(question, contexte_web, formule, riche=riche,
-                                contexte_faits=contexte_faits)
+        # AGENT 5 (personnalite) : prompt systeme ajuste a la categorie
+        # routee ; None = prompt de base du cerveau (comportement d'avant).
+        # Le plan (agent 1) complete la question ; web compresse (agent 2)
+        # et personnalite sont passes au cerveau en meme temps.
+        try:
+            personnalite = agents.composer_personnalite(experts, question)
+        except Exception:
+            personnalite = None
+        question_envoyee = f"{question}\n\nPLAN A SUIVRE :\n{plan}" if plan else question
+        reponse = self._generer(question_envoyee, contexte_web, formule,
+                                riche=riche, contexte_faits=contexte_faits,
+                                personnalite=personnalite)
+        # AGENT 3 (redacteur) : les tics de langage du 1B sont retires
+        try:
+            reponse = agents.nettoyer_style(reponse)
+        except Exception as e:
+            LOG.info("[agents] nettoyage impossible (%s) -> texte brut", e)
         # VERIFICATION OUTILLEE (pattern CRITIC) : preuve web avant livraison
         verifiee = False
         if self._a_besoin_verification(question, contexte_web, reponse):
