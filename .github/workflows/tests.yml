@@ -35,6 +35,22 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python -m pytest -q
 
+      - name: Diagnostic (sortie pytest dans le resume, visible sans login)
+        if: failure()
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest -q --tb=short 2>&1 | tee pytest_sortie.txt || true
+          python - <<'PY'
+          import os
+          resume = os.environ.get("GITHUB_STEP_SUMMARY")
+          if resume:
+              with open("pytest_sortie.txt", encoding="utf-8") as f:
+                  texte = f.read()[-20000:]
+              with open(resume, "a", encoding="utf-8") as f:
+                  f.write("### Sortie pytest\n```\n" + texte + "\n```\n")
+          PY
+
   # Le format .aef est la signature du projet : on vérifie sa chaîne
   # complète (forge → signature → boot) sur Linux, où elle n'a jamais tourné
   chaine-aef:
