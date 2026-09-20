@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write          # creation de la release et upload des assets
+
+jobs:
+  build-exe:
+    name: Build Aura.exe (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Dependances de build (PyInstaller + cryptography)
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller cryptography
+
+      - name: Build Aura.exe (bytecode seul, ~8-15 Mo)
+        run: python scripts/construire_exe.py
+
+      - name: Empaqueter + checksums SHA-256
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          $zip = "Aura-$version-windows.zip"
+          Compress-Archive -Path "dist/Aura.exe", "README.md", "LICENSE" -DestinationPath $zip
+          $h = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          "$h  $zip" | Out-File -Encoding ascii "checksums-sha256.txt"
+          Get-Content checksums-sha256.txt
+
+      - name: Uploader l'artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aura-windows
+          path: |
+            Aura-*-windows.zip
+            checksums-sha256.txt
+
+  release:
+    name: GitHub Release
+    needs: [build-exe]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Recuperer le build Windows
+        uses: actions/download-artifact@v4
+        with:
+          name: Aura-windows
+
+      - name: Creer la release avec les notes du tag
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true     # liste auto des PRs/commits depuis le tag precedent
+          body_path: RELEASE_NOTES.md
+          files: |
+            Aura-*-windows.zip
+            checksums-sha256.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
