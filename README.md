@@ -14,7 +14,7 @@ everything (and hallucinate when it can't).
 ![mypy](https://img.shields.io/badge/mypy-checked-5bc0de)
 ![Last commit](https://img.shields.io/github/last-commit/Simonc44/aura-1b/main?label=last%20commit&color=5bc0de)
 ![PRs](https://img.shields.io/badge/PRs-welcome-5bc0de)
-![Stars](https://img.shields.io/github/stars/Simonc44/aura-1b?style=flat&color=5bc0de)
+<a href="https://github.com/Simonc44/aura-1b/stargazers"><img src="https://img.shields.io/github/stars/Simonc44/aura-1b?style=social" alt="stars - aura-1b" /></a>
 
 ![GPU](https://img.shields.io/badge/GPU-not%20required-5bc0de)
 ![Brain](https://img.shields.io/badge/brain-807%20MB%20Q4__K__M-5bc0de)

@@ -24,26 +24,32 @@ pipeline_tag: text-generation
 
 <div align="center">
 
-<img src="https://huggingface.co/Simonc44/aura-1b/resolve/main/assets/aura.png" alt="Aura-1B" width="420"/>
+<img src="https://huggingface.co/Simonc-44/aura-1b/resolve/main/assets/aura.png" alt="Aura-1B" width="420"/>
 
 **La réponse la plus rapide est celle qu'on n'a pas besoin de générer.**
-
 *The fastest answer is the one you never generate.*
 
+<a href="https://github.com/Simonc44/aura-1b/stargazers"><img src="https://img.shields.io/github/stars/Simonc44/aura-1b?style=social" alt="stars - aura-1b"/></a>
 [![Tests](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml/badge.svg)](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-5bc0de.svg)](https://github.com/Simonc44/aura-1b/blob/main/LICENSE)
+![GPU](https://img.shields.io/badge/GPU-not%20required-5bc0de)
 
-**English below — [repo complet / full repo](https://github.com/Simonc44/aura-1b)**
+[🌐 Code open source](https://github.com/Simonc44/aura-1b) · [📦 Release v0.1.0](https://github.com/Simonc44/aura-1b/releases) · [📖 README complet](https://github.com/Simonc44/aura-1b#readme)
 
 </div>
 
 ---
 
-# 🇫🇷 Aura-1B — le système IA scellé, sans GPU
-
 Aura-1B n'est pas un modèle de plus : c'est un **système orchestré** qui
 sépare le langage, les maths exactes et la mémoire factuelle en modules
 spécialisés. Règle d'or : *le petit modèle propose, le programme prouve* —
 ce qui n'est pas prouvé est vérifié ou refusé, jamais inventé.
+
+<div align="center">
+
+<img src="https://huggingface.co/Simonc-44/aura-1b/resolve/main/assets/architecture.png" alt="Architecture d'Aura-1B" width="820"/>
+
+</div>
 
 | | Aura-1B | Un 8B sur le même PC |
 |---|---|---|
@@ -53,26 +59,30 @@ ce qui n'est pas prouvé est vérifié ou refusé, jamais inventé.
 | RAM | **~1 Go** | ~4,5 Go |
 | GPU | **aucun requis** | recommandé |
 
-## 📦 Contenu du dépôt
+## 📦 Téléchargements
 
-| Fichier | Rôle |
-|---|---|
-| `aura_system.aef.enc` | **Le système complet scellé et chiffré** (AES-256-GCM) : config auto-tunée + code + cerveau 807 Mo en un seul fichier |
-| `aura_system.aef.sig` | Signature **Ed25519** du fichier scellé (authenticité vérifiable) |
-| `Aura.exe` (dans `Aura-v0.1.0-windows.zip` du [repo GitHub](https://github.com/Simonc44/aura-1b/releases)) | Le noyau léger (~8 Mo) : vérifie, déchiffre, exécute |
-| — | ⚠️ **Le secret de déchiffrement n'est JAMAIS publié ici** — il se obtient auprès de l'auteur |
+| Fichier | Taille | Rôle |
+|---|---|---|
+| [`aura_system.aef.enc`](https://huggingface.co/Simonc-44/aura-1b/resolve/main/aura_system.aef.enc) | 779 Mo | **Le système complet scellé et chiffré** (AES-256-GCM) : config auto-tunée + code + cerveau 807 Mo en un seul fichier |
+| [`aura_system.aef.sig`](https://huggingface.co/Simonc-44/aura-1b/resolve/main/aura_system.aef.sig) | 110 o | Signature **Ed25519** (authenticité vérifiable) |
+| [`Aura.exe`](https://huggingface.co/Simonc-44/aura-1b/resolve/main/Aura.exe) | 8,2 Mo | Le noyau léger : vérifie, déchiffre, exécute |
+
+> [!WARNING]
+> **Le secret de déchiffrement n'est JAMAIS publié ici** — il s'obtient
+> auprès de l'auteur. Le `.aef` garantit l'*intégrité* (un octet altéré =
+> boot refusé), pas un DRM absolu.
 
 ## 🚀 Utilisation
 
 ```powershell
-# 1. le secret (donné a part) :
+# 1. le secret (donné à part) :
 set AURA_SECRET=<le secret>
 
-# 2. premier lancement : verifie les 3 SHA-256 + la signature, puis repond
+# 2. premier lancement : vérifie 3× SHA-256 + signature, puis répond
 Aura.exe aura_system.aef.enc "quel est le carre de 7"
 # -> 49
 
-# 3. runs suivants : demarrage instantane (cache deja rempli)
+# 3. runs suivants : démarrage instantané (cache déjà rempli)
 Aura.exe --cache "15% de 200 plus 30% de 100"
 # -> 60
 ```
@@ -96,59 +106,6 @@ des modèles plus grands par construction — eux devinent, il prouve. Sur
 fine-tuné gagne encore : ces compétences vivent dans les poids (feuille de
 route : LoRA + MEMIT). Détail complet dans le README du repo.
 
----
-
-# 🇬🇧 Aura-1B — the sealed AI system, GPU-free
-
-Aura-1B is not another model: it is an **orchestrated system** that splits
-language, exact math and factual memory into specialized modules. Golden rule:
-*the small model proposes, the program proves* — anything unproven is verified
-or refused, never invented.
-
-| | Aura-1B | Typical 8B on the same PC |
-|---|---|---|
-| Everyday question | **0.0–2.3 s** | 30–60 s |
-| Math / dates / units | **exact** (AST, PAL, PGS) | hallucinates off-stats |
-| Facts | **live web + CRITIC proof check** | frozen at cutoff |
-| RAM | **~1 GB** | ~4.5 GB |
-| GPU | **none required** | recommended |
-
-## 📦 Files
-
-| File | Role |
-|---|---|
-| `aura_system.aef.enc` | **The whole sealed, encrypted system** (AES-256-GCM): auto-tuned config + code + 807 MB brain in a single file |
-| `aura_system.aef.sig` | **Ed25519 signature** of the sealed file |
-| `Aura.exe` (in the GitHub release zip) | The lightweight kernel (~8 MB): verify, decrypt, run |
-| — | ⚠️ **The decryption secret is NEVER published here** — ask the author |
-
-## 🚀 Usage
-
-```powershell
-set AURA_SECRET=<the secret>
-Aura.exe aura_system.aef.enc "square of 7"        # -> 49
-Aura.exe --cache "15% of 200 plus 30% of 100"     # -> 60, instant start
-```
-
-Full open-source system: [github.com/Simonc44/aura-1b](https://github.com/Simonc44/aura-1b)
-
-## 🔒 Security
-
-3× SHA-256 integrity (one altered byte → boot refused) · AES-256-GCM +
-PBKDF2-600k · Ed25519 signature. Honest note: blocks passive copying, not a
-determined reverse-engineer.
-
-## ⚠️ Honest limits
-
-On **verifiable** questions (math, facts, dates, format), Aura-1B beats larger
-models by construction — they guess, it proves. On **deep analysis, long-tail
-knowledge and abstract logic**, a fine-tuned 8B still wins (roadmap: LoRA +
-MEMIT).
-
-## 📄 Licence / License
-
-MIT — see [LICENSE](https://github.com/Simonc44/aura-1b/blob/main/LICENSE).
-
 ## 📚 Citation
 
 ```bibtex
@@ -159,3 +116,7 @@ MIT — see [LICENSE](https://github.com/Simonc44/aura-1b/blob/main/LICENSE).
   url     = {https://github.com/Simonc44/aura-1b}
 }
 ```
+
+## 📄 Licence
+
+MIT — see [LICENSE](https://github.com/Simonc44/aura-1b/blob/main/LICENSE).

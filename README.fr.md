@@ -14,7 +14,7 @@ modèle de tout faire (et d'halluciner quand il n'y arrive pas).
 ![mypy](https://img.shields.io/badge/mypy-v%C3%A9rifi%C3%A9-5bc0de)
 ![Dernier commit](https://img.shields.io/github/last-commit/Simonc44/aura-1b/main?label=dernier%20commit&color=5bc0de)
 ![PR](https://img.shields.io/badge/PRs-bienvenues-5bc0de)
-![Stars](https://img.shields.io/github/stars/Simonc44/aura-1b?style=flat&color=5bc0de)
+<a href="https://github.com/Simonc44/aura-1b/stargazers"><img src="https://img.shields.io/github/stars/Simonc44/aura-1b?style=social" alt="étoiles - aura-1b" /></a>
 
 ![GPU](https://img.shields.io/badge/GPU-non%20requis-5bc0de)
 ![Cerveau](https://img.shields.io/badge/cerveau-807%20Mo%20Q4__K__M-5bc0de)
