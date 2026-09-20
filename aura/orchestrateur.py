@@ -14,18 +14,36 @@ Le routeur (TF-IDF + LogReg) choisit les experts a activer ; Llama synthetise.
 Cycle de decision inspire de JEV ultrafast (browser-use) :
 - un seul passage : niveau 0 + routeur en parallele (max des durees, pas somme)
 - validation de chaque expert AVANT execution (pas de PGS sans donnees)
-- fan-out parallele : web ∥ PGS en un aller-retour, echecs isoles
+- fan-out parallele : les experts partent ensemble, echecs isoles
+- verification outillee (pattern CRITIC) : le factuel LLM est prouve au web
 - confiance calibree (style RouteLLM) : classifieur peu sur -> chemin sur
 """
 import logging
 import os
+import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
 from . import expert_symbolique, memoire_web, autoamelioration, filtre_instantane
+from . import llama_cerveau
 from .routeur import RouteurIntelligent
 
 LOG = logging.getLogger("aura.orchestrateur")
+
+# Verification outillee (pattern CRITIC) : les faits web sont rares chers
+# (0,3-1 s), le LLM seul derape parfois (« Sydney » au lieu de Canberra).
+# On ne paie la verification que si elle peut CHANGER la reponse :
+# - reponse courte (< 200 car) du chemin general (jamais apres un web)
+# - question court-factuel (qui/ou/quand/combien + < 9 mots) : le genre de
+#   question ou le 1B hallucine. (riches : StyleGuard garantit deja
+#   l'ancrage ; contextuelles : rien a verifier en ligne)
+# AURA_VERIF_WEB=0 pour desactiver la verification.
+_VERIF_MOTS_FACTUELS = re.compile(
+    r"\b(qui est|qui a|quelle est|quel est|quand|ou se trouve|combien|"
+    r"capitale|population|president|prix de|record)\b")
+_VERIF_LONGUEUR_REPONSE = 200
+_MOTS_CONTEXTUELS_Q = ("mon ", "ma ", "mes ", "je ", "j'", "tu ", "ton ",
+                       "votre ", "prenom", "nom")
 
 # Seuil de confiance (style RouteLLM) : sous ce score max du classifieur,
 # on ne fait pas confiance a son choix -> chemin sur 'general' (le LLM
@@ -122,6 +140,50 @@ class Aura1B:
             if not experts:
                 experts.add("general")
         return experts
+
+    # -- verification outillee (pattern CRITIC) -----------------------------
+
+    @staticmethod
+    def _a_besoin_verification(question: str, contexte_web: str, reponse: str) -> bool:
+        """Vrai si la reponse merite une preuve web avant livraison."""
+        if os.environ.get("AURA_VERIF_WEB") == "0":
+            return False
+        if contexte_web:
+            return False            # deja gelee par les faits web
+        if len(reponse) >= _VERIF_LONGUEUR_REPONSE:
+            return False            # mode riche : redaction guidee, pas verifiable ligne a ligne
+        if any(m in question.lower() for m in _MOTS_CONTEXTUELS_Q):
+            return False            # question contextuelle : rien a verifier en ligne
+        return bool(_VERIF_MOTS_FACTUELS.search(question.lower()))
+
+    @staticmethod
+    def _verifier_au_web(question: str, reponse: str) -> str:
+        """Re-ancre une reponse factuelle courte sur la preuve web (CRITIC).
+
+        Pas d'heuristique fragile de comparaison de mots (les extraits citent
+        souvent la reponse fausse comme « confusion connue ») : le modele
+        REpond une seconde fois, ancre sur les faits trouves. Une seule
+        passe — le resultat n'est pas re-verifie (pas de boucle).
+        Echec web = reponse initiale conservee (jamais bloquant).
+        """
+        try:
+            ctx = memoire_web.chercher(question, max_resultats=2, timeout=6)
+        except Exception as e:
+            LOG.info("[critic] verification impossible (%s) -> reponse conservee", e)
+            return reponse
+        if not ctx:
+            return reponse
+        try:
+            revisee = llama_cerveau.generer(question, contexte_web=ctx,
+                                            max_tokens=150)
+        except Exception as e:
+            LOG.info("[critic] revision impossible (%s) -> reponse conservee", e)
+            return reponse
+        if not revisee or revisee.startswith("[Aura]"):
+            return reponse
+        if revisee.strip() != reponse.strip():
+            LOG.info("[critic] reponse revisee apres preuve web")
+        return revisee
 
     # -- fan-out parallele des experts (idea JEV #1) ------------------------
 
@@ -248,6 +310,12 @@ class Aura1B:
         contexte_web, formule = self._executer_experts(
             experts, question, X, y, riche)
         reponse = self._generer(question, contexte_web, formule, riche=riche)
+        # VERIFICATION OUTILLEE (pattern CRITIC) : preuve web avant livraison
+        if self._a_besoin_verification(question, contexte_web, reponse):
+            reponse = self._verifier_au_web(question, reponse)
+            # RECONSOLIDATION : la reponse verifiee remplace l'ancienne au
+            # cache (sinon une reponse fausse d'avant reste collée a vie)
+            filtre_instantane.mettre_a_jour(question, reponse)
         # memorise pour les futures questions (cache semantique + conversation)
         filtre_instantane.enregistrer(question, reponse)
         self._historique.append({"role": "user", "content": question})

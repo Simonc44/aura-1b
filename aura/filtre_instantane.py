@@ -5,7 +5,8 @@ Philosophie : sur un PC sans GPU, le composant le plus lent est le LLM
 generer. Deux detecteurs, du plus rapide au plus cher :
 
 1. **Calcul direct** (< 1 ms) — regex + eval arithmetique securise (AST) :
-   « carre de 12 », « 2 puissance 10 », « 45*12 », « 15% de 200 »...
+   « carre de 12 », « 2 puissance 10 », « 45*12 », « 15% de 200 » et les
+   expressions dictees en mots (« 15 divise par 3 plus 4 puissance 2 »).
    Resultat EXACT, zero hallucination, zero token genere.
 2. **Cache semantique** (~1 ms) — TF-IDF char n-grams + cosinus sur les
    reponses deja donnees : une question similaire (>= 0.85) renvoie la
@@ -44,6 +45,45 @@ _OPS = {
 }
 _PUISSANCE_MAX = 1e15  # garde-fou : 2**10000 ferait planter le CPU
 
+# -- expressions dictees en mots ---------------------------------------------
+# « 15 divise par 3 plus 4 puissance 2 » -> « 15 / 3 + 4 ** 2 »
+_MOTS_OPERATEURS = (
+    (re.compile(r"\bdivis\w*\s+par\b"), "/"),
+    (re.compile(r"\bmultipli\w*\s+par\b"), "*"),
+    (re.compile(r"\bfois\b"), "*"),
+    (re.compile(r"\bau\s+carre\b"), "**2"),
+    (re.compile(r"\bau\s+cube\b"), "**3"),
+    (re.compile(r"\bpuissance\b"), "**"),
+    (re.compile(r"\bplus\b"), "+"),
+    (re.compile(r"\bmoins\b"), "-"),
+)
+# operateurs « forts » : leur presence seule autorise la conversion
+# (plus/moins seuls sont ambigus : « il fait moins 5 degres »)
+_OP_FORTE = re.compile(
+    r"\b(divis\w*\s+par|multipli\w*\s+par|fois|puissance|au\s+carre|au\s+cube)\b")
+_DEMANDE_MATH = re.compile(
+    r"\b(combien fait|combien vaut|calcule|resultat de|resous)\b")
+_RESIDUS = re.compile(r"[\d.+\-*/()\s]+")
+_NOMBRE = re.compile(r"\d+(?:\.\d+)?")
+
+
+def _expression_en_mots(q: str) -> str | None:
+    """Convertit une expression dictee en arithmetique, ou None.
+
+    « 15 divise par 3 plus 4 puissance 2 » -> « 15 / 3 + 4 ** 2 ».
+    Les mots non convertis sont jetes ; il faut >= 2 nombres et >= 1
+    operateur binaire pour tenter l'evaluation.
+    """
+    expr = q
+    for motif, op in _MOTS_OPERATEURS:
+        expr = motif.sub(f" {op} ", expr)
+    candidat = " ".join("".join(_RESIDUS.findall(expr)).split())
+    if len(_NOMBRE.findall(candidat)) < 2:
+        return None
+    if not re.search(r"[+\-*/]", candidat.replace("**", "")):
+        return None
+    return candidat
+
 
 def _evaluer(noeud):
     if isinstance(noeud, ast.Expression):
@@ -67,6 +107,17 @@ def _calcul_direct(question: str) -> str | None:
     q = "".join(c for c in q if not unicodedata.combining(c))
     q = q.replace(",", ".").replace("x", "*").replace("×", "*") \
          .replace("÷", "/").replace("^", "**")
+
+    # expression dictee en mots, AVANT les motifs simples : sur une
+    # expression composee, « 4 puissance 2 » tout seul donnerait 16
+    # au lieu de 21 (le bug du 15/3 + 4^2)
+    if _OP_FORTE.search(q) or _DEMANDE_MATH.search(q):
+        expr = _expression_en_mots(q)
+        if expr:
+            try:
+                return _fmt(_evaluer(ast.parse(expr, mode="eval")))
+            except (ValueError, SyntaxError, ZeroDivisionError, OverflowError):
+                pass
 
     # « carre de 12 » / « cubé de 3 »
     m = re.search(r"carre de \(?(-?\d+(?:\.\d+)?)\)?", q)
@@ -195,6 +246,37 @@ def enregistrer(question: str, reponse: str):
             _matrice = vstack([_matrice, nouvelle])
     except OSError as e:
         LOG.warning("[niveau0] cache non ecrit : %s", e)
+
+
+def mettre_a_jour(question: str, reponse: str) -> bool:
+    """RECONSOLIDATION : remplace la reponse (similaire) existante par la nouvelle.
+
+    Comme le cerveau : un souvenir contredit par une preuve plus forte est
+    reecrit, pas double. Sans cela, une reponse fausse mise en cache reste
+    collée pour toujours (enregistrer refuse les doublons).
+    Renvoie True si une entree a ete remplacee.
+    """
+    global _vectoriseur, _matrice
+    if not question or not reponse or reponse.startswith("[Aura]"):
+        return False
+    _charger_cache()
+    if not _entrees:
+        return False
+    i = _similar(question.lower().strip())
+    if i is None:
+        return False
+    _entrees[i]["r"] = reponse
+    _vectoriseur, _matrice = None, None      # recalcule au prochain acces
+    try:
+        with _FICHIER.open("w", encoding="utf-8") as f:
+            for e in _entrees:
+                f.write(json.dumps(e, ensure_ascii=False) + "\n")
+        LOG.info("[niveau0] reconsolidation : reponse remplacee pour « %s »",
+                 question[:50])
+        return True
+    except OSError as e:
+        LOG.warning("[niveau0] reconsolidation non ecrite : %s", e)
+        return False
 
 
 def purger_contextuelles():
