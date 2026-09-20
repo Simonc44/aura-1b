@@ -12,8 +12,14 @@ everything (and hallucinate when it can't).
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
 ![Static Badge](https://img.shields.io/badge/mypy-checked-brightgreen)
-![OS](https://img.shields.io/badge/OS-Windows%20%7C%20Linux-lightgrey)
+![GitHub last commit](https://img.shields.io/github/last-commit/Simonc44/aura-1b/main?label=last%20commit)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Simonc44/aura-1b/pulls)
+![GitHub stars](https://img.shields.io/github/stars/Simonc44/aura-1b?style=social)
+
+![GPU](https://img.shields.io/badge/GPU-not%20required-success)
 ![Brain](https://img.shields.io/badge/brain-807%20MB%20Q4__K__M-orange)
+![Engine](https://img.shields.io/badge/powered%20by-llama.cpp-2CA5A0)
+![Format](https://img.shields.io/badge/sealed%20format-.aef-blueviolet)
 
 [Why](#-why-aura-1b) •
 [Quickstart](#-quickstart) •
