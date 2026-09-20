@@ -336,7 +336,19 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
 
 
 def disponible() -> bool:
-    return os.path.exists(_CHEMIN_GGUF)
+    """Le cerveau est utilisable : GGUF present ET llama_cpp importable.
+
+    Le GGUF peut vivre dans le cache du kernel (.aef) sur une machine qui
+    n'a pas le paquet lourd (venv CI, machine utilisateur) : dans ce cas
+    les tests grandeur nature doivent se SAUTER, pas echouer.
+    """
+    if not os.path.exists(_CHEMIN_GGUF):
+        return False
+    try:
+        import llama_cpp  # noqa: F401
+        return True
+    except ImportError:
+        return False
 
 
 # ── Étape 2 : nettoyage du CoT ─────────────────────────────────────────

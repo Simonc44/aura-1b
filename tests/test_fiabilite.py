@@ -71,6 +71,11 @@ class TestSeuilConfiance:
 class TestGrammairePlan:
     def test_grammaire_compile_et_mise_en_cache(self):
         from aura import llama_cerveau
+        try:
+            import llama_cpp  # noqa: F401
+        except ImportError:
+            import pytest
+            pytest.skip("llama_cpp absent : pas de GBNF a compiler")
         g1 = llama_cerveau.grammaire_plan()
         g2 = llama_cerveau.grammaire_plan()
         assert g1 is not None          # llama-cpp-python 0.3.35 : GBNF OK
