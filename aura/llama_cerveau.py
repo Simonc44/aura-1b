@@ -319,7 +319,10 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
             f"BASE DE FAITS (verifiee) :\n{contexte_faits}"})
         messages.append({"role": "assistant",
                          "content": "Compris, je m'appuie sur ces faits verifies."})
-    messages.append({"role": "user", "content": _avec_raisonnement(question)})
+    # prompt systeme custom = expert special (PoT/logique/code) : il gere
+    # ses propres instructions — le suffixe CoT generique le contredirait
+    messages.append({"role": "user",
+                     "content": question if systeme else _avec_raisonnement(question)})
 
     if max_tokens is None:
         max_tokens = _max_tokens_adaptatif(question)

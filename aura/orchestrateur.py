@@ -26,6 +26,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 from . import expert_symbolique, memoire_web, autoamelioration, filtre_instantane
 from . import llama_cerveau, raisonneur, graphe_faits
+from . import logique as solveur_logique
+from . import potcode
 from .routeur import RouteurIntelligent
 
 LOG = logging.getLogger("aura.orchestrateur")
@@ -44,6 +46,16 @@ _VERIF_MOTS_FACTUELS = re.compile(
 _VERIF_LONGUEUR_REPONSE = 200
 _MOTS_CONTEXTUELS_Q = ("mon ", "ma ", "mes ", "je ", "j'", "tu ", "ton ",
                        "votre ", "prenom", "nom")
+
+# experts speciaux : signatures lexicales conservatrices (faux positif =
+# juste un chemin normal, jamais une reponse fausse)
+_ENIGME_LOGIQUE = re.compile(
+    r"\b(chevaliers?|menteus\w*|mentent|mensonge|enigme de logique|"
+    r"puzzle de logique|devinette de logique|dit la verite|"
+    r"dit toujours vrai|dit toujours la verite)\b")
+_DEMANDE_CODE = re.compile(
+    r"\b(ecris|ecrire|implemente|genere|developpe|code)\b[^.?!]{0,60}"
+    r"\b(fonction|python|code|script|programme|algorithme)\b")
 
 # Seuil de confiance (style RouteLLM) : sous ce score max du classifieur,
 # on ne fait pas confiance a son choix -> chemin sur 'general' (le LLM
@@ -295,6 +307,96 @@ class Aura1B:
         except Exception:
             return False
 
+    # -- enigme logique (mini-SAT pur Python) -------------------------------
+
+    def _resoudre_par_logique(self, question: str) -> str | None:
+        """Le 1B formalise (entites/domaine/dits), le solveur deduit exactement.
+
+        Avec UNE relance de correction : si la formalisation est rejetee,
+        le modele voit SON texte + le motif du refus (self-debug, une seule
+        fois). UNIQUE -> reponse garantie ; MULTIPLE/AUCUNE -> None.
+        """
+        try:
+            # cadrage « Enigme : … / Formalisme : » : mesuré en réel, c'est
+            # celui qui fait respecter le format au 1B (noms exacts)
+            brut = llama_cerveau.generer(
+                f"Enigme :\n{question}\n\nFormalisme :",
+                systeme=solveur_logique._SYSTEME_LOGIQUE,
+                max_tokens=300)
+            try:
+                puzzle = solveur_logique.parser_puzzle(brut)
+            except ValueError as e:
+                LOG.info("[logique] formalisation rejetee (%s) -> 1 relance", e)
+                second = llama_cerveau.generer(
+                    question + "\n\nTa reponse precedente etait :\n" + brut
+                    + "\n\nElle a ete REJETEE car : " + str(e)
+                    + "\nReponds a nouveau, STRICTEMENT selon le format, "
+                      "avec les vrais noms de l'enigme et SANS inventer de "
+                      "contrainte.",
+                    systeme=solveur_logique._SYSTEME_LOGIQUE,
+                    max_tokens=300)
+                puzzle = solveur_logique.parser_puzzle(second)
+            r = solveur_logique.resoudre(puzzle)
+            if r["statut"] != "unique":
+                LOG.info("[logique] statut %s -> chemin normal", r["statut"])
+                return None
+            verification = solveur_logique.bloc_verification(
+                puzzle, r["solutions"])
+            finale = llama_cerveau.generer(question, contexte_web=verification,
+                                           max_tokens=150)
+            LOG.info("[logique] enigme resolue exactement")
+            return finale
+        except (ValueError, Exception) as e:      # noqa: B014 — jamais bloquant
+            LOG.info("[logique] formalisation/refus (%s) -> chemin normal", e)
+            return None
+
+    # -- demande de code (PoT-code) -----------------------------------------
+
+    def _resoudre_par_code(self, question: str) -> str | None:
+        """Le 1B ecrit fonction + asserts, la sandbox les execute.
+
+        Un assert rate = code refuse = None (jamais de code casse livre).
+        """
+        try:
+            brut = llama_cerveau.generer(question,
+                                         systeme=potcode._SYSTEME_CODE,
+                                         max_tokens=400)
+            code = potcode.extraire_code(brut)
+            if not code:
+                return None
+            rapport = potcode.verifier_code(code)
+            LOG.info("[potcode] valide : %d asserts", rapport["nb_asserts"])
+            return "```python\n" + code + "\n```\n\n(Code verifie : " \
+                   f"{rapport['nb_asserts']} asserts passes en sandbox.)"
+        except (ValueError, Exception) as e:      # noqa: B014 — jamais bloquant
+            LOG.info("[potcode] code refuse (%s) -> chemin normal", e)
+            return None
+
+    def _expert_special(self, question: str, X, y) -> dict | None:
+        """Routage des experts speciaux, dans l'ordre de specialisation.
+
+        Donnees numeriques -> PGS direct (pas de PoT/logique). Renvoie le
+        dict de reponse si un expert a tranché, sinon None.
+        """
+        if X and y:
+            return None
+        if _ENIGME_LOGIQUE.search(question.lower()):
+            rep = self._resoudre_par_logique(question)
+            if rep is not None:
+                return self._resultat_special(question, rep, "logique-1b+sat")
+        if _DEMANDE_CODE.search(question.lower()):
+            rep = self._resoudre_par_code(question)
+            if rep is not None:
+                return self._resultat_special(question, rep, "potcode-1b+sandbox")
+        return None
+
+    def _resultat_special(self, question: str, reponse: str, cerveau: str) -> dict:
+        filtre_instantane.enregistrer(question, reponse)
+        return {"question": question, "experts": {cerveau.split("-")[0]},
+                "analyse": {"methodes": ["expert_special"]},
+                "cerveau_choisi": cerveau, "contexte_web": "", "formule": "",
+                "erreur_pgs": None, "reponse": reponse}
+
     def _resoudre_par_pot(self, question: str) -> str | None:
         """Passe PoT : le 1B ecrit les etapes, l'AST verifie chaque calcul.
 
@@ -350,6 +452,14 @@ class Aura1B:
         # chaque expert est verifie avant d'etre lance.
         experts = self._valider_experts(analyse, X, y)
         riche = self._est_complexe(question)
+
+        # EXPERTS SPECIAUX (logique exacte, code sandboxe) : signatures
+        # conservatrices, repli cascade vers le chemin normal. AVANT le
+        # fan-out : une enigme de logique n'a pas besoin de DuckDuckGo.
+        special = self._expert_special(question, X, y)
+        if special is not None:
+            return special
+
         # FAN-OUT PARALLELE (idea JEV #1) : web ∥ PGS en un aller-retour
         contexte_web, formule = self._executer_experts(
             experts, question, X, y, riche)
