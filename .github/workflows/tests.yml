@@ -40,10 +40,10 @@ jobs:
         shell: bash
         run: |
           python -m pytest -q --tb=short 2>&1 | tee pytest_sortie.txt || true
-          grep -E "^(FAILED|ERROR) " pytest_sortie.txt | head -15 | while IFS= read -r ligne; do
+          { grep -E "^(FAILED|ERROR) " pytest_sortie.txt || true ; } | head -15 | while IFS= read -r ligne; do
             echo "::error::$ligne"
           done
-          grep -E "^E " pytest_sortie.txt | head -15 | while IFS= read -r ligne; do
+          { grep -E "^E " pytest_sortie.txt || true ; } | head -15 | while IFS= read -r ligne; do
             echo "::error::$ligne"
           done
 

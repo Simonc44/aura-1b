@@ -273,7 +273,10 @@ def mettre_a_jour(question: str, reponse: str) -> bool:
     if not question or not reponse or reponse.startswith("[Aura]"):
         return False
     _charger_cache()
-    assert _vectoriseur is not None and _matrice is not None
+    if _vectoriseur is None or _matrice is None:
+        # cache vide (aucune memoire a reconsolider) : rien a remplacer.
+        # Cas legitime : machine neuve, checkout CI sans .cache_reponses.jsonl.
+        return False
     i = _similar(question.lower().strip())
     if i is None:
         return False
