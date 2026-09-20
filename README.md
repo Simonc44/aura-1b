@@ -112,7 +112,7 @@ NIVEAU 2 — LLAMA 3.2 1B (Q4_K_M)        ← only what remains
 |---|---|---|
 | **Level 0** | Exact math via safe AST evaluator (never `eval()`) + semantic cache (TF-IDF char n-grams, cosine ≥ 0.85) | **The fastest answer is the one you never generate.** Measured: ×3700 on direct math, ×7500 on repeats. Contextual questions ("my name…") are never cached. |
 | **Router** | TF-IDF + Logistic Regression (150 examples) + cosine prototypes + confidence threshold | Classifies any question (typos included) — no hardcoded if/else. Low-confidence routing refuses to guess. |
-| **Brain** | **Llama 3.2 1B Instruct (Q4_K_M, 807 MB)** via llama.cpp | Good French AND English out of the box. Chosen over Q6_K by benchmark (3/3 vs 1/3). |
+| **Brain** | **Llama 3.2 1B Instruct (Q4_K_M, 807 MB)** via llama.cpp | Good French AND English out of the box. Brain-swappable: `AURA_GGUF=MINICPM` loads MiniCPM5-1B (OpenBMB) — measured **6/7 @ 3.0 s vs 3/7 @ 10.2 s** on the same quiz, so Llama stays the default. |
 | **Symbolic expert** | Genetic programming (gplearn), protected `pow` | Finds the **exact** law (`mul(mul(X0,X0),X0)` for X³) — zero hallucination, verifiable. |
 | **Web memory** | DuckDuckGo RAG (`ddgs`), no API key | Model parameters stay free for language & logic; facts stay current. |
 
@@ -224,8 +224,11 @@ GPU support: CUDA/Vulkan build + discrete GPU → full offload; CPU-only → 0
 | Brain | Speed | French | Load |
 |---|---|---|---|
 | **Llama 3.2 1B Q4_K_M** (current) | **13.4 tok/s** | ✅ instruction-tuned | 3.4 s |
+| MiniCPM5-1B Q4_K_M (optional, `AURA_GGUF=MINICPM`) | ~11 tok/s + thinking tokens | ✅ | 3.2 s |
 | Qwen 2.5 1.5B (removed) | 12.1 tok/s | ✅ | — |
 | Mamba-790M / RWKV-430M (removed) | 1.5-1.8 tok/s | ❌ base models | 30-400 s |
+
+Same-quiz head-to-head (`scripts/comparer_cerveaux.py`): **Llama 6/7 @ 3.0 s/answer** vs **MiniCPM5 3/7 @ 10.2 s/answer** — MiniCPM5 is a *thinking-first* brain: without its native `<think>` phase it underperforms, with it (`AURA_THINK=1`) it is 3× slower. Aura's orchestration already reasons through experts, so a fast direct-answer brain wins here.
 
 System-level quiz vs Qwen 2.5 1.5B: **Aura 5/5 vs 4/5** (exact math, real-time
 facts, memory) — the organization beats the bigger brain on verifiable questions.

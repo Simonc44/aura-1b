@@ -26,9 +26,17 @@ _DOSSIER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 
 # Q4_K_M par defaut : mesure 3/3 en raisonnement + 10% plus rapide que Q6_K.
 # AURA_GGUF=Q6_K pour la fidelite maximale aux poids originaux.
+# CERVEAUX — bench officiel (scripts/comparer_cerveaux.py, meme quiz) :
+#   Llama 3.2 1B Q4_K_M : 6/7 a ~3.0 s/reponse  ← DEFAUT
+#   MiniCPM5-1B Q4_K_M  : 3/7 a ~10.2 s (cerveau « thinking-only » : sans
+#   sa reflexion native il decroche, avec elle il est 3x plus lent)
+# AURA_GGUF=MINICPM (ou MINICPM_Q8) pour basculer, AURA_THINK=1 pour la
+# reflexion native (puzzles difficiles).
 _CHEMINS = {
     "Q4_K_M": os.path.join(_DOSSIER, "Llama-3.2-1B-Instruct-Q4_K_M.gguf"),
     "Q6_K": os.path.join(_DOSSIER, "Llama-3.2-1B-Instruct-Q6_K.gguf"),
+    "MINICPM": os.path.join(_DOSSIER, "MiniCPM5-1B-Q4_K_M.gguf"),
+    "MINICPM_Q8": os.path.join(_DOSSIER, "MiniCPM5-1B-Q8_0.gguf"),
 }
 _CHEMIN_GGUF = _CHEMINS[os.environ.get("AURA_GGUF", "Q4_K_M").upper()]
 
@@ -40,6 +48,10 @@ _CANDIDATS = [
     _CHEMIN_GGUF,
     os.path.join(_DOSSIER, "..", ".cache_aef", "cerveau.gguf"),
 ]
+# le cache du kernel peut contenir l'ancien cerveau : si le cerveau demande
+# est absent mais qu'un GGUF du cache existe, c'est lui qui sert (le .aef
+# publie embarquait Llama) — sinon, machine neuve sans le bon fichier,
+# _charger() levera l'erreur explicite.
 _CHEMIN_GGUF = next((os.path.abspath(c) for c in _CANDIDATS
                      if c and os.path.exists(c)), _CHEMIN_GGUF)
 
@@ -264,6 +276,30 @@ def _max_tokens_adaptatif(question: str) -> int:
     return 120
 
 
+# Cerveaux a reflexion native <think> : ils consomment des tokens de pensee
+# AVANT la reponse — les budgets de tokens doivent en tenir compte.
+_NOMS_THINK = ("minicpm", "deepseek-r1", "qwq", "qwen3", "thinking")
+
+
+def _cerveau_think(llm) -> bool:
+    """Vrai si le cerveau charge raisonne nativement en <think>...</think>.
+
+    Deux signaux : nom de modele (minicpm, r1...) OU template jinja avec
+    <think>/enable_thinking (interrupteur officiel : AURA_THINK=1 l'active
+    globalement, think=True de generer() par question).
+    """
+    try:
+        meta = getattr(llm, "metadata", {}) or {}
+        tmpl = meta.get("tokenizer.chat_template", "") or ""
+        if "<think>" in tmpl or "enable_thinking" in tmpl:
+            return True
+        nom = (str(getattr(llm, "model_path", "")) + " " +
+               str(meta)).lower()
+        return any(m in nom for m in _NOMS_THINK)
+    except Exception:
+        return False
+
+
 def _avec_raisonnement(question: str) -> str:
     """Ajoute une consigne de decomposition pour les questions de logique."""
     ql = question.lower()
@@ -276,7 +312,8 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
             max_tokens: int | None = None,
             historique: list[dict] | None = None,
             systeme: str | None = None,
-            contexte_faits: str = "") -> str:
+            contexte_faits: str = "",
+            think: bool | None = None) -> str:
     """Genere une reponse avec Llama 3.2 1B.
 
     historique : liste de {'role': 'user'|'assistant', 'content': str} pour
@@ -311,24 +348,81 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
 
     if max_tokens is None:
         max_tokens = _max_tokens_adaptatif(question)
+    if _cerveau_think(llm):
+        # cerveau a reflexion native : budget x2.5 (plancher 200) pour ne
+        # pas couper la pensee avant la reponse
+        max_tokens = max(int(max_tokens * 2.5), 200)
+
+    # interrupteur de reflexion native : par defaut OFF (reponse directe,
+    # rapide — l'orchestration d'Aura gere deja le raisonnement par experts).
+    # AURA_THINK=1 ou think=True par question pour les puzzles difficiles.
+    kwargs_template = {}
+    want_think = think if think is not None else os.environ.get("AURA_THINK") == "1"
+    if _cerveau_think(llm) and not want_think:
+        # interrupteur officiel (templates type MiniCPM5/Qwen3) — supporté
+        # par llama-cpp-python récent ; sur 0.3.35 il est ignoré, on gère
+        # alors la pensée vide en formatant ChatML manuellement (voir plus bas)
+        kwargs_template["enable_thinking"] = False
 
     try:
         t0 = time.time()
-        sortie = llm.create_chat_completion(
-            messages=messages,
-            max_tokens=max_tokens,
-            temperature=0.4,      # faible variance : ancre sur les faits
-            top_p=0.9,
-            min_p=0.05,           # coupe la queue -> reponses plus sures
-            repeat_penalty=1.1,
-            stop=["<|eot_id|>", "\nUtilisateur:", "\nUser:"],
-        )
+        try:
+            sortie = llm.create_chat_completion(
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=0.4,      # faible variance : ancre sur les faits
+                top_p=0.9,
+                min_p=0.05,           # coupe la queue -> reponses plus sures
+                repeat_penalty=1.1,
+                stop=["<|eot_id|>", "\nUtilisateur:", "\nUser:"],
+                **kwargs_template,
+            )
+        except (TypeError, ValueError):
+            # version de llama-cpp-python sans kwargs de template : appel
+            # standard (le strip de <think> + relance gerent le reste)
+            sortie = llm.create_chat_completion(
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=0.4,
+                top_p=0.9,
+                min_p=0.05,
+                repeat_penalty=1.1,
+                stop=["<|eot_id|>", "\nUtilisateur:", "\nUser:"],
+            )
         texte = (sortie.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
         n_gen = sortie.get("usage", {}).get("completion_tokens", 0)
         if n_gen:
             duree = max(time.time() - t0, 1e-6)
             LOG.info("[llama] %d tokens en %.1fs = %.1f tok/s",
                      n_gen, duree, n_gen / duree)
+        if texte:
+            propre, reflexion = separer_reflexion(texte)
+            if not propre and reflexion and not want_think:
+                # pensee coupee, reponse vide malgre enable_thinking=False :
+                # relance unique budget triple
+                try:
+                    sortie = llm.create_chat_completion(
+                        messages=messages,
+                        max_tokens=max(max_tokens * 3, 512),
+                        temperature=0.4, top_p=0.9, min_p=0.05,
+                        repeat_penalty=1.1,
+                        stop=["<|eot_id|>", "\nUtilisateur:", "\nUser:"],
+                        **kwargs_template,
+                    )
+                    texte2 = (sortie.get("choices") or [{}])[0] \
+                        .get("message", {}).get("content", "").strip()
+                    if texte2:
+                        propre, _ = separer_reflexion(texte2)
+                except Exception as e:
+                    LOG.warning("[llama] relance reflexion echouee : %s", e)
+            if propre:
+                return propre
+            # pensee non fermee (budget insuffisant) : ne JAMAIS livrer le
+            # bloc <think> brut (le matching reponse/verite y serait faux)
+            LOG.warning("[llama] reflexion non terminee (budget %d tokens)",
+                        max_tokens)
+            return ("[Aura] Reflexion interrompue avant la reponse. "
+                    "Reformule plus court, ou relance avec AURA_THINK=1.")
         return texte or "[Aura] Reponse vide du modele."
     except Exception as e:
         LOG.error("[llama] generation echouee : %s", e)
@@ -354,21 +448,23 @@ def disponible() -> bool:
 # ── Étape 2 : nettoyage du CoT ─────────────────────────────────────────
 
 def separer_reflexion(reponse_brute: str) -> tuple[str, str]:
-    """Extrait la reflexion <thinking>...</thinking> et renvoie (propre, reflexion).
+    """Extrait la reflexion <think> ou <thinking>...</think(ing)> et renvoie (propre, reflexion).
 
-    L'utilisateur ne voit que la reponse propre ; la reflexion part dans les
-    logs (audit qualite) via LOG.debug.
+    Deux familles de balises : <thinking> (le CoT masque du mode riche) et
+    <think> (la reflexion NATIVE des cerveaux type MiniCPM5/R1/QwQ). Dans les
+    deux cas l'utilisateur ne voit que la reponse propre ; la reflexion part
+    dans les logs (audit qualite) via LOG.debug.
     """
     reflexion = ""
-    m = re.search(r"<thinking>(.*?)</thinking>", reponse_brute, re.DOTALL)
+    m = re.search(r"<think(?:ing)?>(.*?)</think(?:ing)?>", reponse_brute, re.DOTALL)
     if m:
         reflexion = m.group(1).strip()
         LOG.debug("[cot] reflexion : %s", reflexion[:400])
-    propre = re.sub(r"<thinking>.*?</thinking>", "", reponse_brute,
+    propre = re.sub(r"<think(?:ing)?>.*?</think(?:ing)?>", "", reponse_brute,
                     flags=re.DOTALL).strip()
     # balise fermante orpheline (generation coupee) : on coupe avant
-    if "<thinking>" in propre and "</thinking>" not in propre:
-        propre = propre.split("<thinking>")[0].strip()
+    if re.search(r"<think(?:ing)?>", propre):
+        propre = re.split(r"<think(?:ing)?>", propre)[0].strip()
     return propre, reflexion
 
 
