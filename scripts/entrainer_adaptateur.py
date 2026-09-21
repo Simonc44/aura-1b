@@ -63,7 +63,8 @@ def entrainer(categorie: str, dataset: str, epochs: int = 3,
                               TrainingArguments, Trainer,
                               DataCollatorForLanguageModeling)
 
-    base = "meta-llama/Llama-3.2-1B-Instruct"     # meme cerveau qu'Aura
+    # miroir public (unsloth) : memes poids que meta-llama, sans token HF
+    base = "unsloth/Llama-3.2-1B-Instruct"
     tok = AutoTokenizer.from_pretrained(base)
     tok.pad_token = tok.eos_token
     model = AutoModelForCausalLM.from_pretrained(

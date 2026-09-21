@@ -1,0 +1,153 @@
+{"question": "Peux-tu m'expliquer : quelle est la capitale de la France ?", "reponse": "Paris", "contexte": "Paris"}
+{"question": "Dis-moi : quelle est la capitale de l'Italie ?", "reponse": "Rome", "contexte": "Rome"}
+{"question": "Dis-moi : quelle est la capitale de l'Espagne ?", "reponse": "Madrid", "contexte": "Madrid"}
+{"question": "Dis-moi : quelle est la capitale du Japon ?", "reponse": "Tokyo", "contexte": "Tokyo"}
+{"question": "quelle est la capitale de la Chine ?", "reponse": "Pékin (Beijing)", "contexte": "Pékin (Beijing)"}
+{"question": "quelle est la capitale de l'Australie ?", "reponse": "Canberra (et non Sydney)", "contexte": "Canberra (et non Sydney)"}
+{"question": "J'aimerais savoir : quelle est la capitale du Canada ?", "reponse": "Ottawa (et non Toronto)", "contexte": "Ottawa (et non Toronto)"}
+{"question": "quelle est la capitale des Etats-Unis ?", "reponse": "Washington D.C. (et non New York)", "contexte": "Washington D.C. (et non New York)"}
+{"question": "quelle est la capitale du Royaume-Uni ?", "reponse": "Londres", "contexte": "Londres"}
+{"question": "quelle est la capitale de l'Allemagne ?", "reponse": "Berlin", "contexte": "Berlin"}
+{"question": "Dis-moi : quelle est la capitale du Bresil ?", "reponse": "Brasília", "contexte": "Brasília"}
+{"question": "Dis-moi : quelle est la capitale de la Russie ?", "reponse": "Moscou", "contexte": "Moscou"}
+{"question": "quelle est la capitale de l'Egypte ?", "reponse": "Le Caire", "contexte": "Le Caire"}
+{"question": "Dis-moi : quelle est la capitale de l'Inde ?", "reponse": "New Delhi", "contexte": "New Delhi"}
+{"question": "J'aimerais savoir : quelle est la capitale du Maroc ?", "reponse": "Rabat (et non Casablanca)", "contexte": "Rabat (et non Casablanca)"}
+{"question": "Dis-moi : quelle est la capitale de l'Algerie ?", "reponse": "Alger", "contexte": "Alger"}
+{"question": "J'aimerais savoir : quelle est la capitale de la Tunisie ?", "reponse": "Tunis", "contexte": "Tunis"}
+{"question": "Peux-tu m'expliquer : quelle est la capitale du Senegal ?", "reponse": "Dakar", "contexte": "Dakar"}
+{"question": "quelle est la capitale de la Cote d'Ivoire ?", "reponse": "Yamoussoukro (capitale politique), Abidjan (capitale économique)", "contexte": "Yamoussoukro (capitale politique), Abidjan (capitale économique)"}
+{"question": "Dis-moi : quelle est la capitale de la Suisse ?", "reponse": "Berne (et non Zurich)", "contexte": "Berne (et non Zurich)"}
+{"question": "J'aimerais savoir : quelle est la capitale de la Belgique ?", "reponse": "Bruxelles", "contexte": "Bruxelles"}
+{"question": "Peux-tu m'expliquer : quelle est la capitale du Portugal ?", "reponse": "Lisbonne", "contexte": "Lisbonne"}
+{"question": "Peux-tu m'expliquer : quelle est la capitale de la Grece ?", "reponse": "Athènes", "contexte": "Athènes"}
+{"question": "Dis-moi : quelle est la capitale de la Turquie ?", "reponse": "Ankara (et non Istanbul)", "contexte": "Ankara (et non Istanbul)"}
+{"question": "Dis-moi : quelle est la capitale du Mexique ?", "reponse": "Mexico", "contexte": "Mexico"}
+{"question": "Peux-tu m'expliquer : quelle est la capitale de l'Argentine ?", "reponse": "Buenos Aires", "contexte": "Buenos Aires"}
+{"question": "quelle est la capitale du Perou ?", "reponse": "Lima", "contexte": "Lima"}
+{"question": "quelle est la capitale du Kenya ?", "reponse": "Nairobi", "contexte": "Nairobi"}
+{"question": "J'aimerais savoir : quelle est la capitale du Nigeria ?", "reponse": "Abuja", "contexte": "Abuja"}
+{"question": "quelle est la capitale de la Coree du Sud ?", "reponse": "Séoul", "contexte": "Séoul"}
+{"question": "Peux-tu m'expliquer : quelle est la capitale du Vietnam ?", "reponse": "Hanoï", "contexte": "Hanoï"}
+{"question": "Peux-tu m'expliquer : quelle est la capitale de la Thailande ?", "reponse": "Bangkok", "contexte": "Bangkok"}
+{"question": "Peux-tu m'expliquer : quelle est la capitale des Pays-Bas ?", "reponse": "Amsterdam (siège du gouvernement : La Haye)", "contexte": "Amsterdam (siège du gouvernement : La Haye)"}
+{"question": "quelle est la capitale de l'Autriche ?", "reponse": "Vienne", "contexte": "Vienne"}
+{"question": "J'aimerais savoir : quelle est la capitale de la Suede ?", "reponse": "Stockholm", "contexte": "Stockholm"}
+{"question": "quelle est la capitale de la Norvege ?", "reponse": "Oslo", "contexte": "Oslo"}
+{"question": "J'aimerais savoir : quelle est la capitale de la Pologne ?", "reponse": "Varsovie", "contexte": "Varsovie"}
+{"question": "quelle est la capitale de l'Ukraine ?", "reponse": "Kyiv (Kiev)", "contexte": "Kyiv (Kiev)"}
+{"question": "Peux-tu m'expliquer : quel est le plus haut sommet du monde ?", "reponse": "L'Everest, 8 849 mètres", "contexte": "L'Everest, 8 849 mètres"}
+{"question": "Peux-tu m'expliquer : quel est le plus long fleuve du monde ?", "reponse": "Le Nil (~6 650 km) ; l'Amazone est très proche selon les mesures", "contexte": "Le Nil (~6 650 km) ; l'Amazone est très proche selon les mesures"}
+{"question": "Dis-moi : quel est le plus grand ocean ?", "reponse": "L'océan Pacifique", "contexte": "L'océan Pacifique"}
+{"question": "quel est le plus grand desert chaud ?", "reponse": "Le Sahara", "contexte": "Le Sahara"}
+{"question": "quelle est la plus grande planete du systeme solaire ?", "reponse": "Jupiter", "contexte": "Jupiter"}
+{"question": "Dis-moi : quelle est la planete la plus proche du soleil ?", "reponse": "Mercure", "contexte": "Mercure"}
+{"question": "Peux-tu m'expliquer : quelle planete est appelee la planete rouge ?", "reponse": "Mars", "contexte": "Mars"}
+{"question": "combien y a-t-il de planetes dans le systeme solaire ?", "reponse": "8 planètes", "contexte": "8 planètes"}
+{"question": "Dis-moi : quelle est l'etoile la plus proche de la Terre ?", "reponse": "Le Soleil", "contexte": "Le Soleil"}
+{"question": "quel est le plus grand pays du monde ?", "reponse": "La Russie", "contexte": "La Russie"}
+{"question": "J'aimerais savoir : quel est le plus petit pays du monde ?", "reponse": "Le Vatican", "contexte": "Le Vatican"}
+{"question": "Peux-tu m'expliquer : quel est le pays le plus peuple du monde ?", "reponse": "L'Inde (depuis 2023), devant la Chine", "contexte": "L'Inde (depuis 2023), devant la Chine"}
+{"question": "J'aimerais savoir : quel est le plus grand continent ?", "reponse": "L'Asie", "contexte": "L'Asie"}
+{"question": "Peux-tu m'expliquer : quel est le plus grand mammifere du monde ?", "reponse": "La baleine bleue", "contexte": "La baleine bleue"}
+{"question": "Dis-moi : quel est l'animal terrestre le plus rapide ?", "reponse": "Le guépard (jusqu'à ~110 km/h)", "contexte": "Le guépard (jusqu'à ~110 km/h)"}
+{"question": "Peux-tu m'expliquer : quelle est la formule chimique de l'eau ?", "reponse": "H2O", "contexte": "H2O"}
+{"question": "Peux-tu m'expliquer : quel est le symbole chimique de l'or ?", "reponse": "Au", "contexte": "Au"}
+{"question": "Dis-moi : quel est le symbole chimique du fer ?", "reponse": "Fe", "contexte": "Fe"}
+{"question": "Peux-tu m'expliquer : quel gaz l'homme respire-t-il ?", "reponse": "L'oxygène (O2)", "contexte": "L'oxygène (O2)"}
+{"question": "quelle est la vitesse de la lumiere ?", "reponse": "Environ 300 000 km par seconde", "contexte": "Environ 300 000 km par seconde"}
+{"question": "Dis-moi : a quelle temperature l'eau bout-elle ?", "reponse": "100 °C (à pression normale)", "contexte": "100 °C (à pression normale)"}
+{"question": "Dis-moi : combien d'os compte le corps humain ?", "reponse": "206 os", "contexte": "206 os"}
+{"question": "Dis-moi : combien de continents y a-t-il ?", "reponse": "7 continents (ou 5 selon les conventions)", "contexte": "7 continents (ou 5 selon les conventions)"}
+{"question": "J'aimerais savoir : en quelle annee a commence la Premiere Guerre mondiale ?", "reponse": "1914 (fin en 1918)", "contexte": "1914 (fin en 1918)"}
+{"question": "J'aimerais savoir : en quelle annee a commence la Seconde Guerre mondiale ?", "reponse": "1939 (fin en 1945)", "contexte": "1939 (fin en 1945)"}
+{"question": "Peux-tu m'expliquer : en quelle annee l'homme a-t-il marche sur la Lune pour la premiere fois ?", "reponse": "1969, mission Apollo 11 (Neil Armstrong)", "contexte": "1969, mission Apollo 11 (Neil Armstrong)"}
+{"question": "Dis-moi : en quelle annee a eu lieu la Revolution francaise ?", "reponse": "1789", "contexte": "1789"}
+{"question": "Peux-tu m'expliquer : en quelle annee est tombe le mur de Berlin ?", "reponse": "1989", "contexte": "1989"}
+{"question": "en quelle annee a coule le Titanic ?", "reponse": "1912", "contexte": "1912"}
+{"question": "Dis-moi : en quelle annee l'URSS a-t-elle disparu ?", "reponse": "1991", "contexte": "1991"}
+{"question": "qui a gagne la coupe du monde de football 2022 ?", "reponse": "L'Argentine", "contexte": "L'Argentine"}
+{"question": "Peux-tu m'expliquer : qui a gagne la coupe du monde de football 2018 ?", "reponse": "La France", "contexte": "La France"}
+{"question": "J'aimerais savoir : qui a invente l'imprimerie en Europe ?", "reponse": "Gutenberg, vers 1450", "contexte": "Gutenberg, vers 1450"}
+{"question": "J'aimerais savoir : combien de mois ont 28 jours ?", "reponse": "Les 12 mois : tous ont AU MOINS 28 jours.", "contexte": "Les 12 mois : tous ont AU MOINS 28 jours."}
+{"question": "5 poissons dans un aquarium 3 se noient combien en reste-t-il ?", "reponse": "5 : les poissons ne se noient pas.", "contexte": "5 : les poissons ne se noient pas."}
+{"question": "quel est le plus grand nombre entre 0,9 et 0,11 ?", "reponse": "0,9 (car 0,9 = 0,90 > 0,11).", "contexte": "0,9 (car 0,9 = 0,90 > 0,11)."}
+{"question": "un avion s'ecrase a la frontiere ou enterrer les survivants ?", "reponse": "On n'enterre pas les survivants : ils sont vivants.", "contexte": "On n'enterre pas les survivants : ils sont vivants."}
+{"question": "Dis-moi : combien d'animaux de chaque espece Moise a-t-il pris dans l'arche ?", "reponse": "Aucun : c'est Noé, pas Moïse.", "contexte": "Aucun : c'est Noé, pas Moïse."}
+{"question": "Dis-moi : 3 chats tuent 3 souris en 3 minutes combien de temps pour 100 chats et 100 souris ?", "reponse": "3 minutes : chaque chat tue une souris en 3 minutes.", "contexte": "3 minutes : chaque chat tue une souris en 3 minutes."}
+{"question": "J'aimerais savoir : une batte et une balle coutent 1,10 la batte coute 1 de plus que la balle ?", "reponse": "La balle coûte 0,05 et la batte 1,05 (pas 0,10).", "contexte": "La balle coûte 0,05 et la batte 1,05 (pas 0,10)."}
+{"question": "combien de temps faut-il dormir par nuit ?", "reponse": "7 à 9 heures pour un adulte.", "contexte": "7 à 9 heures pour un adulte."}
+{"question": "Peux-tu m'expliquer : combien d'eau faut-il boire par jour ?", "reponse": "Environ 1,5 à 2 litres par jour, selon l'activité et la chaleur.", "contexte": "Environ 1,5 à 2 litres par jour, selon l'activité et la chaleur."}
+{"question": "Peux-tu m'expliquer : quelle est la temperature normale du corps humain ?", "reponse": "Environ 37 °C.", "contexte": "Environ 37 °C."}
+{"question": "Dis-moi : combien de temps se laver les mains ?", "reponse": "Au moins 30 secondes, avec du savon.", "contexte": "Au moins 30 secondes, avec du savon."}
+{"question": "que faire en cas de brulure legere ?", "reponse": "Refroidir tout de suite à l'eau tiède 15 à 20 minutes, et ne pas percer les cloques.", "contexte": "Refroidir tout de suite à l'eau tiède 15 à 20 minutes, et ne pas percer les cloques."}
+{"question": "Dis-moi : que faire en cas de saignement de nez ?", "reponse": "Se pencher en avant et pincer le nez 10 minutes sans le lâcher.", "contexte": "Se pencher en avant et pincer le nez 10 minutes sans le lâcher."}
+{"question": "combien de temps de sport par semaine ?", "reponse": "Environ 150 minutes d'activité modérée par semaine (30 min x 5 jours).", "contexte": "Environ 150 minutes d'activité modérée par semaine (30 min x 5 jours)."}
+{"question": "que faire si quelqu'un s'etouffe ?", "reponse": "Donner jusqu'à 5 claques dans le dos, puis la manœuvre de Heimlich, et appeler le 15 ou le 112.", "contexte": "Donner jusqu'à 5 claques dans le dos, puis la manœuvre de Heimlich, et appeler le 15 ou le 112."}
+{"question": "J'aimerais savoir : combien de temps dure une grippe ?", "reponse": "Environ 5 à 7 jours ; la toux peut durer plus longtemps.", "contexte": "Environ 5 à 7 jours ; la toux peut durer plus longtemps."}
+{"question": "combien de dents a un adulte ?", "reponse": "32 dents (dents de sagesse comprises) ; 20 dents de lait chez l'enfant.", "contexte": "32 dents (dents de sagesse comprises) ; 20 dents de lait chez l'enfant."}
+{"question": "Dis-moi : quel est le rythme cardiaque normal au repos ?", "reponse": "Entre 60 et 100 battements par minute.", "contexte": "Entre 60 et 100 battements par minute."}
+{"question": "Dis-moi : combien de calories par jour pour un adulte ?", "reponse": "Environ 2 000 kcal en moyenne, selon l'âge, le sexe et l'activité.", "contexte": "Environ 2 000 kcal en moyenne, selon l'âge, le sexe et l'activité."}
+{"question": "J'aimerais savoir : pourquoi faut-il manger des fruits et legumes ?", "reponse": "Ils apportent vitamines, fibres et minéraux. L'idée est d'en manger 5 portions par jour.", "contexte": "Ils apportent vitamines, fibres et minéraux. L'idée est d'en manger 5 portions par jour."}
+{"question": "Dis-moi : le tabac est-il dangereux pour la sante ?", "reponse": "Oui : il augmente fortement les risques de cancer et de maladies du cœur et des poumons.", "contexte": "Oui : il augmente fortement les risques de cancer et de maladies du cœur et des poumons."}
+{"question": "Peux-tu m'expliquer : que faire contre un petit rhume ?", "reponse": "Repos, boire de l'eau, se moucher ; un rhume guérit seul en une semaine environ.", "contexte": "Repos, boire de l'eau, se moucher ; un rhume guérit seul en une semaine environ."}
+{"question": "J'aimerais savoir : a quelle frequence faut-il aller chez le dentiste ?", "reponse": "Une fois par an au minimum, ou tous les 6 mois en prévention.", "contexte": "Une fois par an au minimum, ou tous les 6 mois en prévention."}
+{"question": "Dis-moi : que faire en cas de piqure de guepe ?", "reponse": "Retirer le dard, laver, appliquer du froid, et surveiller une éventuelle réaction allergique.", "contexte": "Retirer le dard, laver, appliquer du froid, et surveiller une éventuelle réaction allergique."}
+{"question": "Dis-moi : comment eviter la deshydratation ?", "reponse": "Boire régulièrement de l'eau, surtout par forte chaleur ou pendant le sport.", "contexte": "Boire régulièrement de l'eau, surtout par forte chaleur ou pendant le sport."}
+{"question": "Peux-tu m'expliquer : la fievre est-elle toujours dangereuse ?", "reponse": "Non, c'est une défense du corps. Elle devient inquiétante si elle est très élevée ou prolongée.", "contexte": "Non, c'est une défense du corps. Elle devient inquiétante si elle est très élevée ou prolongée."}
+{"question": "J'aimerais savoir : combien de temps met une plaie a cicatriser ?", "reponse": "Une petite plaie cicatrise en 5 à 10 jours environ.", "contexte": "Une petite plaie cicatrise en 5 à 10 jours environ."}
+{"question": "Peux-tu m'expliquer : faut-il prendre un petit dejeuner ?", "reponse": "Ce n'est pas obligatoire : l'important est une alimentation équilibrée sur la journée.", "contexte": "Ce n'est pas obligatoire : l'important est une alimentation équilibrée sur la journée."}
+{"question": "J'aimerais savoir : que faire contre un mal de tete ?", "reponse": "Repos, eau, éventuellement un antalgique ; consulter si la douleur est forte ou inhabituelle.", "contexte": "Repos, eau, éventuellement un antalgique ; consulter si la douleur est forte ou inhabituelle."}
+{"question": "J'aimerais savoir : combien de temps faut-il pour digerer ?", "reponse": "Environ 2 à 4 heures pour l'estomac, jusqu'à 24 h pour tout le transit.", "contexte": "Environ 2 à 4 heures pour l'estomac, jusqu'à 24 h pour tout le transit."}
+{"question": "l'alcool est-il mauvais pour la sante ?", "reponse": "Oui : il n'existe pas de consommation totalement sans risque.", "contexte": "Oui : il n'existe pas de consommation totalement sans risque."}
+{"question": "Dis-moi : comment bien se laver les dents ?", "reponse": "2 minutes, 2 fois par jour, avec un brossage doux et du dentifrice fluoré.", "contexte": "2 minutes, 2 fois par jour, avec un brossage doux et du dentifrice fluoré."}
+{"question": "Dis-moi : combien de temps cuire des pates ?", "reponse": "8 à 12 minutes selon le type ; goûter pour vérifier.", "contexte": "8 à 12 minutes selon le type ; goûter pour vérifier."}
+{"question": "combien de temps cuire un oeuf dur ?", "reponse": "Environ 9 à 10 minutes dans l'eau bouillante.", "contexte": "Environ 9 à 10 minutes dans l'eau bouillante."}
+{"question": "Peux-tu m'expliquer : a quelle temperature cuire du poulet a coeur ?", "reponse": "75 °C à cœur pour qu'il soit sûr à manger.", "contexte": "75 °C à cœur pour qu'il soit sûr à manger."}
+{"question": "quantite de riz cru par personne ?", "reponse": "Environ 60 g de riz cru par personne (il triple de volume à la cuisson).", "contexte": "Environ 60 g de riz cru par personne (il triple de volume à la cuisson)."}
+{"question": "Dis-moi : quantite de pates par personne ?", "reponse": "Environ 100 g de pâtes crues par personne.", "contexte": "Environ 100 g de pâtes crues par personne."}
+{"question": "Dis-moi : a quoi sert la levure en cuisine ?", "reponse": "À faire lever la pâte en produisant du gaz (pain, brioche, gâteaux).", "contexte": "À faire lever la pâte en produisant du gaz (pain, brioche, gâteaux)."}
+{"question": "comment savoir si un oeuf est frais ?", "reponse": "Plongé dans l'eau : s'il coule il est frais, s'il flotte il est vieux.", "contexte": "Plongé dans l'eau : s'il coule il est frais, s'il flotte il est vieux."}
+{"question": "que faire si un plat est trop sale ?", "reponse": "Ajouter une pomme de terre, un peu d'eau ou de crème pour diluer le sel.", "contexte": "Ajouter une pomme de terre, un peu d'eau ou de crème pour diluer le sel."}
+{"question": "comment faire une vinaigrette ?", "reponse": "Ratio classique 3 cuillères d'huile pour 1 de vinaigre, plus sel, poivre et moutarde.", "contexte": "Ratio classique 3 cuillères d'huile pour 1 de vinaigre, plus sel, poivre et moutarde."}
+{"question": "Dis-moi : difference entre mijoter et bouillir ?", "reponse": "Bouillir = grosses bulles ; mijoter = petits frémissements, cuisson douce et longue.", "contexte": "Bouillir = grosses bulles ; mijoter = petits frémissements, cuisson douce et longue."}
+{"question": "a quelle temperature prechauffer un four pour un gateau ?", "reponse": "Environ 180 °C en chaleur tournante, ou 200 °C en chaleur classique.", "contexte": "Environ 180 °C en chaleur tournante, ou 200 °C en chaleur classique."}
+{"question": "combien de temps cuire du riz ?", "reponse": "10 à 12 minutes dans l'eau bouillante, puis laisser reposer.", "contexte": "10 à 12 minutes dans l'eau bouillante, puis laisser reposer."}
+{"question": "Peux-tu m'expliquer : comment decongeler de la viande proprement ?", "reponse": "Au réfrigérateur, jamais à température ambiante, pour éviter les bactéries.", "contexte": "Au réfrigérateur, jamais à température ambiante, pour éviter les bactéries."}
+{"question": "a quoi sert la maizena ?", "reponse": "À épaissir une sauce ou une soupe : c'est de l'amidon de maïs.", "contexte": "À épaissir une sauce ou une soupe : c'est de l'amidon de maïs."}
+{"question": "Dis-moi : c'est quoi des pates al dente ?", "reponse": "Des pâtes cuites mais encore fermes sous la dent, pas molles.", "contexte": "Des pâtes cuites mais encore fermes sous la dent, pas molles."}
+{"question": "Peux-tu m'expliquer : combien de temps conserver des restes au frigo ?", "reponse": "Environ 3 jours, dans une boîte fermée.", "contexte": "Environ 3 jours, dans une boîte fermée."}
+{"question": "J'aimerais savoir : comment couper un oignon sans pleurer ?", "reponse": "Utiliser un couteau bien aiguisé, ou refroidir l'oignon au frigo avant de le couper.", "contexte": "Utiliser un couteau bien aiguisé, ou refroidir l'oignon au frigo avant de le couper."}
+{"question": "Dis-moi : a quoi sert le bicarbonate de soude ?", "reponse": "À lever certaines pâtes, nettoyer, désodoriser ou calmer les acidités.", "contexte": "À lever certaines pâtes, nettoyer, désodoriser ou calmer les acidités."}
+{"question": "Dis-moi : comment conserver les aliments au refrigerateur ?", "reponse": "Viande et poisson en bas, restes en haut, toujours dans des boîtes fermées.", "contexte": "Viande et poisson en bas, restes en haut, toujours dans des boîtes fermées."}
+{"question": "J'aimerais savoir : que signifie faire revenir un aliment ?", "reponse": "Le saisir à feu vif dans un peu de matière grasse pour le colorer.", "contexte": "Le saisir à feu vif dans un peu de matière grasse pour le colorer."}
+{"question": "Dis-moi : difference entre ebullition et fremissement ?", "reponse": "Frémissement = petites bulles naissantes ; ébullition = gros bouillons.", "contexte": "Frémissement = petites bulles naissantes ; ébullition = gros bouillons."}
+{"question": "J'aimerais savoir : combien de sel mettre dans l'eau des pates ?", "reponse": "Environ 10 g de gros sel par litre d'eau.", "contexte": "Environ 10 g de gros sel par litre d'eau."}
+{"question": "J'aimerais savoir : comment reussir une omelette ?", "reponse": "Battre les œufs, cuire à feu doux dans un peu de beurre, sans trop remuer.", "contexte": "Battre les œufs, cuire à feu doux dans un peu de beurre, sans trop remuer."}
+{"question": "Dis-moi : comment laver le riz avant cuisson ?", "reponse": "Le rincer à l'eau claire jusqu'à ce qu'elle soit transparente, pour retirer l'amidon.", "contexte": "Le rincer à l'eau claire jusqu'à ce qu'elle soit transparente, pour retirer l'amidon."}
+{"question": "qu'est-ce qu'un contrat ?", "reponse": "Un accord entre deux parties qui crée des obligations. Un contrat signé engage légalement.", "contexte": "Un accord entre deux parties qui crée des obligations. Un contrat signé engage légalement."}
+{"question": "qu'est-ce qu'un devis ?", "reponse": "Un document qui chiffre à l'avance une prestation ; il devient contraignant une fois signé.", "contexte": "Un document qui chiffre à l'avance une prestation ; il devient contraignant une fois signé."}
+{"question": "J'aimerais savoir : difference entre un devis et une facture ?", "reponse": "Le devis est une estimation AVANT ; la facture est la demande de paiement APRÈS.", "contexte": "Le devis est une estimation AVANT ; la facture est la demande de paiement APRÈS."}
+{"question": "Peux-tu m'expliquer : que faire en cas de litige avec un commercant ?", "reponse": "Demander un remboursement ou un échange, puis saisir le médiateur de la consommation.", "contexte": "Demander un remboursement ou un échange, puis saisir le médiateur de la consommation."}
+{"question": "J'aimerais savoir : combien de temps dure la garantie legale ?", "reponse": "2 ans pour un défaut de conformité, quel que soit le produit neuf acheté.", "contexte": "2 ans pour un défaut de conformité, quel que soit le produit neuf acheté."}
+{"question": "J'aimerais savoir : combien de temps pour exercer son droit de retractation ?", "reponse": "14 jours pour un achat à distance (internet, téléphone) ou hors magasin.", "contexte": "14 jours pour un achat à distance (internet, téléphone) ou hors magasin."}
+{"question": "J'aimerais savoir : qu'est-ce qu'un CDI ?", "reponse": "Contrat à durée indéterminée : sans date de fin. C'est la forme normale d'embauche.", "contexte": "Contrat à durée indéterminée : sans date de fin. C'est la forme normale d'embauche."}
+{"question": "difference entre CDD et CDI ?", "reponse": "Le CDD a une date de fin (mission temporaire), le CDI n'en a pas.", "contexte": "Le CDD a une date de fin (mission temporaire), le CDI n'en a pas."}
+{"question": "qu'est-ce qu'une periode d'essai ?", "reponse": "Une période au début du contrat pour tester le poste ; sa durée et sa rupture sont encadrées.", "contexte": "Une période au début du contrat pour tester le poste ; sa durée et sa rupture sont encadrées."}
+{"question": "quel est le preavis en cas de demission ?", "reponse": "Il dépend du contrat et de la convention collective ; souvent 1 à 3 mois pour un cadre.", "contexte": "Il dépend du contrat et de la convention collective ; souvent 1 à 3 mois pour un cadre."}
+{"question": "J'aimerais savoir : qu'est-ce qu'un licenciement abusif ?", "reponse": "Un licenciement sans cause réelle et sérieuse ; il ouvre droit à des dommages et intérêts.", "contexte": "Un licenciement sans cause réelle et sérieuse ; il ouvre droit à des dommages et intérêts."}
+{"question": "Peux-tu m'expliquer : combien de conges payes par an ?", "reponse": "5 semaines, soit 30 jours ouvrables, pour un salarié à temps plein.", "contexte": "5 semaines, soit 30 jours ouvrables, pour un salarié à temps plein."}
+{"question": "qu'est-ce que le SMIC ?", "reponse": "Le salaire minimum légal en France ; il est revalorisé régulièrement.", "contexte": "Le salaire minimum légal en France ; il est revalorisé régulièrement."}
+{"question": "Dis-moi : qu'est-ce qu'un bail ?", "reponse": "Le contrat de location entre un propriétaire (bailleur) et un locataire.", "contexte": "Le contrat de location entre un propriétaire (bailleur) et un locataire."}
+{"question": "Dis-moi : qu'est-ce que le depot de garantie en location ?", "reponse": "Une somme versée à l'entrée, rendue si le logement est rendu en bon état.", "contexte": "Une somme versée à l'entrée, rendue si le logement est rendu en bon état."}
+{"question": "Dis-moi : que faire en cas d'accident du travail ?", "reponse": "Prévenir l'employeur au plus vite et déclarer l'accident sous 24 h ; voir un médecin.", "contexte": "Prévenir l'employeur au plus vite et déclarer l'accident sous 24 h ; voir un médecin."}
+{"question": "J'aimerais savoir : qu'est-ce que le harcelement ?", "reponse": "Des propos ou actes répétés qui dégradent les conditions de travail ou la vie d'une personne ; c'est illégal.", "contexte": "Des propos ou actes répétés qui dégradent les conditions de travail ou la vie d'une personne ; c'est illégal."}
+{"question": "Dis-moi : qu'est-ce que le droit d'auteur ?", "reponse": "Le droit qui protège automatiquement une œuvre (texte, image, musique), sans dépôt nécessaire.", "contexte": "Le droit qui protège automatiquement une œuvre (texte, image, musique), sans dépôt nécessaire."}
+{"question": "J'aimerais savoir : qu'est-ce que le RGPD ?", "reponse": "Le règlement européen qui protège les données personnelles et impose un consentement clair.", "contexte": "Le règlement européen qui protège les données personnelles et impose un consentement clair."}
+{"question": "Dis-moi : qu'est-ce qu'un proces-verbal ?", "reponse": "Le document d'un agent qui constate une infraction ; il peut être contesté dans un délai précis.", "contexte": "Le document d'un agent qui constate une infraction ; il peut être contesté dans un délai précis."}
+{"question": "Peux-tu m'expliquer : comment contester une amende ?", "reponse": "Dans le délai indiqué (souvent 45 jours), par courrier ou en ligne, avec les preuves.", "contexte": "Dans le délai indiqué (souvent 45 jours), par courrier ou en ligne, avec les preuves."}
+{"question": "J'aimerais savoir : a quel age est-on majeur ?", "reponse": "18 ans en France (majorité civile et pénale).", "contexte": "18 ans en France (majorité civile et pénale)."}
+{"question": "Dis-moi : qu'est-ce qu'un testament ?", "reponse": "Un document écrit qui indique comment on souhaite répartir ses biens après son décès.", "contexte": "Un document écrit qui indique comment on souhaite répartir ses biens après son décès."}
+{"question": "que faire si un colis n'arrive pas ?", "reponse": "Contacter le vendeur : c'est lui qui est responsable tant que le colis n'est pas reçu.", "contexte": "Contacter le vendeur : c'est lui qui est responsable tant que le colis n'est pas reçu."}
+{"question": "J'aimerais savoir : qu'est-ce que la presomption d'innocence ?", "reponse": "Toute personne est considérée innocente jusqu'à preuve du contraire établie par un tribunal.", "contexte": "Toute personne est considérée innocente jusqu'à preuve du contraire établie par un tribunal."}
+{"question": "a quoi sert le beurre en cuisine ?", "reponse": "À cuire, parfumer et donner du moelleux (pâtisserie, sauces).", "contexte": "À cuire, parfumer et donner du moelleux (pâtisserie, sauces)."}

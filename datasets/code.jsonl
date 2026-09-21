@@ -1,0 +1,78 @@
+{"question": "J'ai besoin de ça : ecrire une fonction python {nom} qui additionne deux nombres", "reponse": "def addition(a, b):\n    return a + b\n\n# Exemple : addition(2, 3) -> 5"}
+{"question": "Peux-tu m'aider : ecrire une fonction python qui verifie si un nombre est pair ?", "reponse": "def est_pair(n):\n    return n % 2 == 0\n\n# Exemple : est_pair(4) -> True, est_pair(7) -> False"}
+{"question": "Peux-tu m'aider : ecrire une fonction python qui renvoie le maximum d'une liste ?", "reponse": "def maximum(liste):\n    plus_grand = liste[0]\n    for x in liste:\n        if x > plus_grand:\n            plus_grand = x\n    return plus_grand\n\n# Exemple : maximum([3, 7, 2]) -> 7"}
+{"question": "Peux-tu m'aider : ecrire une fonction python qui calcule la moyenne d'une liste ?", "reponse": "def moyenne(liste):\n    return sum(liste) / len(liste)\n\n# Exemple : moyenne([2, 4, 6]) -> 4.0"}
+{"question": "ecrire une fonction python qui inverse une chaine de caracteres ?", "reponse": "def inverser(texte):\n    return texte[::-1]\n\n# Exemple : inverser('aura') -> 'arua'"}
+{"question": "ecrire une fonction python qui compte les voyelles d'un mot ?", "reponse": "def compter_voyelles(mot):\n    return sum(1 for c in mot.lower() if c in 'aeiouy')\n\n# Exemple : compter_voyelles('python') -> 2 ('o' et 'y')"}
+{"question": "Peux-tu m'aider : ecrire une fonction python qui convertit des celsius en fahrenheit ?", "reponse": "def celsius_vers_fahrenheit(c):\n    return c * 9 / 5 + 32\n\n# Exemple : celsius_vers_fahrenheit(100) -> 212.0"}
+{"question": "Donne-moi le code pour : ecrire une fonction python qui teste si un mot est un palindrome", "reponse": "def est_palindrome(mot):\n    mot = mot.lower()\n    return mot == mot[::-1]\n\n# Exemple : est_palindrome('radar') -> True"}
+{"question": "ecrire une fonction python qui trie une liste de nombres ?", "reponse": "def trier(liste):\n    return sorted(liste)\n\n# Exemple : trier([3, 1, 2]) -> [1, 2, 3]"}
+{"question": "Donne-moi le code pour : ecrire une fonction python qui calcule la factorielle d'un nombre", "reponse": "def factorielle(n):\n    resultat = 1\n    for i in range(2, n + 1):\n        resultat *= i\n    return resultat\n\n# Exemple : factorielle(5) -> 120"}
+{"question": "Donne-moi le code pour : ecrire une fonction python qui calcule la somme d'une liste", "reponse": "def somme(liste):\n    total = 0\n    for x in liste:\n        total += x\n    return total\n\n# Exemple : somme([1, 2, 3]) -> 6"}
+{"question": "Peux-tu m'aider : ecrire une fonction python qui renvoie la longueur d'un texte ?", "reponse": "def longueur(texte):\n    compteur = 0\n    for _ in texte:\n        compteur += 1\n    return compteur\n\n# Exemple : longueur('aura') -> 4"}
+{"question": "Donne-moi le code pour : ecrire une fonction python qui convertit des kilometres en miles", "reponse": "def km_vers_miles(km):\n    return km * 0.621371\n\n# Exemple : km_vers_miles(10) -> 6.21371"}
+{"question": "Donne-moi le code pour : ecrire une fonction python qui dit si un nombre est positif ou negatif", "reponse": "def signe(n):\n    if n > 0:\n        return 'positif'\n    if n < 0:\n        return 'negatif'\n    return 'nul'\n\n# Exemple : signe(-5) -> 'negatif'"}
+{"question": "J'aimerais savoir : Dis-moi : comment afficher du texte en Python  ?", "reponse": "print(\"Hello World\")"}
+{"question": "Dis-moi : Dis-moi : comment afficher du texte en Python  ?", "reponse": "print(\"Hello World\")"}
+{"question": "Dis-moi : Peux-tu m'expliquer : comment faire une boucle for en Python  ?", "reponse": "for i in range(10):\\n    print(i)"}
+{"question": "Peux-tu m'expliquer : comment faire une boucle for en Python  ?", "reponse": "for i in range(10):\\n    print(i)"}
+{"question": "Dis-moi : comment definir une fonction en Python  ?", "reponse": "def ma_fonction(x):\\n    return x * 2"}
+{"question": "J'aimerais savoir : Dis-moi : comment definir une fonction en Python  ?", "reponse": "def ma_fonction(x):\\n    return x * 2"}
+{"question": "Dis-moi : comment faire une condition if en Python  ?", "reponse": "if x > 0:\\n    print(\"positif\")\\nelse:\\n    print(\"negatif\")"}
+{"question": "Dis-moi : comment faire une condition if en Python  ?", "reponse": "if x > 0:\\n    print(\"positif\")\\nelse:\\n    print(\"negatif\")"}
+{"question": "J'aimerais savoir : Peux-tu m'expliquer : comment creer une liste en Python  ?", "reponse": "ma_liste = [1, 2, 3]"}
+{"question": "Peux-tu m'expliquer : comment creer une liste en Python  ?", "reponse": "ma_liste = [1, 2, 3]"}
+{"question": "Dis-moi : J'aimerais savoir : c'est quoi une variable en programmation  ?", "reponse": "Un nom qui stocke une valeur en mémoire, ex : age = 25 en Python."}
+{"question": "J'aimerais savoir : c'est quoi une variable en programmation  ?", "reponse": "Un nom qui stocke une valeur en mémoire, ex : age = 25 en Python."}
+{"question": "J'aimerais savoir : difference entre HTML et CSS  ?", "reponse": "HTML structure le contenu ; CSS gère l'apparence (couleurs, mise en page)."}
+{"question": "Dis-moi : difference entre HTML et CSS  ?", "reponse": "HTML structure le contenu ; CSS gère l'apparence (couleurs, mise en page)."}
+{"question": "J'aimerais savoir : qu'est-ce qu'un processeur  ?", "reponse": "Le composant qui exécute les calculs et les instructions d'un ordinateur (le CPU)."}
+{"question": "Peux-tu m'expliquer : qu'est-ce qu'un processeur  ?", "reponse": "Le composant qui exécute les calculs et les instructions d'un ordinateur (le CPU)."}
+{"question": "J'aimerais savoir : difference entre RAM et disque dur  ?", "reponse": "La RAM est la mémoire de travail (rapide, effacée à l'arrêt) ; le disque stocke durablement les fichiers."}
+{"question": "J'aimerais savoir : difference entre RAM et disque dur  ?", "reponse": "La RAM est la mémoire de travail (rapide, effacée à l'arrêt) ; le disque stocke durablement les fichiers."}
+{"question": "J'aimerais savoir : qu'est-ce qu'un navigateur  ?", "reponse": "Un logiciel pour aller sur internet et afficher les sites web (Chrome, Firefox, Edge)."}
+{"question": "Dis-moi : qu'est-ce qu'un navigateur  ?", "reponse": "Un logiciel pour aller sur internet et afficher les sites web (Chrome, Firefox, Edge)."}
+{"question": "J'aimerais savoir : qu'est-ce qu'un fichier  ?", "reponse": "Un ensemble de données enregistré sur un support : un document, une photo, une vidéo."}
+{"question": "J'aimerais savoir : qu'est-ce qu'un fichier  ?", "reponse": "Un ensemble de données enregistré sur un support : un document, une photo, une vidéo."}
+{"question": "Peux-tu m'expliquer : Dis-moi : difference entre un fichier et un dossier  ?", "reponse": "Le dossier range et organise des fichiers ; le fichier contient les données elles-mêmes."}
+{"question": "Dis-moi : Dis-moi : difference entre un fichier et un dossier  ?", "reponse": "Le dossier range et organise des fichiers ; le fichier contient les données elles-mêmes."}
+{"question": "Peux-tu m'expliquer : Dis-moi : comment se proteger des virus sur internet  ?", "reponse": "Mises à jour, antivirus, méfiance devant les liens et pièces jointes, mots de passe solides."}
+{"question": "J'aimerais savoir : Dis-moi : comment se proteger des virus sur internet  ?", "reponse": "Mises à jour, antivirus, méfiance devant les liens et pièces jointes, mots de passe solides."}
+{"question": "Dis-moi : J'aimerais savoir : qu'est-ce qu'un mot de passe fort  ?", "reponse": "Long (12 caractères et plus) avec majuscules, chiffres et symboles, et jamais réutilisé."}
+{"question": "Peux-tu m'expliquer : J'aimerais savoir : qu'est-ce qu'un mot de passe fort  ?", "reponse": "Long (12 caractères et plus) avec majuscules, chiffres et symboles, et jamais réutilisé."}
+{"question": "J'aimerais savoir : J'aimerais savoir : qu'est-ce que le wifi  ?", "reponse": "Une technologie qui connecte des appareils à internet sans câble, par ondes radio."}
+{"question": "J'aimerais savoir : qu'est-ce que le wifi  ?", "reponse": "Une technologie qui connecte des appareils à internet sans câble, par ondes radio."}
+{"question": "Peux-tu m'expliquer : J'aimerais savoir : difference entre wifi et ethernet  ?", "reponse": "Le wifi est sans fil ; l'ethernet est un câble, généralement plus stable et plus rapide."}
+{"question": "Dis-moi : J'aimerais savoir : difference entre wifi et ethernet  ?", "reponse": "Le wifi est sans fil ; l'ethernet est un câble, généralement plus stable et plus rapide."}
+{"question": "Peux-tu m'expliquer : Dis-moi : qu'est-ce que le cloud  ?", "reponse": "Des serveurs distants qui stockent tes fichiers, accessibles via internet (Drive, OneDrive)."}
+{"question": "Peux-tu m'expliquer : Dis-moi : qu'est-ce que le cloud  ?", "reponse": "Des serveurs distants qui stockent tes fichiers, accessibles via internet (Drive, OneDrive)."}
+{"question": "Peux-tu m'expliquer : J'aimerais savoir : qu'est-ce qu'une sauvegarde  ?", "reponse": "Une copie de tes données pour pouvoir les récupérer en cas de panne ou de perte."}
+{"question": "J'aimerais savoir : qu'est-ce qu'une sauvegarde  ?", "reponse": "Une copie de tes données pour pouvoir les récupérer en cas de panne ou de perte."}
+{"question": "Dis-moi : qu'est-ce qu'un VPN  ?", "reponse": "Un service qui chiffre ta connexion et masque ton adresse IP."}
+{"question": "Dis-moi : qu'est-ce qu'un VPN  ?", "reponse": "Un service qui chiffre ta connexion et masque ton adresse IP."}
+{"question": "Dis-moi : Dis-moi : qu'est-ce que le phishing  ?", "reponse": "Une arnaque qui imite un site ou un message officiel pour te voler tes identifiants."}
+{"question": "J'aimerais savoir : Dis-moi : qu'est-ce que le phishing  ?", "reponse": "Une arnaque qui imite un site ou un message officiel pour te voler tes identifiants."}
+{"question": "Dis-moi : J'aimerais savoir : difference entre http et https  ?", "reponse": "HTTPS ajoute un chiffrement : les données échangées sont protégées."}
+{"question": "Dis-moi : J'aimerais savoir : difference entre http et https  ?", "reponse": "HTTPS ajoute un chiffrement : les données échangées sont protégées."}
+{"question": "qu'est-ce qu'un cookie  ?", "reponse": "Un petit fichier qu'un site stocke dans ton navigateur pour mémoriser ta visite."}
+{"question": "J'aimerais savoir : qu'est-ce qu'un cookie  ?", "reponse": "Un petit fichier qu'un site stocke dans ton navigateur pour mémoriser ta visite."}
+{"question": "J'aimerais savoir : J'aimerais savoir : qu'est-ce qu'un systeme d'exploitation  ?", "reponse": "Le logiciel principal qui gère le matériel et les applications (Windows, Linux, macOS)."}
+{"question": "Peux-tu m'expliquer : J'aimerais savoir : qu'est-ce qu'un systeme d'exploitation  ?", "reponse": "Le logiciel principal qui gère le matériel et les applications (Windows, Linux, macOS)."}
+{"question": "J'aimerais savoir : Peux-tu m'expliquer : qu'est-ce qu'un SSD  ?", "reponse": "Un disque de stockage sans pièce mobile, beaucoup plus rapide qu'un disque dur classique."}
+{"question": "J'aimerais savoir : Peux-tu m'expliquer : qu'est-ce qu'un SSD  ?", "reponse": "Un disque de stockage sans pièce mobile, beaucoup plus rapide qu'un disque dur classique."}
+{"question": "J'aimerais savoir : qu'est-ce que le Bluetooth  ?", "reponse": "Une technologie sans fil pour connecter des appareils proches : casque, souris, téléphone."}
+{"question": "Dis-moi : J'aimerais savoir : qu'est-ce que le Bluetooth  ?", "reponse": "Une technologie sans fil pour connecter des appareils proches : casque, souris, téléphone."}
+{"question": "J'aimerais savoir : Peux-tu m'expliquer : difference entre bit et octet  ?", "reponse": "Un bit est un 0 ou un 1 ; un octet = 8 bits, et code un caractère."}
+{"question": "J'aimerais savoir : Peux-tu m'expliquer : difference entre bit et octet  ?", "reponse": "Un bit est un 0 ou un 1 ; un octet = 8 bits, et code un caractère."}
+{"question": "J'aimerais savoir : combien de megaoctets dans un gigaoctet  ?", "reponse": "1 Go = 1024 Mo."}
+{"question": "J'aimerais savoir : J'aimerais savoir : combien de megaoctets dans un gigaoctet  ?", "reponse": "1 Go = 1024 Mo."}
+{"question": "J'aimerais savoir : J'aimerais savoir : qu'est-ce qu'un algorithme  ?", "reponse": "Une suite finie d'étapes précises pour résoudre un problème."}
+{"question": "J'aimerais savoir : qu'est-ce qu'un algorithme  ?", "reponse": "Une suite finie d'étapes précises pour résoudre un problème."}
+{"question": "Peux-tu m'expliquer : Dis-moi : qu'est-ce qu'un bug  ?", "reponse": "Une erreur dans un programme qui provoque un mauvais fonctionnement."}
+{"question": "Peux-tu m'expliquer : Dis-moi : qu'est-ce qu'un bug  ?", "reponse": "Une erreur dans un programme qui provoque un mauvais fonctionnement."}
+{"question": "J'aimerais savoir : Dis-moi : qu'est-ce qu'un logiciel  ?", "reponse": "Un ensemble de programmes qui font fonctionner une machine, par opposition au matériel."}
+{"question": "J'aimerais savoir : Dis-moi : qu'est-ce qu'un logiciel  ?", "reponse": "Un ensemble de programmes qui font fonctionner une machine, par opposition au matériel."}
+{"question": "Dis-moi : Peux-tu m'expliquer : qu'est-ce que le materiel informatique  ?", "reponse": "Les parties physiques d'un ordinateur : écran, clavier, processeur, disque."}
+{"question": "J'aimerais savoir : Peux-tu m'expliquer : qu'est-ce que le materiel informatique  ?", "reponse": "Les parties physiques d'un ordinateur : écran, clavier, processeur, disque."}
+{"question": "Dis-moi : Dis-moi : comment faire une capture d'ecran sur Windows  ?", "reponse": "Touche Windows + Maj + S, ou la touche Impr. écran."}
+{"question": "Peux-tu m'expliquer : Dis-moi : comment faire une capture d'ecran sur Windows  ?", "reponse": "Touche Windows + Maj + S, ou la touche Impr. écran."}
