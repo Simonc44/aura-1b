@@ -7,6 +7,7 @@ Produit un adapter GGUF (~10-40 Mo) a deposer dans adaptateurs/ :
   adaptateurs/aura-general.gguf  specialise redaction FR
 
 Usage Colab :
+  !pip -q uninstall -y torchao        # trop vieux sur Colab, inutile au LoRA
   !pip -q install peft transformers accelerate bitsandbytes
   !python entrainer_adaptateur.py --categorie web --dataset web.jsonl
   (telecharge ensuite adaptateurs/aura-web.gguf sur ton PC)
@@ -20,10 +21,34 @@ tateur apprend dans les memes conditions que l'inference locale.
 """
 import argparse
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 NOMS = {"web": "aura-web", "math": "aura-math",
         "code": "aura-code", "general": "aura-general"}
+
+
+def _importer_peft():
+    """Importe peft en neutralisant un torchao incompatible.
+
+    Colab embarque parfois un torchao trop vieux pour les versions recentes
+    de peft (ImportError exige > 0.16). Le LoRA n'utilise PAS torchao :
+    le desinstaller suffit et peft le saute proprement.
+    """
+    try:
+        from peft import LoraConfig, get_peft_model
+        return LoraConfig, get_peft_model
+    except ImportError as err:
+        if "torchao" not in str(err):
+            raise
+        print("[fix] torchao incompatible avec peft -> desinstallation "
+              "(inutile pour le LoRA)")
+        subprocess.run(
+            [sys.executable, "-m", "pip", "uninstall", "-y", "torchao"],
+            check=True, capture_output=True)
+        from peft import LoraConfig, get_peft_model
+        return LoraConfig, get_peft_model
 
 # template identique a aura/llama_cerveau.py (ChatML Llama 3)
 TEMPLATE = (
@@ -58,10 +83,10 @@ def charger_dataset(chemin: str, categorie: str) -> list[dict]:
 def entrainer(categorie: str, dataset: str, epochs: int = 3,
               sortie: str = "adaptateurs") -> Path:
     import torch
-    from peft import LoraConfig, get_peft_model
     from transformers import (AutoModelForCausalLM, AutoTokenizer,
                               TrainingArguments, Trainer,
                               DataCollatorForLanguageModeling)
+    LoraConfig, get_peft_model = _importer_peft()
 
     # miroir public (unsloth) : memes poids que meta-llama, sans token HF
     base = "unsloth/Llama-3.2-1B-Instruct"
