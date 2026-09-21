@@ -103,11 +103,28 @@ def entrainer(categorie: str, dataset: str, epochs: int = 3,
     model = get_peft_model(model, config)
     model.print_trainable_parameters()          # ~0.5-1 % des parametres
 
+    class _DatasetTensors(torch.utils.data.Dataset):
+        """Adapte un BatchEncoding a l'API Dataset du Trainer.
+
+        Les versions recentes de transformers exigent une vraie classe
+        Dataset (indexation entiere) ; passer le dict brut de tenseurs
+        leve KeyError: 0 au moment du batching.
+        """
+
+        def __init__(self, enc):
+            self._enc = enc
+
+        def __len__(self) -> int:
+            return len(self._enc["input_ids"])
+
+        def __getitem__(self, i: int) -> dict:
+            return {k: v[i] for k, v in self._enc.items()}
+
     exemples = charger_dataset(dataset, categorie)
     assert len(exemples) >= 50, "dataset trop petit (>= 50 exemples)"
-    ds = (tok([e["texte"] for e in exemples], truncation=True,
-              max_length=1024, padding=True, return_tensors="pt")
-          .data)
+    ds = _DatasetTensors(tok([e["texte"] for e in exemples], truncation=True,
+                             max_length=1024, padding=True,
+                             return_tensors="pt"))
 
     args = TrainingArguments(
         output_dir=f"./tmp-lora-{categorie}",
@@ -131,7 +148,7 @@ def entrainer(categorie: str, dataset: str, epochs: int = 3,
     print(f"[SUITE] conversion GGUF (le merge est deja applique dans les "
           f"poids PEFT) :\n"
           f"  python convert_lora_to_gguf.py ./tmp-lora-{categorie}/final "
-          f"--outfile {chemin} --base meta-llama/Llama-3.2-1B-Instruct")
+          f"--outfile {chemin} --base-model-id unsloth/Llama-3.2-1B-Instruct")
     print(f"[FIN] deposer {chemin.name} dans adaptateurs/ sur ton PC, "
           f"puis lancer Aura avec AURA_ADAPTATEURS=1")
     return chemin
