@@ -531,7 +531,8 @@ class Aura1B:
         # recharger le modele (AURA_ADAPTATEURS=1 pour activer ; defaut
         # OFF = zero surcout, chemin inchange). Echec -> cerveau brut.
         categorie = ("web" if "web" in experts else
-                     "math" if "math" in experts else "general")
+                     "math" if "math" in experts else
+                     "code" if _DEMANDE_CODE.search(question) else "general")
         try:
             from .llama_cerveau import llm_charge as _llm_charge
             _llm = _llm_charge()
