@@ -23,6 +23,7 @@ Surete de conception (meme doctrine que agents.py) :
 Production : scripts/entrainer_adaptateur.py (Colab, PEFT) -> 
 adaptateurs/<nom>.gguf -> hot-swap automatique au routage.
 """
+import ctypes
 import importlib
 import logging
 import os
@@ -121,6 +122,20 @@ def _limiter() -> None:
         LOG.info("[adaptateurs] LRU : %s libere de la memoire", vieux)
 
 
+def _modele_brut(llm):
+    """Pointeur C brut du modele (depaquette le wrapper LlamaModel)."""
+    m = getattr(llm, "_model", None)
+    inner = getattr(m, "model", None)  # wrapper Python -> pointeur ctypes
+    return inner if inner is not None else m
+
+
+def _ctx_brut(llm):
+    """Pointeur C brut du contexte (depaquette le wrapper LlamaContext)."""
+    c = getattr(llm, "_ctx", None)
+    inner = getattr(c, "ctx", None)  # wrapper Python -> pointeur ctypes
+    return inner if inner is not None else c
+
+
 def _pointeur(llm, chemin: Path):
     """Pointeur C de l'adaptateur (charge ou deja en registre LRU)."""
     lib = _lib()
@@ -131,7 +146,7 @@ def _pointeur(llm, chemin: Path):
         _REGISTRE.move_to_end(nom)
         return _REGISTRE[nom]["ptr"]
     try:
-        ptr = lib.llama_adapter_lora_init(llm._model, str(chemin).encode())
+        ptr = lib.llama_adapter_lora_init(_modele_brut(llm), str(chemin).encode())
     except Exception as e:
         LOG.info("[adaptateurs] chargement %s impossible : %s", nom, e)
         return None
@@ -162,8 +177,10 @@ def appliquer(llm, categorie: str) -> bool:
         ptr = _pointeur(llm, chemin)
         if ptr is None:
             return False
-        tableau = (lib.llama_adapter_lora_p * 1)(ptr)
-        lib.llama_set_adapters_lora(llm._ctx, tableau, 1, 1.0)
+        elem = lib.llama_adapter_lora_p_ctypes          # POINTER(c_void_p)
+        tableau = (elem * 1)(ctypes.cast(ptr, elem))    # llama_adapter_lora**
+        echelles = (ctypes.c_float * 1)(1.0)
+        lib.llama_set_adapters_lora(_ctx_brut(llm), tableau, 1, echelles)
         _ACTIF = chemin.stem
         LOG.info("[adaptateurs] actif : %s (hot-swap, scale 1.0)", _ACTIF)
         return True
@@ -181,7 +198,7 @@ def desactiver(llm) -> None:
     lib = _lib()
     if lib is not None:
         try:
-            lib.llama_set_adapters_lora(llm._ctx, None, 0, 0.0)
+            lib.llama_set_adapters_lora(_ctx_brut(llm), None, 0, 0.0)
         except Exception as e:
             LOG.info("[adaptateurs] retrait impossible : %s", e)
     _ACTIF = None

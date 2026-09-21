@@ -24,23 +24,21 @@ class _FakeLib:
     def __init__(self):
         self.inits, self.frees, self.sets = [], [], []
 
-    # type fake du tableau de pointeurs : un vrai type ctypes (comme la
-    # vraie C-API) pour que `(type * 1)(ptr)` fonctionne
-    llama_adapter_lora_p = ctypes.POINTER(ctypes.c_void_p)
+    # types fides a la vraie C-API (llama_cpp 0.3.35) :
+    # llama_adapter_lora_p = c_void_p ; le tableau = POINTER(c_void_p)
+    llama_adapter_lora_p = ctypes.c_void_p
+    llama_adapter_lora_p_ctypes = ctypes.POINTER(ctypes.c_void_p)
 
     def llama_adapter_lora_init(self, model, path):
         self.inits.append(path)
-        # pointeur factice du MEME type que le tableau C (comme la vraie
-        # API qui renvoie un llama_adapter_lora*)
-        return ctypes.cast(
-            ctypes.c_void_p(len(self.inits) + 1),
-            ctypes.POINTER(ctypes.c_void_p))
+        # pointeur factice : c_void_p (comme llama_adapter_lora* reel)
+        return ctypes.c_void_p(len(self.inits) + 1)
 
     def llama_adapter_lora_free(self, ptr):
         self.frees.append(ptr)
 
-    def llama_set_adapters_lora(self, ctx, tableau, n, scale):
-        self.sets.append((tableau, n, scale))
+    def llama_set_adapters_lora(self, ctx, tableau, n, echelles):
+        self.sets.append((tableau, n, echelles))
 
 
 def _llm():
@@ -102,7 +100,7 @@ class TestHotSwap:
         # la C-API recoit le chemin en bytes
         assert lib_fake.inits == [(str(tmp_path / "aura-math.gguf")
                                    .encode())]
-        assert lib_fake.sets and lib_fake.sets[-1][2] == 1.0
+        assert lib_fake.sets and lib_fake.sets[-1][2][0] == 1.0
         assert adaptateurs._ACTIF == "aura-math"
 
     def test_echec_init_renvoie_false(self, monkeypatch, tmp_path,
