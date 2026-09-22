@@ -273,6 +273,16 @@ class Aura1B:
         if self._llama is None:
             from .llama_cerveau import generer as llama_generer
             self._llama = llama_generer
+        # MIMETISME (few-shot) : une brique d'exemples « calibre grand
+        # modele » est jointe au prompt — le 1B ne demarre pas son style
+        # de zero, il COPIE les tournures demonsrees (attention deplacee).
+        # Fallback total : si la brique echoue, comportement inchange.
+        try:
+            brique = agents.exemple_style(question, categorie)
+            if brique:
+                question = f"{question}\n\n{brique}"
+        except Exception:
+            pass
         # AURA_SERVEUR=1 : le Dynamic Compute (reflection masquee) remplace
         # le multi-pass in-process (qui chargerait le cerveau a double).
         if riche and serveur_lora._actifs():
@@ -609,6 +619,16 @@ class Aura1B:
             reponse = agents.nettoyer_style(reponse)
         except Exception as e:
             LOG.info("[agents] nettoyage impossible (%s) -> texte brut", e)
+        # DOUBLE PASSE (le secret du 1B) : un petit modele est mediocre pour
+        # ecrire parfait du premier coup, mais STATISTIQUEMENT EQUIVALENT a un
+        # grand modele pour REPERER les erreurs et reformuler un texte existant.
+        # Le texte redige est donc soumis a une seconde lecture (critique puis
+        # version corrigee) — uniquement si un texte riche a ete produit.
+        if riche:
+            try:
+                reponse = agents.double_passe(reponse, question)
+            except Exception as e:
+                LOG.info("[agents] double passe impossible (%s) -> texte brut", e)
         # VERIFICATION OUTILLEE (pattern CRITIC) : preuve web avant livraison
         verifiee = False
         if self._a_besoin_verification(question, contexte_web, reponse):

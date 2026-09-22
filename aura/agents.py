@@ -342,3 +342,139 @@ def composer_personnalite(experts: set | None, question: str = "") -> str | None
     if any(m in question.lower() for m in _MOTS_LOGIQUE):
         return None
     return BASE + " " + masque
+
+
+# ── Agent 6 : le Mimétisme (few-shot, style copié) ──────────────────────
+
+# Briques d'exemples « calibre grand modèle » : le 1B n'invente pas le
+# style, il le COPIE — quelques démonstrations sous les yeux déplacent
+# son attention vers les tournures qu'on attend (effet few-shot).
+_EXEMPLES_STYLE = {
+    "general": (
+        "Exemples de style attendu :\n"
+        "Q: Pourquoi le ciel est-il bleu ?\n"
+        "R: La lumière solaire rencontre l'atmosphère et ses molécules "
+        "dispersent davantage les longueurs d'onde courtes : le bleu "
+        "domine notre ciel. Ce phénomène, la diffusion de Rayleigh, "
+        "explique aussi le rouge des crépuscules.\n"
+        "Q: À quoi sert l'épargne ?\n"
+        "R: L'épargne constitue un rempart contre l'imprévu et le point "
+        "de départ de tout projet. Placée intelligemment, elle travaille "
+        "pour vous : le temps transforme la régularité en patrimoine.\n\n"
+        "Rédige TA réponse en gardant ce ton : précis, fluide, sans "
+        "formule toute faite."
+    ),
+    "web": (
+        "Exemples de style attendu :\n"
+        "Q: Que se passe-t-il dans l'espace ?\n"
+        "R: La NASA a annoncé la retard de sa mission lunaire Artemis : "
+        "le calendrier glisse de plusieurs mois. En parallèle, SpaceX "
+        "enchaîne les tirs de son Starship géant.\n"
+        "Q: Comment va l'économie ?\n"
+        "R: L'inflation ralentit en zone euro, selon Eurostat, mais "
+        "reste au-dessus de la cible. Les marchés anticipent désormais "
+        "une baisse des taux.\n\n"
+        "Rédige TA réponse sur ce modèle : faits d'abord, chiffres si "
+        "disponibles, aucune digression."
+    ),
+    "math": (
+        "Exemples de style attendu :\n"
+        "Q: Combien fait 17 fois 23 ?\n"
+        "R: 391. Décomposition : 17 × 20 = 340, 17 × 3 = 51, total 391.\n"
+        "Q: Quel est le tiers de 90 ?\n"
+        "R: 30.\n\n"
+        "Rédige TA réponse sur ce modèle : résultat d'abord, étape "
+        "courte ensuite, rien d'autre."
+    ),
+}
+
+# analyse rapide de la question pour choisir la brique la plus utile
+_MOTS_WEB = ("actualit", "aujourd'hui", "dernier", "2024", "2025", "2026",
+             "prix", "cours", "news")
+_MOTS_MATH = ("combien", "calcul", "somme", "produit", "pourcent", "%",
+              "racine", "divis")
+
+
+def exemple_style(question: str, categorie: str = "") -> str | None:
+    """Retourne la brique few-shot adaptee (mimétisme de style)."""
+    if not actifs():
+        return None
+    cle = categorie or (
+        "math" if any(m in question.lower() for m in _MOTS_MATH)
+        else "web" if any(m in question.lower() for m in _MOTS_WEB)
+        else "general")
+    return _EXEMPLES_STYLE.get(cle)
+
+
+# ── Agent 7 : la Double Passe (critique puis reformulation) ────────────
+
+_PROMPT_CRITIQUE = (
+    "Tu es un correcteur exigeant. Voici une reponse a la question :\n"
+    "« {question} »\n\nReponse a corriger :\n{texte}\n\n"
+    "Liste au maximum 3 defauts concrets (repetition, inaccurratie avec "
+    "le contexte, formulation molle, hors-sujet). Une ligne par defaut, "
+    "rien d'autre. Si le texte est deja bon, ecris exactement : RIEN"
+)
+
+_PROMPT_REFORMULE = (
+    "Reecris la reponse suivante en corrigeant ces defauts, sans rien "
+    "ajouter d'autre :\n{defauts}\n\nTexte original :\n{texte}\n\n"
+    "Donne UNIQUEMENT la version corrigee, sans commentaire."
+)
+
+
+def double_passe(texte: str, question: str, contexte: str = "") -> str:
+    """Seconde lecture : le 1B CRITIQUE son propre texte puis le reformule.
+
+    Ecrire parfait du premier coup est le point faible d'un petit modele ;
+    repérer les defauts d'un texte EXISTANT est au contraire sa force
+    statistique. La double passe exploite ce desequilibre. Garde-fous :
+    - critique « RIEN » ou echec -> texte inchange (pas de regression) ;
+    - version corrigee trop courte / vide -> texte original conserve ;
+    - desactive par AURA_AGENTS=0.
+    """
+    if not actifs() or not texte or len(texte) < 80:
+        return texte
+    from .llama_cerveau import _charger  # acces direct, evite les recursions
+    try:
+        llm = _charger()
+    except Exception as e:
+        LOG.info("[double-passe] cerveau indisponible (%s)", e)
+        return texte
+
+    # Passe A : la critique (le modele cherche des defauts, pas la verite)
+    contenu_critique = _PROMPT_CRITIQUE.format(question=question, texte=texte)
+    if contexte:
+        contenu_critique += f"\n\nContexte fourni :\n{contexte[:400]}"
+    try:
+        critique = llm.create_chat_completion(
+            messages=[{"role": "user", "content": contenu_critique}],
+            max_tokens=120, temperature=0.3, stop=["<|eot_id|>"])
+        defauts = ((critique.get("choices") or [{}])[0].get("message", {})
+                   .get("content", "")).strip()
+    except Exception as e:
+        LOG.info("[double-passe] critique echouee (%s)", e)
+        return texte
+    if not defauts or "RIEN" in defauts.upper() or len(defauts) < 10:
+        return texte
+
+    # Passe B : la reformulation guidee par la critique
+    try:
+        corrige = llm.create_chat_completion(
+            messages=[{"role": "user", "content": _PROMPT_REFORMULE.format(
+                defauts=defauts[:400], texte=texte)}],
+            max_tokens=max(180, len(texte) // 2),
+            temperature=0.45, stop=["<|eot_id|>"])
+        version = ((corrige.get("choices") or [{}])[0].get("message", {})
+                   .get("content", "")).strip()
+    except Exception as e:
+        LOG.info("[double-passe] reformulation echouee (%s)", e)
+        return texte
+    # garde-fou : la version corrigee doit etre substantielle (une
+    # reformulation plus CONCISE mais complete est un progres, pas une
+    # perte) — on rejette les sorties degenerees (« Court. », « Voila. »)
+    if version and len(version) >= 40 and len(version.split()) >= 8:
+        LOG.info("[double-passe] texte reformule (%d -> %d car)",
+                 len(texte), len(version))
+        return version
+    return texte
