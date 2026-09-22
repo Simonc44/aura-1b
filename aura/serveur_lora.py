@@ -26,6 +26,7 @@ import logging
 import os
 import shutil
 import subprocess
+import threading
 import time
 from pathlib import Path
 
@@ -166,6 +167,12 @@ def _assurer() -> bool:
 
 # ── hot-swap ────────────────────────────────────────────────────────────
 
+# Verrou global : serialise hot-swap (POST /lora-adapters) et generation
+# (/v1/chat/completions). Un swap pendant une generation modifie les
+# pointeurs de tenseurs en memoire C de llama.cpp sous ses pieds —
+# resultat : sortie corrompue (melange de specialites) ou crash.
+_verrou = threading.Lock()
+
 def activer(categorie: str) -> bool:
     """Monte l'adaptateur de la categorie seul (API simple = mix 100/0)."""
     return activer_mixte({categorie: 1.0} if categorie else {})
@@ -179,37 +186,47 @@ def activer_mixte(poids: dict[str, float]) -> bool:
     profite des deux specialites, sans recharger quoi que ce soit (le
     serveur ne change que les echelles, cout ~0).
     Renvoie True si le serveur a accepte.
+
+    SECURITE THREADS : le verrou serialise POST /lora-adapters vs
+    /v1/chat/completions — sans lui, une generation en cours pendant le
+    swap des pointeurs de tenseurs en memoire C peut produire une sortie
+    corrompue (melange de deux specialites) ou un crash du serveur.
     """
     global _actif
     cle = tuple(sorted((k, round(v, 3)) for k, v in poids.items() if v > 0))
     if cle == _actif:
         return True        # deja applique : zero appel reseau
-    if not _assurer():
-        return False
-    corps = [{"id": i, "scale": round(float(poids.get(cat, 0.0)), 3)}
-             for cat, i in _IDS.items()]
-    try:
-        req = urllib.request.Request(
-            _url("/lora-adapters"), method="POST",
-            data=json.dumps(corps).encode(),
-            headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=10) as r:
-            ok = json.loads(r.read().decode()).get("success", False)
-        if not ok:
+    with _verrou:          # aucun chat() pendant la modification des echelles
+        if cle == _actif:  # double-check : un autre thread a deja applique
+            return True
+        if not _assurer():
             return False
-        _actif = cle
-        LOG.info("[serveur_lora] mix actif : %s",
-                 dict(cle) if cle else "(cerveau brut)")
-        return True
-    except Exception as e:
-        LOG.info("[serveur_lora] mix impossible : %s", e)
-        return False
+        corps = [{"id": i, "scale": round(float(poids.get(cat, 0.0)), 3)}
+                 for cat, i in _IDS.items()]
+        try:
+            req = urllib.request.Request(
+                _url("/lora-adapters"), method="POST",
+                data=json.dumps(corps).encode(),
+                headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=10) as r:
+                ok = json.loads(r.read().decode()).get("success", False)
+            if not ok:
+                return False
+            _actif = cle
+            LOG.info("[serveur_lora] mix actif : %s",
+                     dict(cle) if cle else "(cerveau brut)")
+            return True
+        except Exception as e:
+            LOG.info("[serveur_lora] mix impossible : %s", e)
+            return False
 
 
 def chat(messages: list[dict], max_tokens: int = 256) -> str | None:
     """Generation via /v1/chat/completions (OpenAI-compatible).
 
     None = echec -> l'appelant retombe sur le chemin in-process.
+    Le verrou garantit qu'aucun hot-swap ne modifie les echelles des
+    adaptateurs PENDANT la generation (sinon : sortie corrompue).
     """
     if not _assurer():
         return None
@@ -217,12 +234,13 @@ def chat(messages: list[dict], max_tokens: int = 256) -> str | None:
              "temperature": 0.4, "top_p": 0.9,
              "stop": ["<|eot_id|>", "\nUtilisateur:", "\nUser:"]}
     try:
-        req = urllib.request.Request(
-            _url("/v1/chat/completions"), method="POST",
-            data=json.dumps(corps).encode(),
-            headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=300) as r:
-            sortie = json.loads(r.read().decode())
+        with _verrou:  # vs activer_mixte() : jamais les deux a la fois
+            req = urllib.request.Request(
+                _url("/v1/chat/completions"), method="POST",
+                data=json.dumps(corps).encode(),
+                headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=300) as r:
+                sortie = json.loads(r.read().decode())
         return (sortie.get("choices") or [{}])[0] \
             .get("message", {}).get("content", "").strip() or None
     except Exception as e:

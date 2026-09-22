@@ -3,12 +3,14 @@
 Trois methodes, du plus simple au plus fiable :
 1. Mots-clés (fallback, zero dependance) — ancien comportement
 2. Embeddings TF-IDF + similarité cosinus — aucun entraînement requis
-3. Classifieur TF-IDF + LogisticRegression — 50+ exemples par categorie
+3. Classifieur TF-IDF + lineaire (LogisticRegression en petit volume,
+   LinearSVC au-dela de _SEUIL_SVM exemples — frontieres plus robustes)
 
 Les prototypes d'embeddings et le classifieur sont entraînés au premier appel,
 puis mis en cache sur disque (fichier .joblib). Le routeur ne bloque pas au
 démarrage.
 """
+import json
 import logging
 import os
 from pathlib import Path
@@ -16,6 +18,31 @@ from pathlib import Path
 import numpy as np
 
 LOG = logging.getLogger("aura.routeur")
+
+def _probas(classifieur, X) -> dict:
+    """Probabilites par classe, quel que soit le classifieur lineaire.
+
+    LogisticRegression : predict_proba natif (bien calibre). LinearSVC :
+    pas de predict_proba — on applique une softmax sur les scores de
+    decision (distance a la marge) : suffisant pour ponderer le mix
+    multi-LoRA, qui n'a pas besoin d'une calibration parfaite.
+    """
+    import numpy as _np
+    if hasattr(classifieur, "predict_proba"):
+        return dict(zip(classifieur.classes_,
+                        classifieur.predict_proba(X)[0]))
+    scores = classifieur.decision_function(X)[0]
+    e = _np.exp(scores - scores.max())          # softmax numeriquement stable
+    return dict(zip(classifieur.classes_, e / e.sum()))
+
+# Au-dela de ce nombre d'exemples, LinearSVC remplace LogisticRegression :
+# la hinge loss donne des marges plus larges (plus robuste au bruit des
+# questions reelles) quand il y a assez de donnees pour la soutenir.
+_SEUIL_SVM = 300
+
+# Type de defi self-play -> categorie du routeur (les defis valides par le
+# juge exact nourrissent le training set : le routeur apprend de la pratique)
+_CATEGORIE_DEFI = {"calcul": "math", "logique": "general"}
 
 # -- dataset d'entrainement ------------------------------------------------
 # 50+ exemples par categorie : le routeur apprend meme les synonymes et fautes
@@ -221,7 +248,16 @@ class RouteurIntelligent:
     # -- initialisation paresseuse -----------------------------------------
 
     def _entrainer_classifieur(self):
-        """Enregistre le TF-IDF + LogReg sur le dataset de 150 exemples."""
+        """Enregistre le TF-IDF + classifieur lineaire.
+
+    Le modele est choisi par taille de donnees :
+    - < _SEUIL_SVM exemples : LogisticRegression (bien calibree en petit
+      volume, probabilites fiables pour le mix multi-LoRA) ;
+    - >= _SEUIL_SVM : LinearSVC (hinge loss = marges plus larges, plus
+      robuste aux frontiers bruitees quand les exemples abondent — les
+      milliers de defis du self-play). Cache relu a chaque demarrage :
+      le nouveau savoir est integralement appris.
+    """
         from sklearn.feature_extraction.text import TfidfVectorizer
         from sklearn.linear_model import LogisticRegression
 
@@ -230,10 +266,25 @@ class RouteurIntelligent:
                   ["web"] * len(_EXEMPLES_WEB) +
                   ["general"] * len(_EXEMPLES_GENERAL))
 
+        # SELF-PLAY -> ROUTEUR : les defis valides par le juge exact
+        # enrichissent le training set (libelles par type de defi). Le
+        # routeur apprend de la pratique du systeme, pas d'une liste figee.
+        suppl = self._exemples_selfplay()
+        questions.extend(q for q, _ in suppl)
+        labels.extend(c for _, c in suppl)
+
         self._vectoriseur = TfidfVectorizer(
             analyzer="char", ngram_range=(2, 4), max_features=2000)
         X = self._vectoriseur.fit_transform(questions)
-        self._classifieur = LogisticRegression(max_iter=200, C=1.0)
+        if len(questions) >= _SEUIL_SVM:
+            from sklearn.svm import LinearSVC
+            self._classifieur = LinearSVC(C=1.0)
+            LOG.info("[routeur] classifieur : LinearSVC (%d exemples)",
+                     len(questions))
+        else:
+            self._classifieur = LogisticRegression(max_iter=200, C=1.0)
+            LOG.info("[routeur] classifieur : LogisticRegression (%d exemples)",
+                     len(questions))
         self._classifieur.fit(X, labels)
 
         # sauvegarder sur disque
@@ -254,6 +305,12 @@ class RouteurIntelligent:
             v = self._dossier_cache / "vectoriseur.joblib"
             c = self._dossier_cache / "classifieur.joblib"
             if v.exists() and c.exists():
+                # REENTRAINEMENT si le savoir self-play a grandi depuis le
+                # cache : le routeur suit le systeme (coût : quelques ms).
+                if self._nb_exemples_selfplay() > 0:
+                    LOG.info("[routeur] savoir self-play -> re-entrainement")
+                    self._entrainer_classifieur()
+                    return
                 self._vectoriseur = joblib.load(v)
                 self._classifieur = joblib.load(c)
                 LOG.info("[routeur] classifieur charge depuis le cache")
@@ -261,6 +318,34 @@ class RouteurIntelligent:
         except ImportError:
             pass
         self._entrainer_classifieur()
+
+    @staticmethod
+    def _exemples_selfplay() -> list[tuple[str, str]]:
+        """Defis self-play valides -> (question, categorie) pour l'routeur."""
+        from pathlib import Path
+        fichier = Path(__file__).resolve().parent.parent / "datasets" \
+            / "selfplay.jsonl"
+        if not fichier.exists():
+            return []
+        paires = []
+        try:
+            with open(fichier, encoding="utf-8") as f:
+                for ligne in f:
+                    try:
+                        e = json.loads(ligne)
+                    except json.JSONDecodeError:
+                        continue
+                    q = str(e.get("user", "")).strip()
+                    t = e.get("type", "")
+                    if q and t in _CATEGORIE_DEFI:
+                        paires.append((q, _CATEGORIE_DEFI[t]))
+        except OSError:
+            return []
+        return paires
+
+    @classmethod
+    def _nb_exemples_selfplay(cls) -> int:
+        return len(cls._exemples_selfplay())
 
     def _charger_protos(self):
         """Calcule les vecteurs TF-IDF des prototypes (une seule fois)."""
@@ -290,12 +375,12 @@ class RouteurIntelligent:
         if not q:
             return {"methodes": ["vide"], "scores": {}, "experts": {"general"}}
 
-        # methode 1 : classifieur TF-IDF + LogReg
+        # methode 1 : classifieur TF-IDF + lineaire (LogReg ou LinearSVC)
         self._charger_ou_entrainer()
         assert self._vectoriseur is not None and self._classifieur is not None
         X = self._vectoriseur.transform([q])
         pred = self._classifieur.predict(X)[0]
-        probas = dict(zip(self._classifieur.classes_, self._classifieur.predict_proba(X)[0]))
+        probas = _probas(self._classifieur, X)
 
         # methode 2 : similarité cosinus avec prototypes
         self._charger_protos()
