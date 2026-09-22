@@ -324,7 +324,8 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
             systeme: str | None = None,
             contexte_faits: str = "",
             think: bool | None = None,
-            categorie: str = "") -> str:
+            categorie: str = "",
+            complexe: bool = False) -> str:
     """Genere une reponse avec Llama 3.2 1B.
 
     historique : liste de {'role': 'user'|'assistant', 'content': str} pour
@@ -333,13 +334,19 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
     contexte_faits : triplets du graphe de faits VERIFIES (MiniRAG-lite).
     categorie : categorie routee (web/math/code/general) — pilote le
     hot-swap LoRA du serveur (AURA_SERVEUR=1) ou in-process (AURA_ADAPTATEURS=1).
+    complexe : question a forte complexite -> Dynamic Compute (reflection
+    masquee <thinking> dans le chemin serveur, budget tokens x2).
     """
     contexte = _formater_contexte(contexte_web, formule)
     # ── chemin 1 : serveur officiel llama-server (hot-swap HTTP fiable) ──
     try:
         from . import serveur_lora
         if serveur_lora._actifs():
-            serveur_lora.activer(categorie)
+            # l'orchestrateur applique deja le mix multi-LoRA (poids du
+            # routeur) ; ici on n'active que si RIEN n'est applique
+            # (appels directs a generer hors orchestrateur)
+            if serveur_lora._actif is None:
+                serveur_lora.activer(categorie)
             messages_srv = [{"role": "system",
                              "content": systeme or _SYSTEME}]
             for tour in (historique or [])[-6:]:
@@ -355,9 +362,18 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
                 messages_srv.append({"role": "assistant",
                                      "content": "Compris, je m'appuie sur ces faits verifies."})
             messages_srv.append({"role": "user", "content": question})
-            reponse = serveur_lora.chat(
-                messages_srv,
-                max_tokens=max_tokens or _max_tokens_adaptatif(question))
+            # DYNAMIC COMPUTE : sur question complexe, un brouillon masque
+            # <thinking> est demande (budget x2) puis separe par
+            # separer_reflexion — l'utilisateur ne voit que la reponse.
+            if complexe and not systeme:
+                messages_srv.append({"role": "assistant", "content":
+                    ("Pour les questions complexes, reflechis d'abord entre "
+                     "<thinking> et </thinking> (analyse, plan, verification), "
+                     "puis ecris la reponse finale apres la balise fermante.")})
+                budget_srv = max((max_tokens or 0) * 2, 400)
+            else:
+                budget_srv = max_tokens or _max_tokens_adaptatif(question)
+            reponse = serveur_lora.chat(messages_srv, max_tokens=budget_srv)
             if reponse:
                 propre, _ = separer_reflexion(reponse)
                 return propre or reponse

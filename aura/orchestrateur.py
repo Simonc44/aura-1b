@@ -30,6 +30,7 @@ from . import logique as solveur_logique
 from . import potcode
 from . import agents
 from . import adaptateurs
+from . import serveur_lora
 from .routeur import RouteurIntelligent
 
 LOG = logging.getLogger("aura.orchestrateur")
@@ -251,10 +252,19 @@ class Aura1B:
     def _generer(self, question: str, contexte_web: str, formule: str,
                  riche: bool = False, contexte_faits: str = "",
                  personnalite: str | None = None,
-                 categorie: str = "") -> str:
+                 categorie: str = "", complexe: bool = False) -> str:
         if self._llama is None:
             from .llama_cerveau import generer as llama_generer
             self._llama = llama_generer
+        # AURA_SERVEUR=1 : le Dynamic Compute (reflection masquee) remplace
+        # le multi-pass in-process (qui chargerait le cerveau a double).
+        if riche and serveur_lora._actifs():
+            return self._llama(question, contexte_web, formule,
+                               historique=self._historique,
+                               contexte_faits=contexte_faits,
+                               systeme=personnalite,
+                               categorie=categorie,
+                               complexe=True)
         if riche:
             from .llama_cerveau import generer_riche
             return generer_riche(question, contexte_web, formule,
@@ -263,7 +273,8 @@ class Aura1B:
                            historique=self._historique,
                            contexte_faits=contexte_faits,
                            systeme=personnalite,
-                           categorie=categorie)
+                           categorie=categorie,
+                           complexe=complexe)
 
     # -- prompt structure ---------------------------------------------------
 
@@ -488,6 +499,14 @@ class Aura1B:
                                                  riche=riche)
             except Exception as e:
                 LOG.info("[agents] compression impossible (%s) -> texte brut", e)
+            # AGENT 2b (hyper-compression) : phrases -> triplets semantiques
+            # (sujet | relation | objet) — protege la fenetre du 1B et
+            # nourrit le graphe de faits au passage
+            if not riche:
+                try:
+                    contexte_web = agents.en_triplets(contexte_web, question)
+                except Exception as e:
+                    LOG.info("[agents] triplets impossible (%s) -> texte compresse", e)
 
         # AGENT 1 (planificateur) : les taches actionables complexes sont
         # decoupees en 2-3 etapes AVANT la redaction
@@ -536,6 +555,23 @@ class Aura1B:
                      "math" if "math" in experts else
                      "code" if _DEMANDE_CODE.search(question) else "general")
         self._derniere_categorie = categorie
+        # MULTI-LORA SIMULTANE : les scores du routeur (probabilites) sont
+        # converts en poids d'adaptateurs — une question a deux sujets
+        # profite des deux specialites (ex : {"math": 0.7, "web": 0.3}).
+        # Defaut : la categorie dominante a 1.0 (comportement binaire).
+        try:
+            from . import serveur_lora as _srv
+            if _srv._actifs():
+                scores = analyse.get("scores") or {}
+                poids = {cat: s for cat, s in scores.items()
+                         if cat in _srv._IDS and s >= 0.15}
+                if not poids:
+                    poids = {categorie: 1.0}
+                elif categorie not in poids:
+                    poids[categorie] = max(max(poids.values()), 0.5)
+                _srv.activer_mixte(poids)
+        except Exception as e:
+            LOG.info("[serveur_lora] mix route (%s) -> poids defaut", e)
         try:
             from .llama_cerveau import llm_charge as _llm_charge
             _llm = _llm_charge()
@@ -546,7 +582,8 @@ class Aura1B:
         reponse = self._generer(question_envoyee, contexte_web, formule,
                                 riche=riche, contexte_faits=contexte_faits,
                                 personnalite=personnalite,
-                                categorie=categorie)
+                                categorie=categorie,
+                                complexe=riche)
         # AGENT 3 (redacteur) : les tics de langage du 1B sont retires
         try:
             reponse = agents.nettoyer_style(reponse)

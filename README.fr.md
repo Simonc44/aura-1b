@@ -9,7 +9,7 @@ mémoire factuelle en modules spécialisés — au lieu de demander à un seul p
 modèle de tout faire (et d'halluciner quand il n'y arrive pas).
 
 [![Tests](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml/badge.svg?style=flat-square)](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml)
-[![Licence MIT](https://img.shields.io/badge/Licence-MIT-5bc0de.svg)](LICENSE)
+[![Licence GPLv3](https://img.shields.io/badge/Licence-GPLv3-5bc0de.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-5bc0de)
 ![mypy](https://img.shields.io/badge/mypy-v%C3%A9rifi%C3%A9-5bc0de)
 ![Dernier commit](https://img.shields.io/github/last-commit/Simonc44/aura-1b/main?label=dernier%20commit&color=5bc0de)
@@ -261,4 +261,4 @@ d'altération) sur Linux, et vérifie la syntaxe de l'installeur PowerShell.
 
 ## 📄 Licence
 
-MIT — voir [LICENSE](LICENSE).
+GPLv3 — voir [LICENSE](LICENSE). Copyleft : toute dérivée de l'architecture multi-agents d'Aura reste open-source aux mêmes termes.

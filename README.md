@@ -9,7 +9,7 @@ memory into specialized modules — instead of asking one small model to do
 everything (and hallucinate when it can't).
 
 [![Tests](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml/badge.svg?style=flat-square)](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-5bc0de.svg)](LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-5bc0de.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-5bc0de)
 ![mypy](https://img.shields.io/badge/mypy-checked-5bc0de)
 ![Last commit](https://img.shields.io/github/last-commit/Simonc44/aura-1b/main?label=last%20commit&color=5bc0de)
@@ -249,4 +249,4 @@ on Linux, and syntax-checks the PowerShell installer.
 
 ## 📄 License
 
-MIT — see [LICENSE](LICENSE).
+GPLv3 — see [LICENSE](LICENSE). Copyleft: any derivative of Aura's multi-agent architecture must remain open-source under the same terms.

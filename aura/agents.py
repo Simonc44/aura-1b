@@ -164,6 +164,69 @@ def compresser(texte: str, question: str, riche: bool = False) -> str:
     return " ".join(gardees)
 
 
+# ── Agent 2b : Triplets sémantiques (RAG → graphe, hyper-compression) ───
+
+# verbes de relation courants : un extrait « X est la capitale de Y »
+# devient le triplet (X, capitale_de, Y) — 10x plus court qu'une phrase
+_RELATIONS = (
+    ("est la capitale de", "capitale_de"),
+    ("est le capital de", "capitale_de"),
+    ("capitale de", "capitale_de"),
+    ("est le president de", "president_de"),
+    ("premier ministre de", "premier_ministre_de"),
+    ("a ete fondee en", "fondee_en"),
+    ("fonde en", "fonde_en"),
+    ("fondee en", "fondee_en"),
+    ("situ[eé]e? dans", "situe_dans"),
+    ("situ[eé]e? en", "situe_en"),
+    ("appartient a", "appartient_a"),
+    ("est connu pour", "connu_pour"),
+    ("mesure", "mesure"),
+    ("pese", "pese"),
+    ("habite", "habite"),
+    ("est ne[eé]? en", "ne_en"),
+    ("est mort en", "mort_en"),
+    ("invente par", "invente_par"),
+    ("decouvert par", "decouvert_par"),
+    ("signifie", "signifie"),
+)
+
+
+def en_triplets(texte: str, question: str, max_triplets: int = 6) -> str:
+    """Traduit le contexte web en triplets (sujet | relation | objet).
+
+    La memoire de travail du 1B est courte : des triplets de 6-10 tokens
+    remplacent des phrases de 30 — le graphe de faits gagne au passage
+    des faits verifies web (compatibles graphe_faits.py, format s/r/o).
+    Texte deja court ou sans relation detectee -> renvoye intact.
+    """
+    if not actifs() or not texte or len(texte) < 80:
+        return texte
+    triplets: list = []
+    for morceau in re.split(r"(?<=[.!?])\s+|\n", texte):
+        morceau = morceau.strip(" -|")
+        if len(morceau) < 15:
+            continue
+        basse = morceau.lower()
+        for motif, relation in _RELATIONS:
+            m = re.search(motif, basse)
+            if not m:
+                continue
+            sujet = morceau[:m.start()].strip(" ,.;:|")
+            objet = morceau[m.end():].strip(" ,.;:|")
+            if len(sujet) < 2 or len(objet) < 2 or len(objet) > 80:
+                continue
+            triplets.append(f"{sujet} | {relation} | {objet}")
+            break
+        if len(triplets) >= max_triplets:
+            break
+    if not triplets:
+        return texte
+        LOG.info("[triplets] contexte : %d -> %d car (%d triplets)",
+             len(texte), sum(len(t) for t in triplets), len(triplets))
+    return "FAITS (format sujets | relation | objet) :\n" + "\n".join(triplets)
+
+
 # ── Agent 3 : le Rédacteur (retire les tics du 1B) ──────────────────────
 
 def nettoyer_style(texte: str) -> str:

@@ -41,7 +41,7 @@ _IDS = {"math": 0, "web": 1, "code": 2, "general": 3}
 _ADRESSE = os.environ.get("AURA_SERVEUR_ADRESSE", "127.0.0.1:8757")
 
 _process: subprocess.Popen | None = None
-_actif: str | None = None          # categorie actuellement a scale=1.0
+_actif: tuple | None = None        # mix actuellement applique ((cat, scale)...)
 _indispo: str | None = None        # raison d'une indisponibilite (log 1 fois)
 
 
@@ -84,18 +84,21 @@ def _binaire() -> Path | None:
 
 
 def _gguf_cerveau() -> Path | None:
-    """Le GGUF du cerveau : meme resolution que llama_cerveau._CHEMIN_GGUF."""
+    """Le GGUF du cerveau : meme resolution que llama_cerveau._CHEMIN_GGUF.
+
+    Q4_K_M PAR DEFAUT (choix utilisateur : 807 Mo, base de reference du
+    projet, compatible LoRA une fois les adaptateurs transposes). Q8_0
+    en variante fidele si Q4 absent.
+    """
     env = os.environ.get("AURA_GGUF_CHEMIN")
     if env and Path(env).is_file():
         return Path(env)
     dossier = _RACINE / "modeles"
     if not dossier.is_dir():
         return None
-    # Q8_0 prefere pour le serveur (pas de CPU_REPACK -> LoRA compatible),
-    # sinon le premier GGUF Llama disponible
-    for nom in ("Llama-3.2-1B-Instruct-Q8_0.gguf",
+    for nom in ("Llama-3.2-1B-Instruct-Q4_K_M.gguf",
                 "Llama-3.2-1B-Instruct-Q6_K.gguf",
-                "Llama-3.2-1B-Instruct-Q4_K_M.gguf"):
+                "Llama-3.2-1B-Instruct-Q8_0.gguf"):
         p = dossier / nom
         if p.is_file():
             return p
@@ -117,13 +120,18 @@ def _demarrer() -> bool:
         _indispo = "binaire llama-server ou GGUF introuvable"
         LOG.info("[serveur_lora] %s -> chemin in-process", _indispo)
         return False
+    # -c 1536 : le warmup avec 4 LoRA montes consomme ~10x la memoire de
+    # contexte d'un boot simple (GGML_ASSERT sinon) ; --no-warmup en plus.
     cmd = [str(bin_), "-m", str(gguf), "--port", str(_port()),
-           "--host", _ADRESSE.rsplit(":", 1)[0], "-c", "512", "-t", "4"]
+           "--host", _ADRESSE.rsplit(":", 1)[0], "-c", "1536", "-t", "4",
+           "--no-warmup"]
     for p in _adaptateurs_boot():
         cmd += ["--lora", str(p)]
     try:
+        journal = open(_RACINE / "serveur" / "autogere.log",
+                       "ab", buffering=0)
         _process = subprocess.Popen(
-            cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            cmd, stdout=journal, stderr=journal, cwd=str(_RACINE),
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     except Exception as e:
         _indispo = f"boot impossible : {e}"
@@ -159,23 +167,27 @@ def _assurer() -> bool:
 # ── hot-swap ────────────────────────────────────────────────────────────
 
 def activer(categorie: str) -> bool:
-    """Monte l'adaptateur de la categorie (scale 1.0, les autres a 0).
+    """Monte l'adaptateur de la categorie seul (API simple = mix 100/0)."""
+    return activer_mixte({categorie: 1.0} if categorie else {})
 
-    Renvoie True si l'adaptateur est applique ; False sinon -> l'appelant
-    continue sur le cerveau de base ou le chemin in-process.
+
+def activer_mixte(poids: dict[str, float]) -> bool:
+    """Monte PLUSIEURS adaptateurs simultanement (multi-LoRA a taille
+    constante) : poids = {categorie: echelle 0..1}.
+
+    Ex : {"math": 0.7, "web": 0.3} — une question qui touche deux sujets
+    profite des deux specialites, sans recharger quoi que ce soit (le
+    serveur ne change que les echelles, cout ~0).
+    Renvoie True si le serveur a accepte.
     """
     global _actif
+    cle = tuple(sorted((k, round(v, 3)) for k, v in poids.items() if v > 0))
+    if cle == _actif:
+        return True        # deja applique : zero appel reseau
     if not _assurer():
         return False
-    if categorie == _actif:
-        return True        # deja actif : zero appel reseau
-    cible = _IDS.get(categorie)
-    if cible is None:
-        # categorie sans adaptateur : tout desactiver
-        corps = [{"id": i, "scale": 0.0} for i in _IDS.values()]
-    else:
-        corps = [{"id": i, "scale": (1.0 if i == cible else 0.0)}
-                 for i in _IDS.values()]
+    corps = [{"id": i, "scale": round(float(poids.get(cat, 0.0)), 3)}
+             for cat, i in _IDS.items()]
     try:
         req = urllib.request.Request(
             _url("/lora-adapters"), method="POST",
@@ -185,11 +197,12 @@ def activer(categorie: str) -> bool:
             ok = json.loads(r.read().decode()).get("success", False)
         if not ok:
             return False
-        _actif = categorie
-        LOG.info("[serveur_lora] adaptateur actif : %s", categorie or "(aucun)")
-        return bool(cible is not None)
+        _actif = cle
+        LOG.info("[serveur_lora] mix actif : %s",
+                 dict(cle) if cle else "(cerveau brut)")
+        return True
     except Exception as e:
-        LOG.info("[serveur_lora] activation %s impossible : %s", categorie, e)
+        LOG.info("[serveur_lora] mix impossible : %s", e)
         return False
 
 
@@ -223,10 +236,10 @@ def disponible() -> bool:
 
 
 def statut() -> dict:
-    """Diagnostic : adresse, process, adaptateur actif, etat du serveur."""
+    """Diagnostic : adresse, process, mix actif, etat du serveur."""
     return {"actives": _actifs(), "adresse": _ADRESSE,
             "serveur_vivant": _existe_serveur(),
-            "adaptateur": _actif,
+            "adaptateur": dict(_actif) if _actif else None,
             "indisponible": _indispo}
 
 

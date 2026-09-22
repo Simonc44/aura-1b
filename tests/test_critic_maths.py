@@ -134,7 +134,7 @@ class TestVerificationCritic:
         monkeypatch.setattr(llama_cerveau, "generer",
                             lambda q, contexte_web="", formule="",
                             max_tokens=None, historique=None, systeme=None,
-                            contexte_faits="", categorie="":
+                            contexte_faits="", categorie="", complexe=False:
                             ("Canberra." if contexte_web else "Sydney."))
         ia = Aura1B()
         monkeypatch.setattr(

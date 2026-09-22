@@ -1,0 +1,223 @@
+{"s": "quelle est la capitale de la France", "r": "fait", "o": "Paris", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de l'Italie", "r": "fait", "o": "Rome", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de l'Espagne", "r": "fait", "o": "Madrid", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale du Japon", "r": "fait", "o": "Tokyo", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de la Chine", "r": "fait", "o": "Pékin (Beijing)", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de l'Australie", "r": "fait", "o": "Canberra (et non Sydney)", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale du Canada", "r": "fait", "o": "Ottawa (et non Toronto)", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale des Etats-Unis", "r": "fait", "o": "Washington D.C. (et non New York)", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale du Royaume-Uni", "r": "fait", "o": "Londres", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de l'Allemagne", "r": "fait", "o": "Berlin", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale du Bresil", "r": "fait", "o": "Brasília", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de la Russie", "r": "fait", "o": "Moscou", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de l'Egypte", "r": "fait", "o": "Le Caire", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de l'Inde", "r": "fait", "o": "New Delhi", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale du Maroc", "r": "fait", "o": "Rabat (et non Casablanca)", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de l'Algerie", "r": "fait", "o": "Alger", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de la Tunisie", "r": "fait", "o": "Tunis", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale du Senegal", "r": "fait", "o": "Dakar", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de la Cote d'Ivoire", "r": "fait", "o": "Yamoussoukro (capitale politique), Abidjan (capitale économique)", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de la Suisse", "r": "fait", "o": "Berne (et non Zurich)", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de la Belgique", "r": "fait", "o": "Bruxelles", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale du Portugal", "r": "fait", "o": "Lisbonne", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de la Grece", "r": "fait", "o": "Athènes", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de la Turquie", "r": "fait", "o": "Ankara (et non Istanbul)", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale du Mexique", "r": "fait", "o": "Mexico", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de l'Argentine", "r": "fait", "o": "Buenos Aires", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale du Perou", "r": "fait", "o": "Lima", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale du Kenya", "r": "fait", "o": "Nairobi", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale du Nigeria", "r": "fait", "o": "Abuja", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de la Coree du Sud", "r": "fait", "o": "Séoul", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale du Vietnam", "r": "fait", "o": "Hanoï", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de la Thailande", "r": "fait", "o": "Bangkok", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale des Pays-Bas", "r": "fait", "o": "Amsterdam (siège du gouvernement : La Haye)", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de l'Autriche", "r": "fait", "o": "Vienne", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de la Suede", "r": "fait", "o": "Stockholm", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de la Norvege", "r": "fait", "o": "Oslo", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de la Pologne", "r": "fait", "o": "Varsovie", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la capitale de l'Ukraine", "r": "fait", "o": "Kyiv (Kiev)", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quel est le plus haut sommet du monde", "r": "fait", "o": "L'Everest, 8 849 mètres", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quel est le plus long fleuve du monde", "r": "fait", "o": "Le Nil (~6 650 km) ; l'Amazone est très proche selon les mesures", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quel est le plus grand ocean", "r": "fait", "o": "L'océan Pacifique", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quel est le plus grand desert chaud", "r": "fait", "o": "Le Sahara", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la plus grande planete du systeme solaire", "r": "fait", "o": "Jupiter", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la planete la plus proche du soleil", "r": "fait", "o": "Mercure", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle planete est appelee la planete rouge", "r": "fait", "o": "Mars", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "combien y a-t-il de planetes dans le systeme solaire", "r": "fait", "o": "8 planètes", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est l'etoile la plus proche de la Terre", "r": "fait", "o": "Le Soleil", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quel est le plus grand pays du monde", "r": "fait", "o": "La Russie", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quel est le plus petit pays du monde", "r": "fait", "o": "Le Vatican", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quel est le pays le plus peuple du monde", "r": "fait", "o": "L'Inde (depuis 2023), devant la Chine", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quel est le plus grand continent", "r": "fait", "o": "L'Asie", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quel est le plus grand mammifere du monde", "r": "fait", "o": "La baleine bleue", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quel est l'animal terrestre le plus rapide", "r": "fait", "o": "Le guépard (jusqu'à ~110 km/h)", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la formule chimique de l'eau", "r": "fait", "o": "H2O", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quel est le symbole chimique de l'or", "r": "fait", "o": "Au", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quel est le symbole chimique du fer", "r": "fait", "o": "Fe", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quel gaz l'homme respire-t-il", "r": "fait", "o": "L'oxygène (O2)", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "quelle est la vitesse de la lumiere", "r": "fait", "o": "Environ 300 000 km par seconde", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "a quelle temperature l'eau bout-elle", "r": "fait", "o": "100 °C (à pression normale)", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "combien d'os compte le corps humain", "r": "fait", "o": "206 os", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "combien de continents y a-t-il", "r": "fait", "o": "7 continents (ou 5 selon les conventions)", "src": "knowledge_fait", "t": "2026-09-20"}
+{"s": "en quelle annee a commence la Premiere Guerre mondiale", "r": "histoire", "o": "1914 (fin en 1918)", "src": "knowledge_histoire", "t": "2026-09-20"}
+{"s": "en quelle annee a commence la Seconde Guerre mondiale", "r": "histoire", "o": "1939 (fin en 1945)", "src": "knowledge_histoire", "t": "2026-09-20"}
+{"s": "en quelle annee l'homme a-t-il marche sur la Lune pour la premiere fois", "r": "histoire", "o": "1969, mission Apollo 11 (Neil Armstrong)", "src": "knowledge_histoire", "t": "2026-09-20"}
+{"s": "en quelle annee a eu lieu la Revolution francaise", "r": "histoire", "o": "1789", "src": "knowledge_histoire", "t": "2026-09-20"}
+{"s": "en quelle annee est tombe le mur de Berlin", "r": "histoire", "o": "1989", "src": "knowledge_histoire", "t": "2026-09-20"}
+{"s": "en quelle annee a coule le Titanic", "r": "histoire", "o": "1912", "src": "knowledge_histoire", "t": "2026-09-20"}
+{"s": "en quelle annee l'URSS a-t-elle disparu", "r": "histoire", "o": "1991", "src": "knowledge_histoire", "t": "2026-09-20"}
+{"s": "qui a gagne la coupe du monde de football 2022", "r": "histoire", "o": "L'Argentine", "src": "knowledge_histoire", "t": "2026-09-20"}
+{"s": "qui a gagne la coupe du monde de football 2018", "r": "histoire", "o": "La France", "src": "knowledge_histoire", "t": "2026-09-20"}
+{"s": "qui a invente l'imprimerie en Europe", "r": "histoire", "o": "Gutenberg, vers 1450", "src": "knowledge_histoire", "t": "2026-09-20"}
+{"s": "comment calculer un pourcentage d'un nombre", "r": "math", "o": "Méthode : multiplie le nombre par le pourcentage puis divise par 100. Ex : 15% de 200 = 200 x 15 / 100 = 30.", "src": "knowledge_math", "t": "2026-09-20"}
+{"s": "quelle est la priorite des operations", "r": "math", "o": "Ordre : parenthèses, puissances, multiplication/division, puis addition/soustraction. Ex : 7 + 3 x 2 = 7 + 6 = 13.", "src": "knowledge_math", "t": "2026-09-20"}
+{"s": "combien font 12 multiplie par 8", "r": "math", "o": "96", "src": "knowledge_math", "t": "2026-09-20"}
+{"s": "combien font 15 pourcent de 200", "r": "math", "o": "30", "src": "knowledge_math", "t": "2026-09-20"}
+{"s": "comment resoudre une equation du premier degre ax + b = c", "r": "math", "o": "Isole x : x = (c - b) / a. Ex : 3x + 7 = 22 -> 3x = 15 -> x = 5.", "src": "knowledge_math", "t": "2026-09-20"}
+{"s": "comment calculer un prix avec une proportion", "r": "math", "o": "Trouve le prix unitaire puis multiplie. Ex : 3 pommes = 6 EUR -> 1 pomme = 2 EUR -> 7 pommes = 14 EUR.", "src": "knowledge_math", "t": "2026-09-20"}
+{"s": "comment calculer un temps de trajet avec vitesse et distance", "r": "math", "o": "temps = distance / vitesse. Ex : 180 km à 60 km/h -> 180 / 60 = 3 heures.", "src": "knowledge_math", "t": "2026-09-20"}
+{"s": "quelle est l'aire d'un rectangle", "r": "math", "o": "Aire = longueur x largeur", "src": "knowledge_math", "t": "2026-09-20"}
+{"s": "quelle est l'aire d'un triangle", "r": "math", "o": "Aire = (base x hauteur) / 2", "src": "knowledge_math", "t": "2026-09-20"}
+{"s": "quelle est l'aire d'un cercle", "r": "math", "o": "Aire = pi x rayon^2 (pi r²)", "src": "knowledge_math", "t": "2026-09-20"}
+{"s": "quel est le perimetre d'un cercle", "r": "math", "o": "Périmètre = 2 x pi x rayon (2 pi r)", "src": "knowledge_math", "t": "2026-09-20"}
+{"s": "enonce le theoreme de Pythagore", "r": "math", "o": "Dans un triangle rectangle : hypoténuse² = côté1² + côté2² (a² + b² = c²).", "src": "knowledge_math", "t": "2026-09-20"}
+{"s": "comment calculer une moyenne", "r": "math", "o": "Moyenne = somme des valeurs / nombre de valeurs.", "src": "knowledge_math", "t": "2026-09-20"}
+{"s": "comment comparer deux nombres decimaux", "r": "math", "o": "Compare chiffre par chiffre après la virgule : 0,9 = 0,90 > 0,11.", "src": "knowledge_math", "t": "2026-09-20"}
+{"s": "raisonnement par syllogisme tous les A sont B", "r": "logique", "o": "Si tous les A sont B et que X est un A, alors X est B. Ex : tous les chiens ont 4 pattes, Rex est un chien -> Rex a 4 pattes.", "src": "knowledge_logique", "t": "2026-09-20"}
+{"s": "trois freres ont chacun deux soeurs combien de soeurs au total", "r": "logique", "o": "2 soeurs : ce sont les mêmes soeurs partagées par les trois frères (ne pas multiplier).", "src": "knowledge_logique", "t": "2026-09-20"}
+{"s": "quel jour vient juste apres dimanche", "r": "logique", "o": "Lundi", "src": "knowledge_logique", "t": "2026-09-20"}
+{"s": "si A implique B et B est faux alors A est faux", "r": "logique", "o": "C'est la contraposée : si A -> B et non B, alors non A.", "src": "knowledge_logique", "t": "2026-09-20"}
+{"s": "combien de mois ont 28 jours", "r": "piege", "o": "Les 12 mois : tous ont AU MOINS 28 jours.", "src": "knowledge_piege", "t": "2026-09-20"}
+{"s": "5 poissons dans un aquarium 3 se noient combien en reste-t-il", "r": "piege", "o": "5 : les poissons ne se noient pas.", "src": "knowledge_piege", "t": "2026-09-20"}
+{"s": "quel est le plus grand nombre entre 0,9 et 0,11", "r": "piege", "o": "0,9 (car 0,9 = 0,90 > 0,11).", "src": "knowledge_piege", "t": "2026-09-20"}
+{"s": "un avion s'ecrase a la frontiere ou enterrer les survivants", "r": "piege", "o": "On n'enterre pas les survivants : ils sont vivants.", "src": "knowledge_piege", "t": "2026-09-20"}
+{"s": "combien d'animaux de chaque espece Moise a-t-il pris dans l'arche", "r": "piege", "o": "Aucun : c'est Noé, pas Moïse.", "src": "knowledge_piege", "t": "2026-09-20"}
+{"s": "3 chats tuent 3 souris en 3 minutes combien de temps pour 100 chats et 100 souris", "r": "piege", "o": "3 minutes : chaque chat tue une souris en 3 minutes.", "src": "knowledge_piege", "t": "2026-09-20"}
+{"s": "une batte et une balle coutent 1,10 la batte coute 1 de plus que la balle", "r": "piege", "o": "La balle coûte 0,05 et la batte 1,05 (pas 0,10).", "src": "knowledge_piege", "t": "2026-09-20"}
+{"s": "quel est le pluriel de cheval", "r": "francais", "o": "Chevaux", "src": "knowledge_francais", "t": "2026-09-20"}
+{"s": "quel est le pluriel de oeil", "r": "francais", "o": "Yeux", "src": "knowledge_francais", "t": "2026-09-20"}
+{"s": "quel est le pluriel de ciel", "r": "francais", "o": "Cieux (ou ciels en peinture/météo)", "src": "knowledge_francais", "t": "2026-09-20"}
+{"s": "quel est le pluriel de travail", "r": "francais", "o": "Travaux", "src": "knowledge_francais", "t": "2026-09-20"}
+{"s": "quel est le pluriel de bijou", "r": "francais", "o": "Bijoux", "src": "knowledge_francais", "t": "2026-09-20"}
+{"s": "quels verbes se conjuguent avec etre au passe compose", "r": "francais", "o": "Verbes pronominaux et verbes de mouvement (aller, venir, partir, arriver...). Ex : je SUIS venu, je suis allé (jamais 'j'ai venu').", "src": "knowledge_francais", "t": "2026-09-20"}
+{"s": "difference entre leur et leurs", "r": "francais", "o": "'Leur' = pronom (invariable) ; 'leurs' = adjectif possessif au pluriel (leurs livres).", "src": "knowledge_francais", "t": "2026-09-20"}
+{"s": "difference entre a et à", "r": "francais", "o": "'a' = verbe avoir (il a) ; 'à' = préposition (aller à Paris).", "src": "knowledge_francais", "t": "2026-09-20"}
+{"s": "difference entre est et et", "r": "francais", "o": "'est' = verbe être (il est) ; 'et' = conjonction (lui et moi).", "src": "knowledge_francais", "t": "2026-09-20"}
+{"s": "difference entre ou et où", "r": "francais", "o": "'ou' = choix (ou bien) ; 'où' = lieu (où es-tu ?).", "src": "knowledge_francais", "t": "2026-09-20"}
+{"s": "difference entre ce et se", "r": "francais", "o": "'ce' = démonstratif (ce livre) ; 'se' = pronom réfléchi (il se lave).", "src": "knowledge_francais", "t": "2026-09-20"}
+{"s": "difference entre son et sont", "r": "francais", "o": "'son' = possessif (son manteau) ; 'sont' = verbe être (ils sont).", "src": "knowledge_francais", "t": "2026-09-20"}
+{"s": "pourquoi porte-t-on un manteau en hiver", "r": "sens-commun", "o": "Pour se protéger du froid / garder la chaleur du corps.", "src": "knowledge_sens-commun", "t": "2026-09-20"}
+{"s": "a quoi servent des ciseaux", "r": "sens-commun", "o": "À couper (papier, tissu, cheveux...).", "src": "knowledge_sens-commun", "t": "2026-09-20"}
+{"s": "ou range-t-on ses vetements", "r": "sens-commun", "o": "Dans une armoire ou un placard (ou une commode, un dressing).", "src": "knowledge_sens-commun", "t": "2026-09-20"}
+{"s": "a quoi sert un parapluie", "r": "sens-commun", "o": "À se protéger de la pluie.", "src": "knowledge_sens-commun", "t": "2026-09-20"}
+{"s": "a quoi sert un refrigerateur", "r": "sens-commun", "o": "À conserver les aliments au froid pour qu'ils ne se gâtent pas.", "src": "knowledge_sens-commun", "t": "2026-09-20"}
+{"s": "a quoi sert une bouilloire", "r": "sens-commun", "o": "À chauffer l'eau, souvent pour le thé ou le café.", "src": "knowledge_sens-commun", "t": "2026-09-20"}
+{"s": "pourquoi se lave-t-on les mains", "r": "sens-commun", "o": "Pour éliminer les microbes et éviter les maladies.", "src": "knowledge_sens-commun", "t": "2026-09-20"}
+{"s": "pourquoi dort-on la nuit", "r": "sens-commun", "o": "Pour récupérer : le sommeil repose le corps et le cerveau.", "src": "knowledge_sens-commun", "t": "2026-09-20"}
+{"s": "comment afficher du texte en Python", "r": "code", "o": "print(\"Hello World\")", "src": "knowledge_code", "t": "2026-09-20"}
+{"s": "comment faire une boucle for en Python", "r": "code", "o": "for i in range(10):\\n    print(i)", "src": "knowledge_code", "t": "2026-09-20"}
+{"s": "comment definir une fonction en Python", "r": "code", "o": "def ma_fonction(x):\\n    return x * 2", "src": "knowledge_code", "t": "2026-09-20"}
+{"s": "comment faire une condition if en Python", "r": "code", "o": "if x > 0:\\n    print(\"positif\")\\nelse:\\n    print(\"negatif\")", "src": "knowledge_code", "t": "2026-09-20"}
+{"s": "comment creer une liste en Python", "r": "code", "o": "ma_liste = [1, 2, 3]", "src": "knowledge_code", "t": "2026-09-20"}
+{"s": "c'est quoi une variable en programmation", "r": "code", "o": "Un nom qui stocke une valeur en mémoire, ex : age = 25 en Python.", "src": "knowledge_code", "t": "2026-09-20"}
+{"s": "difference entre HTML et CSS", "r": "code", "o": "HTML structure le contenu ; CSS gère l'apparence (couleurs, mise en page).", "src": "knowledge_code", "t": "2026-09-20"}
+{"s": "combien de temps faut-il dormir par nuit", "r": "sante (info generale)", "o": "7 à 9 heures pour un adulte.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "combien d'eau faut-il boire par jour", "r": "sante (info generale)", "o": "Environ 1,5 à 2 litres par jour, selon l'activité et la chaleur.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "quelle est la temperature normale du corps humain", "r": "sante (info generale)", "o": "Environ 37 °C.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "combien de temps se laver les mains", "r": "sante (info generale)", "o": "Au moins 30 secondes, avec du savon.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "que faire en cas de brulure legere", "r": "sante (info generale)", "o": "Refroidir tout de suite à l'eau tiède 15 à 20 minutes, et ne pas percer les cloques.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "que faire en cas de saignement de nez", "r": "sante (info generale)", "o": "Se pencher en avant et pincer le nez 10 minutes sans le lâcher.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "combien de temps de sport par semaine", "r": "sante (info generale)", "o": "Environ 150 minutes d'activité modérée par semaine (30 min x 5 jours).", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "que faire si quelqu'un s'etouffe", "r": "sante (info generale)", "o": "Donner jusqu'à 5 claques dans le dos, puis la manœuvre de Heimlich, et appeler le 15 ou le 112.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "combien de temps dure une grippe", "r": "sante (info generale)", "o": "Environ 5 à 7 jours ; la toux peut durer plus longtemps.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "combien de dents a un adulte", "r": "sante (info generale)", "o": "32 dents (dents de sagesse comprises) ; 20 dents de lait chez l'enfant.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "quel est le rythme cardiaque normal au repos", "r": "sante (info generale)", "o": "Entre 60 et 100 battements par minute.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "combien de calories par jour pour un adulte", "r": "sante (info generale)", "o": "Environ 2 000 kcal en moyenne, selon l'âge, le sexe et l'activité.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "pourquoi faut-il manger des fruits et legumes", "r": "sante (info generale)", "o": "Ils apportent vitamines, fibres et minéraux. L'idée est d'en manger 5 portions par jour.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "le tabac est-il dangereux pour la sante", "r": "sante (info generale)", "o": "Oui : il augmente fortement les risques de cancer et de maladies du cœur et des poumons.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "que faire contre un petit rhume", "r": "sante (info generale)", "o": "Repos, boire de l'eau, se moucher ; un rhume guérit seul en une semaine environ.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "a quelle frequence faut-il aller chez le dentiste", "r": "sante (info generale)", "o": "Une fois par an au minimum, ou tous les 6 mois en prévention.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "que faire en cas de piqure de guepe", "r": "sante (info generale)", "o": "Retirer le dard, laver, appliquer du froid, et surveiller une éventuelle réaction allergique.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "comment eviter la deshydratation", "r": "sante (info generale)", "o": "Boire régulièrement de l'eau, surtout par forte chaleur ou pendant le sport.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "la fievre est-elle toujours dangereuse", "r": "sante (info generale)", "o": "Non, c'est une défense du corps. Elle devient inquiétante si elle est très élevée ou prolongée.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "combien de temps met une plaie a cicatriser", "r": "sante (info generale)", "o": "Une petite plaie cicatrise en 5 à 10 jours environ.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "faut-il prendre un petit dejeuner", "r": "sante (info generale)", "o": "Ce n'est pas obligatoire : l'important est une alimentation équilibrée sur la journée.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "que faire contre un mal de tete", "r": "sante (info generale)", "o": "Repos, eau, éventuellement un antalgique ; consulter si la douleur est forte ou inhabituelle.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "combien de temps faut-il pour digerer", "r": "sante (info generale)", "o": "Environ 2 à 4 heures pour l'estomac, jusqu'à 24 h pour tout le transit.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "l'alcool est-il mauvais pour la sante", "r": "sante (info generale)", "o": "Oui : il n'existe pas de consommation totalement sans risque.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "comment bien se laver les dents", "r": "sante (info generale)", "o": "2 minutes, 2 fois par jour, avec un brossage doux et du dentifrice fluoré.", "src": "knowledge_sante", "t": "2026-09-20"}
+{"s": "combien de temps cuire des pates", "r": "cuisine", "o": "8 à 12 minutes selon le type ; goûter pour vérifier.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "combien de temps cuire un oeuf dur", "r": "cuisine", "o": "Environ 9 à 10 minutes dans l'eau bouillante.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "a quelle temperature cuire du poulet a coeur", "r": "cuisine", "o": "75 °C à cœur pour qu'il soit sûr à manger.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "quantite de riz cru par personne", "r": "cuisine", "o": "Environ 60 g de riz cru par personne (il triple de volume à la cuisson).", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "quantite de pates par personne", "r": "cuisine", "o": "Environ 100 g de pâtes crues par personne.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "a quoi sert la levure en cuisine", "r": "cuisine", "o": "À faire lever la pâte en produisant du gaz (pain, brioche, gâteaux).", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "comment savoir si un oeuf est frais", "r": "cuisine", "o": "Plongé dans l'eau : s'il coule il est frais, s'il flotte il est vieux.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "que faire si un plat est trop sale", "r": "cuisine", "o": "Ajouter une pomme de terre, un peu d'eau ou de crème pour diluer le sel.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "comment faire une vinaigrette", "r": "cuisine", "o": "Ratio classique 3 cuillères d'huile pour 1 de vinaigre, plus sel, poivre et moutarde.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "difference entre mijoter et bouillir", "r": "cuisine", "o": "Bouillir = grosses bulles ; mijoter = petits frémissements, cuisson douce et longue.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "a quelle temperature prechauffer un four pour un gateau", "r": "cuisine", "o": "Environ 180 °C en chaleur tournante, ou 200 °C en chaleur classique.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "combien de temps cuire du riz", "r": "cuisine", "o": "10 à 12 minutes dans l'eau bouillante, puis laisser reposer.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "comment decongeler de la viande proprement", "r": "cuisine", "o": "Au réfrigérateur, jamais à température ambiante, pour éviter les bactéries.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "a quoi sert la maizena", "r": "cuisine", "o": "À épaissir une sauce ou une soupe : c'est de l'amidon de maïs.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "c'est quoi des pates al dente", "r": "cuisine", "o": "Des pâtes cuites mais encore fermes sous la dent, pas molles.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "combien de temps conserver des restes au frigo", "r": "cuisine", "o": "Environ 3 jours, dans une boîte fermée.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "comment couper un oignon sans pleurer", "r": "cuisine", "o": "Utiliser un couteau bien aiguisé, ou refroidir l'oignon au frigo avant de le couper.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "a quoi sert le bicarbonate de soude", "r": "cuisine", "o": "À lever certaines pâtes, nettoyer, désodoriser ou calmer les acidités.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "comment conserver les aliments au refrigerateur", "r": "cuisine", "o": "Viande et poisson en bas, restes en haut, toujours dans des boîtes fermées.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "que signifie faire revenir un aliment", "r": "cuisine", "o": "Le saisir à feu vif dans un peu de matière grasse pour le colorer.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "difference entre ebullition et fremissement", "r": "cuisine", "o": "Frémissement = petites bulles naissantes ; ébullition = gros bouillons.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "combien de sel mettre dans l'eau des pates", "r": "cuisine", "o": "Environ 10 g de gros sel par litre d'eau.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "comment reussir une omelette", "r": "cuisine", "o": "Battre les œufs, cuire à feu doux dans un peu de beurre, sans trop remuer.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "comment laver le riz avant cuisson", "r": "cuisine", "o": "Le rincer à l'eau claire jusqu'à ce qu'elle soit transparente, pour retirer l'amidon.", "src": "knowledge_cuisine", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'un contrat", "r": "droit (info generale)", "o": "Un accord entre deux parties qui crée des obligations. Un contrat signé engage légalement.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'un devis", "r": "droit (info generale)", "o": "Un document qui chiffre à l'avance une prestation ; il devient contraignant une fois signé.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "difference entre un devis et une facture", "r": "droit (info generale)", "o": "Le devis est une estimation AVANT ; la facture est la demande de paiement APRÈS.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "que faire en cas de litige avec un commercant", "r": "droit (info generale)", "o": "Demander un remboursement ou un échange, puis saisir le médiateur de la consommation.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "combien de temps dure la garantie legale", "r": "droit (info generale)", "o": "2 ans pour un défaut de conformité, quel que soit le produit neuf acheté.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "combien de temps pour exercer son droit de retractation", "r": "droit (info generale)", "o": "14 jours pour un achat à distance (internet, téléphone) ou hors magasin.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'un CDI", "r": "droit (info generale)", "o": "Contrat à durée indéterminée : sans date de fin. C'est la forme normale d'embauche.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "difference entre CDD et CDI", "r": "droit (info generale)", "o": "Le CDD a une date de fin (mission temporaire), le CDI n'en a pas.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'une periode d'essai", "r": "droit (info generale)", "o": "Une période au début du contrat pour tester le poste ; sa durée et sa rupture sont encadrées.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "quel est le preavis en cas de demission", "r": "droit (info generale)", "o": "Il dépend du contrat et de la convention collective ; souvent 1 à 3 mois pour un cadre.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'un licenciement abusif", "r": "droit (info generale)", "o": "Un licenciement sans cause réelle et sérieuse ; il ouvre droit à des dommages et intérêts.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "combien de conges payes par an", "r": "droit (info generale)", "o": "5 semaines, soit 30 jours ouvrables, pour un salarié à temps plein.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "qu'est-ce que le SMIC", "r": "droit (info generale)", "o": "Le salaire minimum légal en France ; il est revalorisé régulièrement.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'un bail", "r": "droit (info generale)", "o": "Le contrat de location entre un propriétaire (bailleur) et un locataire.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "qu'est-ce que le depot de garantie en location", "r": "droit (info generale)", "o": "Une somme versée à l'entrée, rendue si le logement est rendu en bon état.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "que faire en cas d'accident du travail", "r": "droit (info generale)", "o": "Prévenir l'employeur au plus vite et déclarer l'accident sous 24 h ; voir un médecin.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "qu'est-ce que le harcelement", "r": "droit (info generale)", "o": "Des propos ou actes répétés qui dégradent les conditions de travail ou la vie d'une personne ; c'est illégal.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "qu'est-ce que le droit d'auteur", "r": "droit (info generale)", "o": "Le droit qui protège automatiquement une œuvre (texte, image, musique), sans dépôt nécessaire.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "qu'est-ce que le RGPD", "r": "droit (info generale)", "o": "Le règlement européen qui protège les données personnelles et impose un consentement clair.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'un proces-verbal", "r": "droit (info generale)", "o": "Le document d'un agent qui constate une infraction ; il peut être contesté dans un délai précis.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "comment contester une amende", "r": "droit (info generale)", "o": "Dans le délai indiqué (souvent 45 jours), par courrier ou en ligne, avec les preuves.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "a quel age est-on majeur", "r": "droit (info generale)", "o": "18 ans en France (majorité civile et pénale).", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'un testament", "r": "droit (info generale)", "o": "Un document écrit qui indique comment on souhaite répartir ses biens après son décès.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "que faire si un colis n'arrive pas", "r": "droit (info generale)", "o": "Contacter le vendeur : c'est lui qui est responsable tant que le colis n'est pas reçu.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "qu'est-ce que la presomption d'innocence", "r": "droit (info generale)", "o": "Toute personne est considérée innocente jusqu'à preuve du contraire établie par un tribunal.", "src": "knowledge_droit", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'un processeur", "r": "informatique", "o": "Le composant qui exécute les calculs et les instructions d'un ordinateur (le CPU).", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "difference entre RAM et disque dur", "r": "informatique", "o": "La RAM est la mémoire de travail (rapide, effacée à l'arrêt) ; le disque stocke durablement les fichiers.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'un navigateur", "r": "informatique", "o": "Un logiciel pour aller sur internet et afficher les sites web (Chrome, Firefox, Edge).", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'un fichier", "r": "informatique", "o": "Un ensemble de données enregistré sur un support : un document, une photo, une vidéo.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "difference entre un fichier et un dossier", "r": "informatique", "o": "Le dossier range et organise des fichiers ; le fichier contient les données elles-mêmes.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "comment se proteger des virus sur internet", "r": "informatique", "o": "Mises à jour, antivirus, méfiance devant les liens et pièces jointes, mots de passe solides.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'un mot de passe fort", "r": "informatique", "o": "Long (12 caractères et plus) avec majuscules, chiffres et symboles, et jamais réutilisé.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "qu'est-ce que le wifi", "r": "informatique", "o": "Une technologie qui connecte des appareils à internet sans câble, par ondes radio.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "difference entre wifi et ethernet", "r": "informatique", "o": "Le wifi est sans fil ; l'ethernet est un câble, généralement plus stable et plus rapide.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "qu'est-ce que le cloud", "r": "informatique", "o": "Des serveurs distants qui stockent tes fichiers, accessibles via internet (Drive, OneDrive).", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'une sauvegarde", "r": "informatique", "o": "Une copie de tes données pour pouvoir les récupérer en cas de panne ou de perte.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'un VPN", "r": "informatique", "o": "Un service qui chiffre ta connexion et masque ton adresse IP.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "qu'est-ce que le phishing", "r": "informatique", "o": "Une arnaque qui imite un site ou un message officiel pour te voler tes identifiants.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "difference entre http et https", "r": "informatique", "o": "HTTPS ajoute un chiffrement : les données échangées sont protégées.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'un cookie", "r": "informatique", "o": "Un petit fichier qu'un site stocke dans ton navigateur pour mémoriser ta visite.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'un systeme d'exploitation", "r": "informatique", "o": "Le logiciel principal qui gère le matériel et les applications (Windows, Linux, macOS).", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'un SSD", "r": "informatique", "o": "Un disque de stockage sans pièce mobile, beaucoup plus rapide qu'un disque dur classique.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "qu'est-ce que le Bluetooth", "r": "informatique", "o": "Une technologie sans fil pour connecter des appareils proches : casque, souris, téléphone.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "difference entre bit et octet", "r": "informatique", "o": "Un bit est un 0 ou un 1 ; un octet = 8 bits, et code un caractère.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "combien de megaoctets dans un gigaoctet", "r": "informatique", "o": "1 Go = 1024 Mo.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'un algorithme", "r": "informatique", "o": "Une suite finie d'étapes précises pour résoudre un problème.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'un bug", "r": "informatique", "o": "Une erreur dans un programme qui provoque un mauvais fonctionnement.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "qu'est-ce qu'un logiciel", "r": "informatique", "o": "Un ensemble de programmes qui font fonctionner une machine, par opposition au matériel.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "qu'est-ce que le materiel informatique", "r": "informatique", "o": "Les parties physiques d'un ordinateur : écran, clavier, processeur, disque.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "comment faire une capture d'ecran sur Windows", "r": "informatique", "o": "Touche Windows + Maj + S, ou la touche Impr. écran.", "src": "knowledge_informatique", "t": "2026-09-20"}
+{"s": "a quoi sert le beurre en cuisine", "r": "cuisine", "o": "À cuire, parfumer et donner du moelleux (pâtisserie, sauces).", "src": "knowledge_cuisine", "t": "2026-09-20"}
