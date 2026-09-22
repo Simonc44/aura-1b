@@ -96,7 +96,7 @@ def _sauver(t: dict) -> None:
 
 
 def ajouter(sujet: str, relation: str, objet: str, source: str = "manuel") -> bool:
-    """Ajoute un triplet (deduplique exact)."""
+    """Ajoute un triplet (deduplique exact ; le doublon est renforce)."""
     s, r, o = sujet.strip(), relation.strip().lower(), objet.strip()
     if not s or not r or not o:
         return False
@@ -105,10 +105,13 @@ def ajouter(sujet: str, relation: str, objet: str, source: str = "manuel") -> bo
         cle = (s.lower(), r, o.lower())
         for t in _triplets:
             if (t["s"].lower(), t["r"], t["o"].lower()) == cle:
+                # doublon = usage de plus : la memoire se renforce d'elle-meme
+                t["f"] = min(t.get("f", _FORCE_INIT) + 0.5, _FORCE_MAX)
+                _reecrire()
                 return False
         i = len(_triplets)
         t = {"s": s, "r": r, "o": o, "src": source,
-             "t": time.strftime("%Y-%m-%d")}
+             "t": time.strftime("%Y-%m-%d"), "f": _FORCE_INIT}
         _triplets.append(t)
         for mot in set(_normaliser(f"{s} {r} {o}")):
             _index.setdefault(mot, set()).add(i)
@@ -149,11 +152,63 @@ def apprendre_de_reponse(reponse: str, verifiee_web: bool = False) -> int:
     return n
 
 
+# ── Memoire a Long Terme Autonome : force des liens ────────────────────
+
+# force par defaut d'un triplet neuf ; renforce a chaque usage valide,
+# decremente doucement vers le defaut sinon (oubli doux, pas d'oubli sec)
+_FORCE_INIT = 1.0
+_FORCE_MAX = 10.0
+_DECROISSANCE = 0.98          # x0.98 par jour d'age sans rappel
+
+
+def renforcer(sujet: str, objet: str, delta: float = 1.0) -> bool:
+    """Renforce le lien sujet->objet (usage valide confirme sa valeur).
+
+    C'est la memoire autotrophe : quand une resolution est CONFIRMEE par
+    un expert symbolique (logique, calcul, code), la chaine de faits qui
+    y a conduit gagne en force -> elle remontera plus tot dans chercher().
+    Aucun re-entrainement, aucune reforge : le savoir organise lui-meme
+    son importance dans un simple JSONL. Lien inconnu -> cree avec la
+    force donnee (schema de pensee eprouve, memorise au vol).
+    """
+    with _verrou:
+        _charger()
+        for t in _triplets:
+            if (t["s"].lower() == sujet.lower()
+                    and t["o"].lower() == objet.lower()):
+                t["f"] = min(t.get("f", _FORCE_INIT) + delta, _FORCE_MAX)
+                _reecrire()
+                return True
+    # lien inconnu : le creer avec la force donnee (schema eprouve)
+    return ajouter(sujet, "associe_a", objet, source="renforcement") or True
+
+
+def _reecrire() -> None:
+    """Reecrit le fichier complet (forces + ages a jour)."""
+    try:
+        with open(_FICHIER, "w", encoding="utf-8") as f:
+            for t in _triplets:
+                f.write(json.dumps(t, ensure_ascii=False) + "\n")
+    except OSError as e:
+        LOG.warning("graphe non reecrit : %s", e)
+
+
+def _age_jours(t: dict) -> float:
+    try:
+        return max(0.0, time.time() - time.mktime(
+            time.strptime(t.get("t", ""), "%Y-%m-%d"))) / 86400.0
+    except ValueError:
+        return 0.0
+
+
 def chercher(question: str, max_resultats: int = 5) -> str:
     """Contexte = triplets couvrant le plus de mots de la question.
 
-    Multi-mots = multi-hop naturel. Vide = rien de pertinent (le modele
-    repondra de lui-meme, comme avant).
+    Multi-mots = multi-hop naturel. Le score de couverture est module
+    par la FORCE du lien (memoire autotrophe : un fait confirme par des
+    usages valides passe avant un fait froid) et par la recence (oubli
+    doux : un lien non rappele depuis longtemps retombe vers l'inactif).
+    Vide = rien de pertinent (le modele repondra de lui-meme).
     """
     _charger()
     if not _triplets:
@@ -161,20 +216,24 @@ def chercher(question: str, max_resultats: int = 5) -> str:
     mots = set(_normaliser(question))
     if len(mots) < 2:
         return ""
-    scores: dict[int, int] = {}
+    scores: dict[int, float] = {}
     for m in mots:
         for i in _index.get(m, ()):
-            scores[i] = scores.get(i, 0) + 1
+            scores[i] = scores.get(i, 0.0) + 1.0
     if not scores:
         return ""
-    # au moins la moitie des mots couverts (hors stopwords) OU 2 mots minimum
     tri = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
     lignes = []
-    for i, couverture in tri[:max_resultats]:
-        if couverture < 2:
-            break
+    for i, couverture in tri[:max_resultats * 2]:
         t = _triplets[i]
+        age = _age_jours(t)
+        force = t.get("f", _FORCE_INIT) * (_DECROISSANCE ** age)
+        score = couverture * (1.0 + min(force, _FORCE_MAX) / 3.0)
+        if score < 2.0:
+            break          # seuil : ni couverture suffisante, ni force utile
         lignes.append(f"- {t['s']} : {t['r']} {t['o']}")
+        if len(lignes) >= max_resultats:
+            break
     return "\n".join(lignes)
 
 

@@ -79,6 +79,8 @@ class Aura1B:
         self._routeur = RouteurIntelligent()
         self._llama = None
         self._historique: list[dict] = []   # memoire de conversation
+        self._chaine_faits: list = []        # chaine graphe de la question
+        self._derniere_categorie = "general"
 
     # -- memoire de conversation -------------------------------------------
 
@@ -118,6 +120,21 @@ class Aura1B:
             return instant, f_route.result()
         finally:
             pool.shutdown(wait=False)
+
+    @staticmethod
+    def _extraire_chaine(contexte_faits: str) -> list[tuple[str, str]]:
+        """Extrait [(sujet, objet)] du contexte graphe (lignes '- s : r o')."""
+        chaine = []
+        for ligne in (contexte_faits or "").splitlines():
+            ligne = ligne.strip().lstrip("- ")
+            if " : " not in ligne:
+                continue
+            gauche, _, droite = ligne.partition(" : ")
+            gauche = gauche.strip()
+            droite = droite.split(" ", 1)[-1].strip()   # saute la relation
+            if gauche and droite:
+                chaine.append((gauche, droite))
+        return chaine
 
     # -- validation avant execution (idea JEV #2) ---------------------------
 
@@ -536,8 +553,11 @@ class Aura1B:
 
         # GRAPHE DE FAITS (MiniRAG-lite) : retrouver au lieu de deviner —
         # uniquement des faits VERIFIES web (jamais d'hallucination dedans).
+        # La chaine utilisee est memorisee : si la reponse finale est
+        # confirmee par un expert symbolique, elle sera RENFORCEE (MLT).
         contexte_faits = "" if contexte_web else \
             graphe_faits.chercher(question)
+        self._chaine_faits = self._extraire_chaine(contexte_faits)
         # AGENT 5 (personnalite) : prompt systeme ajuste a la categorie
         # routee ; None = prompt de base du cerveau (comportement d'avant).
         # Le plan (agent 1) complete la question ; web compresse (agent 2)
@@ -605,6 +625,20 @@ class Aura1B:
                 graphe_faits.apprendre_de_reponse(reponse, verifiee_web=True)
             except Exception as e:
                 LOG.info("[graphe] apprentissage impossible : %s", e)
+        # MEMOIRE A LONG TERME AUTONOME : une reponse confirmee par un
+        # expert symbolique (validation exacte : calcul, logique, code,
+        # preuve web) renforce les liens de la chaine de faits utilisee —
+        # les schemas de pensee eprouves remontent, les liens inutiles
+        # retombent (oubli doux). Aucun re-entrainement requis.
+        if self._chaine_faits:
+            confirmee = (verifiee or "math" in experts or "pot" in experts
+                         or reponse.startswith(("[Logique]", "[Code]")))
+            if confirmee:
+                for s, o in self._chaine_faits:
+                    try:
+                        graphe_faits.renforcer(s, o)
+                    except Exception:
+                        pass
         # memorise pour les futures questions (cache semantique + conversation)
         filtre_instantane.enregistrer(question, reponse)
         self._historique.append({"role": "user", "content": question})

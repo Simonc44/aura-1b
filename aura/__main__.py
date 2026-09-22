@@ -58,7 +58,20 @@ def main(argv=None) -> int:
     p.add_argument("--y", help="liste JSON de valeurs, ex. '[1,8,27]'")
     p.add_argument("--chat", action="store_true", help="mode conversationnel multi-tours")
     p.add_argument("--demo", action="store_true")
+    p.add_argument("--selfplay", type=int, metavar="N", default=0,
+                   help="self-play : N defis auto-generes, valides exactement, "
+                        "succes reintegres (MLT + dataset)")
+    p.add_argument("--niveau", type=int, default=1, choices=(1, 2),
+                   help="niveau des defis self-play (1 = calcul, 2 = + enigmes)")
     args = p.parse_args(argv)
+
+    if args.selfplay:
+        from . import selfplay
+        import logging as _l
+        _l.basicConfig(level=_l.INFO)
+        print(json.dumps(selfplay.session(args.selfplay, niveau=args.niveau),
+                         ensure_ascii=False, indent=2))
+        return 0
 
     ia = Aura1B()
     if args.chat:
