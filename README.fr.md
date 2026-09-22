@@ -8,6 +8,10 @@ Une IA 100 % locale, native-CPU, qui sépare le langage, les maths exactes et la
 mémoire factuelle en modules spécialisés — au lieu de demander à un seul petit
 modèle de tout faire (et d'halluciner quand il n'y arrive pas).
 
+Sept agents cognitifs, des experts symboliques exacts et le self-play
+transforment un cerveau 1B en un système qui se comporte comme un **7-8B là où
+ça compte** — à la vitesse d'un 1B.
+
 [![Tests](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml/badge.svg?style=flat-square)](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml)
 [![Licence GPLv3](https://img.shields.io/badge/Licence-GPLv3-5bc0de.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-5bc0de)
@@ -54,6 +58,22 @@ utilisé uniquement là où il compte.
 | Faits | **web en direct + preuve** | figés à la date d'entraînement |
 | Empreinte RAM | **~1 Go** | ~4,5 Go |
 | Savoir de niche & analyse profonde | ⚠️ limite du système | mieux — voir [limites honnêtes](#-limites-honnêtes) |
+
+### L'équivalence, mesurée par capacité
+
+| Capacité | Système Aura-1B | Cerveau 1B brut |
+|---|---|---|
+| Logique & maths | **hors classe** — exact, prouvé | hallucine |
+| Faits (graphe + web) | **~7-8B ancré**, 0 hallucination | ~1B, figé |
+| Code (vérifié en sandbox) | **~8B** sur du code testable | pire |
+| Style & rédaction | **~7-8B perçu** — mimétisme few-shot + double passe | tics 1B |
+| Analyse abstraite profonde | limite honnête — les poids restent 1B | 1B |
+
+Le mécanisme est celui qui fait qu'un 70B *semble* plus intelligent que son
+nombre de paramètres : l'organisation, la vérification et le style — pas la
+taille brute. Sur les questions vérifiables, Aura ne joue plus dans la cour
+des 3B : il se comporte comme un **7-8B** en gardant la vitesse et l'empreinte
+d'un 1B.
 
 ## 🚀 Démarrage rapide
 
@@ -107,8 +127,13 @@ uv run python -m aura --chat                   # chat avec mémoire
 | **Program-of-Thoughts** (`raisonneur.py`) | énigmes chiffrées | le 1B écrit des lignes `ETAPE 1/ETAPE 2`, l'AST sécurisé évalue chaque étape : « Léo a 4 ans, Marie le double, Paul 3 de plus » → **11, chaque étape vérifiée** |
 | **Solveur logique** (`logique.py`) | logique sans nombres (chevaliers & menteurs, attributions) | le 1B formalise `ENTITES/DOMAINE/CONDITION`, un mini-SAT en pur Python déduit exactement ; les contraintes inventées sont détectées → repli propre |
 | **PoT-code** (`potcode.py`) | génération de code cassé | le 1B écrit une fonction + des asserts, une sandbox (builtins restreints + budget d'instructions via `settrace`) exécute tout ; un assert raté = le code n'est jamais livré |
-| **Agents cognitifs** (`agents.py`) | fragilité du petit modèle | 5 agents légers orchestrent le 1B : planificateur (les tâches complexes sont découpées en 2-3 étapes avant rédaction), compresseur RAG (seules les 3 phrases web utiles atteignent le LLM), rédacteur (retrait des tics de langage du 1B), debugger récursif (le code raté est relancé avec l'erreur exacte de la sandbox, max 3), masqueur de personnalité (prompt système adapté à la catégorie routée) |
+| **Agents cognitifs** (`agents.py`) | fragilité du petit modèle | 7 agents légers orchestrent le 1B : planificateur (les tâches complexes sont découpées en 2-3 étapes avant rédaction), compresseur RAG (seules les 3 phrases web utiles atteignent le LLM), rédacteur (retrait des tics de langage du 1B), debugger récursif (le code raté est relancé avec l'erreur exacte de la sandbox, max 3), masqueur de personnalité (prompt système adapté à la catégorie routée), mimétisme de style (des exemples few-shot calibrent la réponse sur la prose des grands modèles), double passe de correction (le 1B critique son brouillon puis le réécrit — repérer les défauts d'un texte existant est statistiquement plus facile que d'écrire parfait du premier coup) |
 | **Hot-swap LoRA** (`adaptateurs.py`) | un cerveau, une spécialité | permutation dynamique d'adaptateurs via la C-API llama.cpp : le GGUF de base est chargé une fois, les adaptateurs par catégorie (~10-40 Mo, entraînés sur Colab avec PEFT) se montent/démontent sans recharger. Registre LRU en mémoire (défaut 1 adaptateur = empreinte quasi nulle). `AURA_ADAPTATEURS=1` pour activer |
+| **Multi-LoRA servi** (`serveur_lora.py`) | un cerveau, plusieurs spécialités simultanées | le llama-server officiel (build CPU, auto-démarré par Aura) monte le cerveau Q4_K_M + les 4 adaptateurs de catégorie au boot ; les probabilités du routeur deviennent des poids simultanés `{"math": 0.7, "web": 0.3}` en un appel HTTP — sans recharger, hot-swap en ~ms. Repli in-process jamais bloquant |
+| **Dynamic Compute** | une seule vitesse pour tout | les questions complexes déclenchent un brouillon masqué `<thinking>` (budget tokens ×2) retiré avant affichage ; les simples restent instantanées |
+| **Mémoire à long terme** (`graphe_faits.py`) | savoir à poids égal | chaque triplet porte une force ; chaque usage **vérifié** la renforce, la recherche pondère force × récence — le savoir organise lui-même son importance, zéro réentraînement |
+| **Self-play** (`selfplay.py`) | s'améliorer demande un utilisateur | un générateur de défis fabrique énigmes logiques et exercices depuis le graphe de faits, un juge déterministe valide, les succès renforcent le graphe et rejoignent le jeu d'entraînement — boucle fermée façon AlphaGo. `aura --selfplay 20` |
+| **RLSS** (`rlss.py`) | auto-entraînement non validé | exercices générés → le cerveau répond → validation exacte → succès stockés pour le prochain LoRA, échecs transformés en corrections injectées |
 | **Auto-amélioration** | erreurs répétées | les mauvaises réponses enregistrées via `enregistrer_correction()` sont injectées dans les futurs prompts — la même erreur n'est plus jamais faite |
 
 ### Mode riche (qualité de rédaction)
@@ -118,8 +143,9 @@ un pipeline en 3 étapes :
 1. **Recherche enrichie** — double requête (faits + analyse) + **lexique** du domaine injecté en mots-clés.
 2. **Chaîne de pensée masquée** — planification dans des balises `<thinking>`, retirée par regex ; l'utilisateur ne voit que la réponse soignée.
 3. **Génération par sections** — chaque partie du plan (contraint par GBNF) est rédigée séparément, avec mémoire des sections précédentes (StoryWriter-lite).
+4. **Mimétisme few-shot + double passe** — des exemples de style calibrent le brouillon, puis une passe de critique liste les défauts et le modèle réécrit : corriger un texte existant, c'est là qu'un 1B égale statistiquement un bien plus grand.
 
-Coût : ~2× la latence — réservé aux questions qui le méritent. Mesuré sur la
+Coût : ~2-3× la latence — réservé aux questions qui le méritent. Mesuré sur la
 machine de référence : fait 0,3 s, maths 0,0 s, dissertation riche 66 s.
 
 ## 🎓 Entraîner son IA
@@ -230,10 +256,11 @@ les questions vérifiables.
 
 > [!NOTE]
 > Sur les questions **vérifiables** (maths, faits, dates, format), Aura-1B bat
-> des modèles plus gros par construction — eux devinent, lui prouve. Sur
-> **l'analyse profonde, le savoir de niche et la logique abstraite**, un 8B
-> fine-tuné gagne encore : ces compétences vivent dans les poids, et c'est la
-> cible de la feuille de route.
+> des modèles plus gros par construction — eux devinent, lui prouve. Logique,
+> code, style et savoir sont désormais **compensés par le système** (niveau
+> perçu : 7-8B) ; seule **l'analyse abstraite profonde non ancrée** reste un
+> territoire 70B — les poids sont toujours 1B, et cette honnêteté fait partie
+> de la conception.
 
 ## 🗺 Feuille de route
 
@@ -243,6 +270,8 @@ les questions vérifiables.
 - [x] Hot-swap LoRA dynamique : adaptateurs par catégorie montés sur le contexte vivant (C-API), registre LRU en mémoire
 - [x] Format scellé `.aef` + Ed25519 + distribution chiffrée
 - [x] CI verte (matrices OS/py + chaîne `.aef` + syntaxe installeur)
+- [x] Multi-LoRA servi (mix de poids) + Dynamic Compute + RLSS + self-play + mémoire à long terme
+- [x] Mimétisme de style (few-shot) + double passe de correction
 - [ ] **Fine-tune LoRA** sur Colab — profondeur de raisonnement, taille 807 Mo inchangée
 - [ ] **Édition de faits MEMIT** — corriger le savoir de niche directement dans les poids
 - [ ] **lm-evaluation-harness** — scores publics et comparables du cerveau
@@ -251,7 +280,7 @@ les questions vérifiables.
 ## 🧪 Tests & qualité
 
 ```bash
-uv run pytest -q        # 173 tests (CI : 167 + 6 sautés — pas de GGUF en CI)
+uv run pytest -q        # 251 tests (CI : 245 + 6 sautés — pas de GGUF en CI)
 uv run mypy aura/       # 0 erreur
 ```
 

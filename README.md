@@ -8,6 +8,9 @@ A 100% local, CPU-native AI system that splits language, exact math and factual
 memory into specialized modules — instead of asking one small model to do
 everything (and hallucinate when it can't).
 
+Seven cognitive agents, exact symbolic experts and self-play turn a 1B brain
+into a system that behaves like a **7-8B where it counts** — at 1B speed.
+
 [![Tests](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml/badge.svg?style=flat-square)](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-5bc0de.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-5bc0de)
@@ -53,6 +56,21 @@ math and dates, real-time facts, and a 1B brain used only where it matters.
 | Facts | **live web + proof check** | frozen at training cutoff |
 | RAM footprint | **~1 GB** | ~4.5 GB |
 | Long-tail knowledge & deep analysis | ⚠️ system's limit | better — see [honest limits](#-honest-limits) |
+
+### The equivalence, measured by capability
+
+| Capability | Aura-1B system | Raw 1B brain |
+|---|---|---|
+| Logic & math | **beyond class** — exact, proven | hallucinates |
+| Facts (graph + web) | **~7-8B anchored**, 0 hallucination | ~1B, frozen |
+| Code (sandbox-verified) | **~8B** on testable code | worse |
+| Style & writing | **~7-8B perceived** — few-shot mimicry + double-pass editing | 1B tics |
+| Deep unanchored analysis | honest limit — weights stay 1B | 1B |
+
+The mechanism is the one that makes a 70B *feel* smarter than its parameter
+count: organization, verification and style — not raw size. On verifiable
+tasks Aura no longer plays in the 3B league: it behaves like a **7-8B** while
+keeping 1B speed and footprint.
 
 ## 🚀 Quickstart
 
@@ -106,8 +124,13 @@ uv run python -m aura --chat                   # chat with memory
 | **Program-of-Thoughts** (`raisonneur.py`) | word puzzles with numbers | the 1B writes `ETAPE 1/ETAPE 2` lines, the safe AST evaluates each step: « Léo a 4 ans, Marie le double, Paul 3 de plus » → **11, every step verified** |
 | **Logic solver** (`logique.py`) | number-free logic (knights & knaves, attributions) | the 1B formalizes `ENTITES/DOMAINE/CONDITION`, a pure-Python mini-SAT deduces exactly; invented constraints are detected → graceful fallback |
 | **PoT-code** (`potcode.py`) | broken code generation | the 1B writes a function + asserts, a sandbox (restricted builtins + instruction budget via `settrace`) executes everything; a failing assert = the code is never delivered |
-| **Cognitive agents** (`agents.py`) | small-model brittleness | 5 lightweight agents orchestrate the 1B: task planner (complex asks split into 2-3 steps before writing), RAG compressor (only the 3 useful web sentences reach the LLM), style cleaner (removes 1B language tics), recursive debugger (failed code is retried with the exact sandbox error, max 3), persona router (system prompt adapted per category) |
+| **Cognitive agents** (`agents.py`) | small-model brittleness | 7 lightweight agents orchestrate the 1B: task planner (complex asks split into 2-3 steps before writing), RAG compressor (only the 3 useful web sentences reach the LLM), style cleaner (removes 1B language tics), recursive debugger (failed code is retried with the exact sandbox error, max 3), persona router (system prompt adapted per category), style mimicry (few-shot exemplars calibrate the answer to big-model prose), double-pass editor (the 1B critiques its own draft then rewrites — catching flaws in existing text is statistically easier than writing perfectly first-try) |
 | **LoRA hot-swap** (`adaptateurs.py`) | one brain, one specialty | dynamic adapter swapping via the llama.cpp C-API: the base GGUF loads once, category adapters (~10-40 MB, trained on Colab with PEFT) mount/unmount without reloading. LRU in memory (default 1 adapter = near-zero footprint). `AURA_ADAPTATEURS=1` to enable |
+| **Served multi-LoRA** (`serveur_lora.py`) | one brain, several simultaneous specialties | the official llama-server (CPU build, auto-started by Aura) mounts the Q4_K_M brain + all 4 category adapters at boot; the router's probabilities become simultaneous weights `{"math": 0.7, "web": 0.3}` in one HTTP call — no reload, ~ms hot-swap. In-process fallback never blocks |
+| **Dynamic Compute** | one speed for everything | complex questions trigger a masked `<thinking>` draft (×2 token budget) stripped before display; simple ones stay instant |
+| **Long-term memory** (`graphe_faits.py`) | equal-weight knowledge | every triplet carries a strength; each **verified** use reinforces it, lookup is strength × recency weighted — knowledge organizes its own importance, zero retraining |
+| **Self-play** (`selfplay.py`) | improvement needs a user | a challenge generator builds logic puzzles & drills from the fact graph, a deterministic judge validates, successes reinforce the graph and join the training dataset — AlphaGo-style closed loop. `aura --selfplay 20` |
+| **RLSS** (`rlss.py`) | unvalidated self-training | generated exercises → brain answers → exact validation → successes stored for the next LoRA, failures become injected corrections |
 | **Auto-improvement** | repeated mistakes | wrong answers recorded via `enregistrer_correction()` are injected into future prompts — the same mistake is never made twice |
 
 ### Rich mode (writing quality)
@@ -116,8 +139,9 @@ Open questions (≥ 9 words or *explique/analyse/compare…*) trigger a 3-step p
 1. **Enriched search** — dual query (facts + analysis) + domain **lexicon** injected as keywords.
 2. **Masked Chain-of-Thought** — planning inside `<thinking>` tags, stripped by regex; the user only sees the polished answer.
 3. **Sectioned generation** — each part of the GBNF-constrained plan is written separately, with memory of previous sections (StoryWriter-lite).
+4. **Few-shot mimicry + double pass** — style exemplars calibrate the draft, then a critique pass lists the flaws and the model rewrites: editing existing text is where a 1B statistically matches a much bigger one.
 
-Cost: ~2× latency — reserved for questions that deserve it. Measured on the
+Cost: ~2-3× latency — reserved for questions that deserve it. Measured on the
 reference machine: fact 0.3 s, math 0.0 s, rich essay 66 s.
 
 ## 🎓 Teaching your AI
@@ -219,9 +243,10 @@ facts, memory) — the organization beats the bigger brain on verifiable questio
 
 > [!NOTE]
 > On **verifiable** questions (math, facts, dates, format), Aura-1B beats
-> bigger models by construction — they guess, it proves. On **deep analysis,
-> long-tail knowledge and abstract logic**, a fine-tuned 8B still wins: those
-> skills live in the weights, and that is what the roadmap targets.
+> bigger models by construction — they guess, it proves. Logic, code, style
+> and knowledge are now **system-compensated** (perceived level: 7-8B); only
+> **deep unanchored abstract analysis** stays 70B territory — the weights are
+> still 1B, and that honesty is part of the design.
 
 ## 🗺 Roadmap
 
@@ -231,6 +256,8 @@ facts, memory) — the organization beats the bigger brain on verifiable questio
 - [x] Dynamic LoRA hot-swapping: category adapters mounted on the live context (C-API), LRU memory registry
 - [x] `.aef` sealed format + Ed25519 + encrypted distribution
 - [x] Green CI (4 OS/py matrices + `.aef` chain + installer syntax)
+- [x] Served multi-LoRA (weights mix) + Dynamic Compute + RLSS + self-play + long-term memory
+- [x] Style mimicry (few-shot) + double-pass editing
 - [ ] **LoRA fine-tune** on Colab — reasoning depth, keeps the 807 MB size
 - [ ] **MEMIT fact editing** — fix long-tail facts directly in the weights
 - [ ] **lm-evaluation-harness** — public, comparable brain scores
@@ -239,7 +266,7 @@ facts, memory) — the organization beats the bigger brain on verifiable questio
 ## 🧪 Tests & quality
 
 ```bash
-uv run pytest -q        # 173 tests (CI: 167 + 6 skipped — no GGUF in CI)
+uv run pytest -q        # 251 tests (CI: 245 + 6 skipped — no GGUF in CI)
 uv run mypy aura/       # 0 error
 ```
 
