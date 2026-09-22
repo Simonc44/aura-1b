@@ -105,7 +105,89 @@ uv run python -m aura --chat                   # chat avec mémoire
 
 ## 🏗️ Architecture
 
-<img src="assets/architecture.png" alt="Diagramme d'architecture d'Aura-1B" width="100%"/>
+```mermaid
+flowchart TD
+subgraph group_entry["Entry and orchestration"]
+  node_cli["CLI and chat<br/>[__main__.py]"]
+  node_orchestrator["Answer orchestrator<br/>[orchestrateur.py]"]
+end
+subgraph group_reason["Routing and reasoning"]
+  node_fast[("Instant answers and cache")]
+  node_router["Question router<br/>[routeur.py]"]
+  node_pal["Dates and units<br/>[pal.py]"]
+  node_symbolic["Symbolic expert"]
+  node_pot["Program-of-thoughts<br/>[raisonneur.py]"]
+  node_logic["Logic solver<br/>[logique.py]"]
+  node_potcode["Code sandbox<br/>[potcode.py]"]
+end
+subgraph group_knowledge["Facts and verification"]
+  node_webmemory["Web retrieval and verification<br/>[memoire_web.py]"]
+  node_factgraph[("Fact graph<br/>[graphe_faits.py]")]
+end
+subgraph group_generation["Language generation"]
+  node_agents["Cognitive agents<br/>[agents.py]"]
+end
+subgraph group_runtime["Model runtime"]
+  node_llm["Language model interface<br/>[llama_cerveau.py]"]
+  node_adapters["LoRA adapters<br/>[adaptateurs.py]"]
+  node_loraserver["Multi-LoRA server<br/>[serveur_lora.py]"]
+  node_kernel["Sealed package boot<br/>[kernel.py]"]
+end
+node_user(("User"))
+node_web(("DuckDuckGo"))
+node_llama["llama.cpp model"]
+node_aef[".aef package"]
+node_user -->|"asks"| node_cli
+node_cli -->|"submits question"| node_orchestrator
+node_orchestrator -->|"checks first"| node_fast
+node_orchestrator -->|"classifies"| node_router
+node_orchestrator -->|"solves numeric tasks"| node_pal
+node_orchestrator -->|"requests exact formulas"| node_symbolic
+node_orchestrator -->|"checks reasoning steps"| node_pot
+node_orchestrator -->|"solves constraints"| node_logic
+node_orchestrator -->|"verifies code"| node_potcode
+node_orchestrator -->|"structures response"| node_agents
+node_orchestrator -->|"requests current facts"| node_webmemory
+node_webmemory -.->|"searches"| node_web
+node_orchestrator -->|"looks up facts"| node_factgraph
+node_factgraph -->|"returns evidence"| node_orchestrator
+node_orchestrator -->|"requests generation"| node_llm
+node_llm -->|"generates with"| node_llama
+node_orchestrator -.->|"swaps category adapter"| node_adapters
+node_orchestrator -.->|"sets adapter weights"| node_loraserver
+node_loraserver -.->|"serves model"| node_llama
+node_adapters -.->|"mounts adapter"| node_llama
+node_aef -.->|"boots from"| node_kernel
+node_kernel -.->|"starts assistant"| node_orchestrator
+click node_cli "https://github.com/simonc44/aura-1b/blob/main/aura/__main__.py"
+click node_orchestrator "https://github.com/simonc44/aura-1b/blob/main/aura/orchestrateur.py"
+click node_fast "https://github.com/simonc44/aura-1b/blob/main/aura/filtre_instantane.py"
+click node_router "https://github.com/simonc44/aura-1b/blob/main/aura/routeur.py"
+click node_pal "https://github.com/simonc44/aura-1b/blob/main/aura/pal.py"
+click node_symbolic "https://github.com/simonc44/aura-1b/blob/main/aura/expert_symbolique.py"
+click node_pot "https://github.com/simonc44/aura-1b/blob/main/aura/raisonneur.py"
+click node_logic "https://github.com/simonc44/aura-1b/blob/main/aura/logique.py"
+click node_potcode "https://github.com/simonc44/aura-1b/blob/main/aura/potcode.py"
+click node_agents "https://github.com/simonc44/aura-1b/blob/main/aura/agents.py"
+click node_webmemory "https://github.com/simonc44/aura-1b/blob/main/aura/memoire_web.py"
+click node_factgraph "https://github.com/simonc44/aura-1b/blob/main/aura/graphe_faits.py"
+click node_llm "https://github.com/simonc44/aura-1b/blob/main/aura/llama_cerveau.py"
+click node_adapters "https://github.com/simonc44/aura-1b/blob/main/aura/adaptateurs.py"
+click node_loraserver "https://github.com/simonc44/aura-1b/blob/main/aura/serveur_lora.py"
+click node_kernel "https://github.com/simonc44/aura-1b/blob/main/aura/kernel.py"
+classDef toneNeutral fill:#f8fafc,stroke:#334155,stroke-width:1.5px,color:#0f172a
+classDef toneBlue fill:#dbeafe,stroke:#2563eb,stroke-width:1.5px,color:#172554
+classDef toneAmber fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#78350f
+classDef toneMint fill:#dcfce7,stroke:#16a34a,stroke-width:1.5px,color:#14532d
+classDef toneRose fill:#ffe4e6,stroke:#e11d48,stroke-width:1.5px,color:#881337
+classDef toneIndigo fill:#e0e7ff,stroke:#4f46e5,stroke-width:1.5px,color:#312e81
+classDef toneTeal fill:#ccfbf1,stroke:#0f766e,stroke-width:1.5px,color:#134e4a
+class node_cli,node_orchestrator,node_user toneBlue
+class node_fast,node_router,node_pal,node_symbolic,node_pot,node_logic,node_potcode toneAmber
+class node_webmemory,node_factgraph toneMint
+class node_agents toneRose
+class node_llm,node_adapters,node_loraserver,node_kernel,node_web,node_llama,node_aef toneIndigo
+```
 
 ### Les piliers
 
