@@ -20,6 +20,9 @@ aura_system.aef
 .cache_aef/
 secret_aef.txt
 
+# Serveur llama.cpp (binaire officiel + adaptateurs transposes + zips)
+serveur/
+
 # cles de signature : JAMAIS commitées
 *aef.sig
 cle_privee.pem

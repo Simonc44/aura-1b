@@ -323,14 +323,49 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
             historique: list[dict] | None = None,
             systeme: str | None = None,
             contexte_faits: str = "",
-            think: bool | None = None) -> str:
+            think: bool | None = None,
+            categorie: str = "") -> str:
     """Genere une reponse avec Llama 3.2 1B.
 
     historique : liste de {'role': 'user'|'assistant', 'content': str} pour
     les conversations multi-tours (memoire courte, le modele se souvient).
     systeme : prompt systeme de remplacement (mode PoT du raisonneur).
     contexte_faits : triplets du graphe de faits VERIFIES (MiniRAG-lite).
+    categorie : categorie routee (web/math/code/general) — pilote le
+    hot-swap LoRA du serveur (AURA_SERVEUR=1) ou in-process (AURA_ADAPTATEURS=1).
     """
+    contexte = _formater_contexte(contexte_web, formule)
+    # ── chemin 1 : serveur officiel llama-server (hot-swap HTTP fiable) ──
+    try:
+        from . import serveur_lora
+        if serveur_lora._actifs():
+            serveur_lora.activer(categorie)
+            messages_srv = [{"role": "system",
+                             "content": systeme or _SYSTEME}]
+            for tour in (historique or [])[-6:]:
+                messages_srv.append({"role": tour["role"],
+                                     "content": tour["content"]})
+            if contexte:
+                messages_srv.append({"role": "user", "content": contexte})
+                messages_srv.append({"role": "assistant",
+                                     "content": "Compris, j'utilise uniquement ces faits."})
+            if contexte_faits:
+                messages_srv.append({"role": "user", "content":
+                    f"BASE DE FAITS (verifiee) :\n{contexte_faits}"})
+                messages_srv.append({"role": "assistant",
+                                     "content": "Compris, je m'appuie sur ces faits verifies."})
+            messages_srv.append({"role": "user", "content": question})
+            reponse = serveur_lora.chat(
+                messages_srv,
+                max_tokens=max_tokens or _max_tokens_adaptatif(question))
+            if reponse:
+                propre, _ = separer_reflexion(reponse)
+                return propre or reponse
+            LOG.info("[llama] serveur muet -> chemin in-process")
+    except Exception as e:
+        LOG.info("[llama] chemin serveur indisponible (%s) -> in-process", e)
+
+    # ── chemin 2 : cerveau in-process (llama-cpp-python) ──
     try:
         llm = _charger()
     except Exception as e:
@@ -338,7 +373,6 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
         return ("[Aura] Le cerveau Llama n'est pas disponible. "
                 f"Details : {e}")
 
-    contexte = _formater_contexte(contexte_web, formule)
     messages = [{"role": "system", "content": systeme or _SYSTEME}]
     for tour in (historique or [])[-6:]:          # memoire : 6 derniers tours
         messages.append({"role": tour["role"], "content": tour["content"]})

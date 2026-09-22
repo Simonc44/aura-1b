@@ -250,7 +250,8 @@ class Aura1B:
 
     def _generer(self, question: str, contexte_web: str, formule: str,
                  riche: bool = False, contexte_faits: str = "",
-                 personnalite: str | None = None) -> str:
+                 personnalite: str | None = None,
+                 categorie: str = "") -> str:
         if self._llama is None:
             from .llama_cerveau import generer as llama_generer
             self._llama = llama_generer
@@ -261,7 +262,8 @@ class Aura1B:
         return self._llama(question, contexte_web, formule,
                            historique=self._historique,
                            contexte_faits=contexte_faits,
-                           systeme=personnalite)
+                           systeme=personnalite,
+                           categorie=categorie)
 
     # -- prompt structure ---------------------------------------------------
 
@@ -533,6 +535,7 @@ class Aura1B:
         categorie = ("web" if "web" in experts else
                      "math" if "math" in experts else
                      "code" if _DEMANDE_CODE.search(question) else "general")
+        self._derniere_categorie = categorie
         try:
             from .llama_cerveau import llm_charge as _llm_charge
             _llm = _llm_charge()
@@ -542,7 +545,8 @@ class Aura1B:
             LOG.info("[adaptateurs] hot-swap impossible (%s) -> cerveau brut", e)
         reponse = self._generer(question_envoyee, contexte_web, formule,
                                 riche=riche, contexte_faits=contexte_faits,
-                                personnalite=personnalite)
+                                personnalite=personnalite,
+                                categorie=categorie)
         # AGENT 3 (redacteur) : les tics de langage du 1B sont retires
         try:
             reponse = agents.nettoyer_style(reponse)
