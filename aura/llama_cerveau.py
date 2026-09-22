@@ -43,10 +43,15 @@ _CHEMIN_GGUF = _CHEMINS[os.environ.get("AURA_GGUF", "Q4_K_M").upper()]
 # Candidats de repli : le GGUF peut vivre dans le cache du kernel (.aef)
 # plutot que dans modeles/ (machine qui n'a que le .aef, ou doublon evite).
 # AURA_GGUF_CHEMIN impose un emplacement precis.
+#  - source tree      : projet/aura/../.cache_aef/cerveau.gguf
+#  - code extrait     : .cache_aef/code/aura/../../cerveau.gguf  (kernel)
+# Chaque candidat ne gagne que s'il existe reellement sur le disque.
+_dossier_aura = os.path.dirname(os.path.abspath(__file__))
 _CANDIDATS = [
     os.environ.get("AURA_GGUF_CHEMIN"),
     _CHEMIN_GGUF,
-    os.path.join(_DOSSIER, "..", ".cache_aef", "cerveau.gguf"),
+    os.path.join(_dossier_aura, "..", ".cache_aef", "cerveau.gguf"),
+    os.path.join(_dossier_aura, "..", "..", "cerveau.gguf"),
 ]
 # le cache du kernel peut contenir l'ancien cerveau : si le cerveau demande
 # est absent mais qu'un GGUF du cache existe, c'est lui qui sert (le .aef
@@ -245,7 +250,9 @@ def _charger():
     if not os.path.exists(_CHEMIN_GGUF):
         raise FileNotFoundError(
             f"GGUF introuvable : {_CHEMIN_GGUF}\n"
-            "Telecharge-le avec : python scripts/telecharger_llama.py")
+            "Telecharge-le avec : python scripts/telecharger_llama.py\n"
+            "ou boote le .aef dont le cerveau est en cache : "
+            "python -m aura.kernel aura_system.aef")
 
     from llama_cpp import Llama
     reg = _reglages_materiel()
