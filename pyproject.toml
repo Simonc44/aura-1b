@@ -10,7 +10,7 @@ dependencies = [
     "gplearn>=0.4.2",
     "ddgs>=9.0",
     "requests>=2.31",
-    "llama-cpp-python>=0.3",
+    "llama-cpp-python==0.3.2",  # wheel MSVC officielle (index abetlen) : 0.3.35 a un bug CPU_REPACK qui casse le chargement LoRA
     "huggingface-hub>=0.25",
     "cryptography>=50.0.1",
 ]
@@ -25,6 +25,13 @@ dev = [
     "pytest>=8.0",
     "mypy>=1.10",
 ]
+
+[[tool.uv.index]]
+name = "abetlen-cpu"
+url = "https://abetlen.github.io/llama-cpp-python/whl/cpu/"
+
+[tool.uv.sources]
+llama-cpp-python = { index = "abetlen-cpu" }
 
 [build-system]
 requires = ["hatchling"]
