@@ -51,6 +51,7 @@ from . import agents
 from . import adaptateurs
 from . import calcul_verbal
 from . import tri_transitif
+from .memoire_conversation import MemoireConversation
 from . import serveur_lora
 from .routeur import RouteurIntelligent
 
@@ -99,15 +100,25 @@ class Aura1B:
         self.derniere_erreur = None
         self._routeur = RouteurIntelligent()
         self._llama = None
-        self._historique: list[dict] = []   # memoire de conversation
+        # MEMOIRE DE CONVERSATION (RLM MIT + fenetre glissante + etat
+        # evenementiel) : l'historique complet vit dans un FICHIER externe
+        # consultable par outil (recherche arriere), seuls les 4 derniers
+        # tours bruts alimentent la fenetre, et l'etat civil (nom,
+        # possessions...) est extrait par regex en JSON compact. Fin de
+        # l'historique brut injecte en masse dans le 1B.
+        self._historique = MemoireConversation()
         self._chaine_faits: list = []        # chaine graphe de la question
         self._derniere_categorie = "general"
 
     # -- memoire de conversation -------------------------------------------
 
     def reinitialiser_conversation(self):
-        """Oublie la conversation en cours (nouveau sujet)."""
-        self._historique.clear()
+        """Oublie la conversation en cours (nouveau sujet).
+
+        Fenetre + etat civil remis a zero ; le fichier RLM est PRESERVE :
+        la memoire longue reste accessible via l'outil de recherche.
+        """
+        self._historique.vider()
 
     # -- routage intelligent ------------------------------------------------
 
@@ -309,13 +320,26 @@ class Aura1B:
                                  if personnalite else brique)
         except Exception:
             pass
+        # OUTIL RLM (MIT) : la question demande-t-elle l'historique ?
+        # Resolution symbolique (recherche fichier arriere) — zero LLM,
+        # zero token d'historique injecte.
+        resultat_rlm = self._historique.tourner(question)
+        if resultat_rlm is not None:
+            return self._llama(
+                f"{question}\n\nRESULTAT DE LA RECHERCHE DANS L'HISTORIQUE :\n"
+                f"{resultat_rlm}", contexte_web, formule,
+                historique=self._historique,
+                contexte_faits=contexte_faits,
+                systeme=systeme_final,
+                categorie=categorie,
+                complexe=complexe)
         # AURA_SERVEUR=1 : le Dynamic Compute (reflection masquee) remplace
         # le multi-pass in-process (qui chargerait le cerveau a double).
         if riche and serveur_lora._actifs():
             return self._llama(question, contexte_web, formule,
                                historique=self._historique,
                                contexte_faits=contexte_faits,
-                               systeme=personnalite,
+                               systeme=self._historique.bloc_systeme(personnalite),
                                categorie=categorie,
                                complexe=True)
         if riche:
@@ -339,7 +363,7 @@ class Aura1B:
         return self._llama(question, contexte_web, formule,
                            historique=self._historique,
                            contexte_faits=contexte_faits,
-                           systeme=systeme_final,
+                           systeme=self._historique.bloc_systeme(systeme_final),
                            categorie=categorie,
                            complexe=complexe)
 
@@ -789,8 +813,8 @@ class Aura1B:
                         pass
         # memorise pour les futures questions (cache semantique + conversation)
         filtre_instantane.enregistrer(question, reponse)
-        self._historique.append({"role": "user", "content": question})
-        self._historique.append({"role": "assistant", "content": reponse})
+        self._historique.ajouter("user", question)
+        self._historique.ajouter("assistant", reponse)
         return {"question": question, "experts": experts, "analyse": analyse,
                 "cerveau_choisi": "llama-3.2-1b", "contexte_web": contexte_web,
                 "formule": formule, "erreur_pgs": self.derniere_erreur,

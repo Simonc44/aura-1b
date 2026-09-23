@@ -390,6 +390,20 @@ def _avec_raisonnement(question: str) -> str:
     return question
 
 
+def _tours_fenetre(historique) -> list[dict]:
+    """Fenetre glissante : accepte MemoireConversation (RLM) ou liste brute.
+
+    MemoireConversation -> ses 4 derniers tours deja tronques ; liste
+    brute (tests, usages directs) -> les 6 derniers tours comme avant.
+    """
+    if historique is None:
+        return []
+    fenetre = getattr(historique, "fenetre", None)
+    if callable(fenetre):
+        return fenetre()
+    return list(historique)[-6:]
+
+
 def generer(question: str, contexte_web: str = "", formule: str = "",
             max_tokens: int | None = None,
             historique: list[dict] | None = None,
@@ -421,7 +435,7 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
                 serveur_lora.activer(categorie)
             messages_srv = [{"role": "system",
                              "content": systeme or _SYSTEME}]
-            for tour in (historique or [])[-6:]:
+            for tour in _tours_fenetre(historique):
                 messages_srv.append({"role": tour["role"],
                                      "content": tour["content"]})
             if contexte:
@@ -462,7 +476,7 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
                 f"Details : {e}")
 
     messages = [{"role": "system", "content": systeme or _SYSTEME}]
-    for tour in (historique or [])[-6:]:          # memoire : 6 derniers tours
+    for tour in _tours_fenetre(historique):     # fenetre glissante ancree
         messages.append({"role": tour["role"], "content": tour["content"]})
     if contexte:
         messages.append({"role": "user", "content": contexte})
@@ -684,7 +698,7 @@ def generer_riche(question: str, contexte_web: str = "",
     try:
         messages = [{"role": "system", "content": _PROMPT_STYLE.format(
             plan=plan, question=question, contexte_court=contexte_court)}]
-        for tour in (historique or [])[-4:]:
+        for tour in _tours_fenetre(historique):
             messages.append({"role": tour["role"], "content": tour["content"]})
         p2 = llm.create_chat_completion(
             messages=messages, max_tokens=380, temperature=0.5,
