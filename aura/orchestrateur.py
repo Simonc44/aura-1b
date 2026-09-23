@@ -373,13 +373,21 @@ class Aura1B:
 
         Les questions factuelles (qui/ou/quand + fait precis) restent en
         mode simple : reponse courte rapide. Le mode riche coute 2 passes.
+        Les questions ABSTRAITES (« peut on etre heureux sans etre libre »)
+        sont souvent courtes : elles sont detectees par la forme meme de
+        la question (peut on, devrait on, y a t il...) — c'est le terrain
+        de la dissertation TAS (these/antithese/synthese).
         """
         q = question.lower()
         if len(q.split()) >= 9:                      # question developpee
             return True
         return any(m in q for m in (
             "explique", "analyse", "compare", "pourquoi", "discute",
-            "redige", "essai", "opinion", "avis", "argumente", "dissertation"))
+            "redige", "essai", "opinion", "avis", "argumente", "dissertation",
+            # formes abstraites courtes : « peut on X (sans/avec/sans que) »
+            "peut on", "peut-on", "pourrait on", "devrait on", "faut il",
+            "faut-il", "y a t il", "est il possible", "est-il possible",
+            "existe t il", "a t on le droit"))
 
     # -- raisonnement Program-of-Thoughts -----------------------------------
 

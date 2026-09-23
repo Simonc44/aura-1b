@@ -122,19 +122,61 @@ _MOTS_LOGIQUE = ("plus que", "moins que", "si ", "alors", "avant", "apres",
 
 # ── Étape 3 : prompts de la generation multi-pass ─────────────────────
 
+# FEW-SHOT AGRESSIF de redaction abstraite (contexte appris en une fois,
+# reutilise tel quel) : le 1B ne doit PAS inventer la structure d'une
+# dissertation — il COPIE une demonstration rigoureuse deja ecrite
+# (theses / antitheses / synthese), le few-shot deplace son attention
+# vers ce gabarit eprouve.
+_EXEMPLE_DISSERTATION = (
+    "Exemple de redaction abstraite attendue (imite cette structure, "
+    "adapte le contenu) :\n"
+    "Q: La technique libere-t-elle l'homme ?\n"
+    "R: La question divide : la technique apparait d'abord comme une "
+    "affranchissement. En mechanisant les corvees, elle rend a l'homme "
+    "un temps que la nature lui refusait ; le tracteur affranchit le "
+    "paysan, la machine a laver la maison.\n"
+    "Pourtant ce meme instrument asservit. Celui qui ne maitrise pas "
+    "l'outil en devient le serviteur : cadences imposees, notifications "
+    "permanentes, competences perimees en une decennie. La liberation "
+    "d'hier forge la dependance de demain.\n"
+    "Au fond, la technique n'affranchit que celui qui l'interroge. Elle "
+    "amplifie la liberte deja conquise au lieu de la donner : elle est "
+    "un pouvoir, non une grace.\n"
+    "CONSIGNE : pose la these (PARTIE 1 : UNE affirmation + preuve), "
+    "suis-la de son antithese (PARTIE 2 : UNE negation + exemple), "
+    "termine par une synthese personnelle (PARTIE 3) qui depasse "
+    "l'opposition. Chaque partie : 60 a 110 mots, une idee par phrase."
+)
+
+# Message SYSTEME de la passe plan : l'exemple y vit avec sa regle
+# anti-copie. Place en systeme (et non colle a la question), le 1B
+# l'utilise comme GABARIT de structure sans recopier son theme —
+# contamination observee (« la technique libere l'homme » reecrit pour
+# une question sur le bonheur) quand l'exemple etait dans le prompt user.
+_SYSTEME_PLAN = (
+    "Tu rediges des analyses en dissertation rigoureuse : these "
+    "(affirmation prouvee), antithese (negation nuancee), synthese "
+    "(depassement personnel).\n\n"
+    + _EXEMPLE_DISSERTATION
+    + "\nREGLE ABSOLUE : l'exemple illustre uniquement la STRUCTURE. "
+      "Ne reprends JAMAIS son theme (la technique, la liberte de "
+      "l'homme). Traite EXCLUSIVEMENT le theme de la question posee."
+)
+
 _PROMPT_PLAN = (
     "En te basant sur ces faits :\n{contexte}\n\n"
     "et sur cette question : {question}\n\n"
     "Genere UNIQUEMENT le plan de ta reponse, au format exact :\n"
-    "PARTIE 1 : <titre developpe de la premiere partie>\n"
-    "PARTIE 2 : <titre developpe de la deuxieme partie>\n"
-    "PARTIE 3 : <titre developpe de la troisieme partie>\n"
+    "PARTIE 1 : <LA these : l'affirmation, avec sa preuve>\n"
+    "PARTIE 2 : <L'ANTITHESE : la negation nuancee, avec son exemple>\n"
+    "PARTIE 3 : <LA SYNTHESE : ce qui depasse l'opposition>\n"
     "CONNECTEURS : <5 connecteurs logiques avances separes par des virgules>"
 )
 
 _PROMPT_SECTION = (
     "Redige la section {numero}/{total} de l'analyse de : {question}\n"
     "SECTION A REDIGER : {titre}\n"
+    "{role_section}\n"
     "Sections deja ecrites (ne te repete pas, enchaine naturellement) :\n"
     "{memoire}\n"
     "Faits disponibles :\n{contexte_court}\n"
@@ -142,11 +184,34 @@ _PROMPT_SECTION = (
     "des connecteurs logiques, 60 a 110 mots, sans titres ni balises."
 )
 
+# Role rhetorique de chaque section : la partie 1 AFFIRME et prouve, la
+# 2 NIE avec nuance et exemple, la 3 DEPASSE l'opposition. Dire au 1B
+# CE QUE fait chaque partie (et pas seulement son titre) est ce qui
+# transforme un plan en vraie dissertation.
+_ROLES_SECTION = {
+    1: ("ROLE : AFFIRMER. Pose la these nettement des la premiere phrase, "
+        "puis donne UNE preuve concrete qui l'appuie. Aucune nuance ici."),
+    2: ("ROLE : CONTRER. Ouvre par un connecteur d'opposition (Pourtant, "
+        "Cependant, Neanmoins). Expose la limite ou l'envers de la these, "
+        "avec UN exemple NOUVEAU qui la rend tangible. N'emprunte aucun "
+        "exemple a la section 1, ne reutilise aucune de ses tournures."),
+    3: ("ROLE : DEPASSER. Ouvre par un connecteur de synthese (Au fond, "
+        "En definitive, Tout se joue alors). Formule le depassement "
+        "personnel : ce que la these et l'antithese revelent ensemble. "
+        "Pas de conclusion molle du type 'il y a du pour et du contre'. "
+        "Interdit de recopier des phrases entieres des sections "
+        "precedentes : reformule avec d'autres mots."),
+}
+
 _PROMPT_STYLE = (
     "Tu es un redacteur litteraire et scientifique de haut niveau.\n"
+    "Tu rediges en dissertation rigoureuse : these, antithese, synthese.\n"
     "En te basant sur ce plan :\n{plan}\n\n"
     "Redige l'analyse finale de la question : {question}\n\n"
     "CONSIGNES DE STYLE STRICTES :\n"
+    "- PARTIE 1 affirme et prouve ; PARTIE 2 contredit avec nuance ; "
+    "PARTIE 3 depasse l'opposition (jamais de 'il y a du pour et du "
+    "contre').\n"
     "- Utilise un vocabulaire riche, precis et varie (evite les mots valises "
     "comme 'faire', 'dire', 'chose').\n"
     "- Fais des phrases courtes mais percutantes, reliees par les connecteurs "
@@ -544,7 +609,8 @@ def _generer_plan(llm, question: str, contexte: str) -> str:
     est complete (max_tokens n'est qu'un garde-fou).
     """
     p1 = llm.create_chat_completion(
-        messages=[{"role": "user", "content": _PROMPT_PLAN.format(
+        messages=[{"role": "system", "content": _SYSTEME_PLAN},
+                  {"role": "user", "content": _PROMPT_PLAN.format(
             contexte=contexte or "(aucun contexte fourni)",
             question=question)}],
         max_tokens=400, temperature=0.3,
@@ -598,6 +664,8 @@ def generer_riche(question: str, contexte_web: str = "",
                         _PROMPT_SECTION.format(
                             numero=num, total=len(sections),
                             titre=titre.strip(), question=question,
+                            role_section=_ROLES_SECTION.get(
+                                min(num, 3), _ROLES_SECTION[3]),
                             contexte_court=contexte_court,
                             memoire=memoire or "(premiere section)")}],
                     max_tokens=220, temperature=0.5, top_p=0.95,
