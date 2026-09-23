@@ -294,13 +294,17 @@ class Aura1B:
             from .llama_cerveau import generer as llama_generer
             self._llama = llama_generer
         # MIMETISME (few-shot) : une brique d'exemples « calibre grand
-        # modele » est jointe au prompt — le 1B ne demarre pas son style
-        # de zero, il COPIE les tournures demonsrees (attention deplacee).
-        # Fallback total : si la brique echoue, comportement inchange.
+        # modele » guide le style — dans le PROMPT SYSTEME, jamais collee
+        # a la question : le 1B recopiait les exemples (« Exemples de
+        # style attendus... ») au lieu de repondre a la question.
+        # Mode riche : pas de brique (generer_riche a deja son guidage
+        # de style propre, doublon inutile).
+        systeme_final = personnalite
         try:
             brique = agents.exemple_style(question, categorie)
-            if brique:
-                question = f"{question}\n\n{brique}"
+            if brique and not riche:
+                systeme_final = (f"{personnalite}\n\n{brique}"
+                                 if personnalite else brique)
         except Exception:
             pass
         # AURA_SERVEUR=1 : le Dynamic Compute (reflection masquee) remplace
@@ -333,7 +337,7 @@ class Aura1B:
         return self._llama(question, contexte_web, formule,
                            historique=self._historique,
                            contexte_faits=contexte_faits,
-                           systeme=personnalite,
+                           systeme=systeme_final,
                            categorie=categorie,
                            complexe=complexe)
 
