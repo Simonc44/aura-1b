@@ -22,9 +22,28 @@ import logging
 import os
 import re
 import threading
+
+# Questions d'identite (« qui es tu », « qui t'a cree ») : reponse non
+# hallucinable — tiree d'une constante, jamais des poids du 1B.
+_IDENTITE = "Aura, l'assistant local 100% offline de Simon. J'assemble un " \
+    "cerveau 1B, des maths exactes, des faits verifies web et 7 agents " \
+    "cognitifs. Mon createur est Simon (Simonc44)."
+_MOTS_IDENTITE = ("qui es tu", "qui es-tu", "qui t'a", "qui t'a cree",
+                  "qui t'a cree", "ton createur", "ton nom", "tu t'appelles",
+                  "tu es qui", "que sais tu faire", "que peux tu faire",
+                  "tu sais faire quoi")
+
+# Definition/savoir (« qu'est-ce que X », « explique X ») : reponses que le
+# 1B invente avec aplomb — le juge d'un petit modele est mauvais, donc on
+# ANCRE : contexte web obligatoire (ou graphe de faits) avant de repondre.
+_RE_DEF = re.compile(
+    r"\b(qu'?est.?ce.?que|qu'?est.?ce.?qu'|c'?est.?quoi|qu'elle? est la "
+    r"definition|definis|explique(.?moi)?|montre.?moi)\b", re.IGNORECASE)
+_RE_PHRASE_MIN = re.compile(r"\b(theoreme|theorie|loi|principe|concept|"
+    r"formule|definition|signifie|histoire de| fonctionne)", re.IGNORECASE)
 from concurrent.futures import ThreadPoolExecutor
 
-from . import expert_symbolique, memoire_web, autoamelioration, filtre_instantane
+from . import expert_symbolique, memoire_web, autoamelioration, filtre_instantane, rag_binaire
 from . import llama_cerveau, raisonneur, graphe_faits
 from . import logique as solveur_logique
 from . import potcode
@@ -269,7 +288,8 @@ class Aura1B:
     def _generer(self, question: str, contexte_web: str, formule: str,
                  riche: bool = False, contexte_faits: str = "",
                  personnalite: str | None = None,
-                 categorie: str = "", complexe: bool = False) -> str:
+                 categorie: str = "", complexe: bool = False,
+                 est_def: bool = False) -> str:
         if self._llama is None:
             from .llama_cerveau import generer as llama_generer
             self._llama = llama_generer
@@ -296,6 +316,20 @@ class Aura1B:
             from .llama_cerveau import generer_riche
             return generer_riche(question, contexte_web, formule,
                                  historique=self._historique)
+        # FILET FINAL (anti-hallucination) : question de definition/savoir
+        # SANS aucun ancrage (web injoignable, graphe muet, pas d'expert
+        # special) -> on n'invente pas : garde-fou honnete + contexte du
+        # graphe s'il existe. Un « je ne peux pas verifier » vaut mieux
+        # qu'une definition fausse dite avec assurance. est_def est
+        # calcule sur la question ORIGINALE (jamais sur la question +
+        # brique few-shot, cf. executer_detaille).
+        if (est_def and not contexte_web and not contexte_faits
+                and not self._special_traite):
+            return ("Je ne peux pas verifier cette definition en ce moment "
+                    "(hors-ligne et absente de ma base de faits). Pour ne "
+                    "pas t'inventer une reponse fausse, je prefere m'abstenir. "
+                    "Reessaie avec internet, ou apprends-moi ce fait : "
+                    "graphe_faits.ajouter(...).")
         return self._llama(question, contexte_web, formule,
                            historique=self._historique,
                            contexte_faits=contexte_faits,
@@ -501,18 +535,63 @@ class Aura1B:
                     "contexte_web": "", "formule": "",
                     "erreur_pgs": None, "reponse": instant}
 
+        # IDENTITE : reponse constante, hors des poids — l'apparence d'Aura
+        # ne se negocie pas avec un 1B (question « qui es tu » -> reponse
+        # stable et veridique, 0 ms, zero hallucination possible).
+        basse = question.lower()
+        if any(m in basse for m in _MOTS_IDENTITE):
+            return {"question": question, "experts": {"identite"},
+                    "analyse": {"methodes": ["identite"]},
+                    "cerveau_choisi": "constante",
+                    "contexte_web": "", "formule": "",
+                    "erreur_pgs": None, "reponse": _IDENTITE}
+
         # ── NIVEAUX 1-2 : experts + LLM ───────────────────────────────
         # VALIDATION AVANT EXECUTION (idea JEV #2 + confiance RouteLLM) :
         # chaque expert est verifie avant d'etre lance.
         experts = self._valider_experts(analyse, X, y)
+        # ANCRAGE DES DEFINITIONS : « qu'est-ce que X » / « explique X » ->
+        # le web expert est FORCE (si internet est la). Sans contexte, le
+        # 1B invente des definitions fausses avec aplomb (« Pythagore » =
+        # « plus petit carre commun ») : mieux vaut ancrer que deviner.
+        # est_def est calcule sur la question ORIGINALE et reutilise partout
+        # (le filet final ne doit JAMAIS tester la question enrichie : la
+        # brique few-shot contient « formule », « fonctionne »... qui
+        # declencheraient le filet a tort sur des questions innocentes).
+        est_def = bool(_RE_DEF.search(question)
+                       or _RE_PHRASE_MIN.search(question))
+        if est_def:
+            experts.discard("general")
+            experts.add("web")
         riche = self._est_complexe(question)
+
+        # RAG BINAIRE (source 2 de la cascade) : le savoir verifie local
+        # repond en ~5 ms SANS reseau. Si l'index connait la question
+        # (similarite suffisante), pas besoin de « Knuckles Go » : on
+        # renvoie la reponse extraite telle quelle — zero hallucination
+        # possible (rien n'est genere, tout est extrait). Miss -> cascade
+        # normale (web, graphe, experts...).
+        if not riche:
+            try:
+                rag_rep = rag_binaire.chercher(question)
+            except Exception as e:
+                LOG.info("[rag] indisponible (%s)", e)
+                rag_rep = None
+            if rag_rep:
+                return {"question": question,
+                        "experts": experts | {"rag"},
+                        "analyse": analyse, "cerveau_choisi": "rag-binaire",
+                        "contexte_web": "", "formule": "",
+                        "erreur_pgs": None, "reponse": rag_rep}
 
         # EXPERTS SPECIAUX (logique exacte, code sandboxe) : signatures
         # conservatrices, repli cascade vers le chemin normal. AVANT le
         # fan-out : une enigme de logique n'a pas besoin de DuckDuckGo.
         special = self._expert_special(question, X, y)
         if special is not None:
+            self._special_traite = True     # un expert exact a repondu
             return special
+        self._special_traite = False
 
         # FAN-OUT PARALLELE (idea JEV #1) : web ∥ PGS en un aller-retour
         contexte_web, formule = self._executer_experts(
@@ -526,6 +605,22 @@ class Aura1B:
                                                  riche=riche)
             except Exception as e:
                 LOG.info("[agents] compression impossible (%s) -> texte brut", e)
+            # ANCRAGE EXTRACTIF des definitions : le contexte web VERIFIE
+            # est la reponse — on le cite tel quel au lieu de le faire
+            # reformuler par le 1B (c'est LA que l'hallucination entrait :
+            # le modele melangeait faits fournis et memoire interne, cf.
+            # « Pythagore = plus petit carre commun »). Extraction =
+            # zero generation = zero hallucination possible. SANS condition
+            # riche : une definition est un lookup factuel, meme en mode
+            # complexe — le style riche n'a pas de sens pour citer des faits.
+            if not formule and est_def:
+                reponse_extraite = ("D'apres les sources verifiees en "
+                                    f"ligne :\n{contexte_web}")
+                filtre_instantane.enregistrer(question, reponse_extraite)
+                return {"question": question, "experts": experts | {"web"},
+                        "analyse": analyse, "cerveau_choisi": "extraction-web",
+                        "contexte_web": contexte_web, "formule": formule,
+                        "erreur_pgs": None, "reponse": reponse_extraite}
             # AGENT 2b (hyper-compression) : phrases -> triplets semantiques
             # (sujet | relation | objet) — protege la fenetre du 1B et
             # nourrit le graphe de faits au passage
@@ -613,7 +708,7 @@ class Aura1B:
                                 riche=riche, contexte_faits=contexte_faits,
                                 personnalite=personnalite,
                                 categorie=categorie,
-                                complexe=riche)
+                                complexe=riche, est_def=est_def)
         # AGENT 3 (redacteur) : les tics de langage du 1B sont retires
         try:
             reponse = agents.nettoyer_style(reponse)

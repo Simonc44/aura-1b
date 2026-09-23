@@ -12,11 +12,12 @@ from aura.orchestrateur import Aura1B
 
 def _ia_neutre(monkeypatch, analyse=None):
     """Aura sans GGUF requis, cache niveau 0 neutre, routage force en option."""
-    from aura import llama_cerveau
+    from aura import llama_cerveau, rag_binaire
     monkeypatch.setattr(filtre_instantane, "repondre", lambda q: None)
     monkeypatch.setattr(filtre_instantane, "enregistrer", lambda q, r: None)
     monkeypatch.setattr(llama_cerveau, "generer", lambda *a, **k: "ok-llm")
     monkeypatch.setattr(llama_cerveau, "generer_riche", lambda *a, **k: "ok-llm")
+    monkeypatch.setattr(rag_binaire, "chercher", lambda q: None)
     if analyse is not None:
         monkeypatch.setattr(Aura1B, "analyser", lambda self, q: analyse)
     return Aura1B()

@@ -125,9 +125,10 @@ class TestVerificationCritic:
 
     def test_integration_pipeline_critic(self, monkeypatch):
         """Pipeline complet : factuel LLM faux -> révisé par la preuve web."""
-        from aura import filtre_instantane, llama_cerveau, memoire_web
+        from aura import filtre_instantane, llama_cerveau, memoire_web, rag_binaire
         monkeypatch.setattr(filtre_instantane, "repondre", lambda q: None)
         monkeypatch.setattr(filtre_instantane, "enregistrer", lambda q, r: None)
+        monkeypatch.setattr(rag_binaire, "chercher", lambda q: None)
         monkeypatch.setattr(memoire_web, "chercher",
                             lambda *a, **k: "Canberra est la capitale de "
                                             "l'Australie depuis 1913.")

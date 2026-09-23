@@ -150,11 +150,13 @@ class TestIntegration:
     @staticmethod
     def _neutraliser(monkeypatch):
         """Cache niveau 0 OFF (sinon la question ne quitte jamais le N0
-        et n'atteint jamais le hot-swap)."""
-        from aura import filtre_instantane
+        et n'atteint jamais le hot-swap). RAG OFF aussi (sinon une
+        question connue du RAG n'atteint jamais le cerveau)."""
+        from aura import filtre_instantane, rag_binaire
         monkeypatch.setattr(filtre_instantane, "repondre", lambda q: None)
         monkeypatch.setattr(filtre_instantane, "enregistrer",
                             lambda q, r: None)
+        monkeypatch.setattr(rag_binaire, "chercher", lambda q: None)
 
     def test_generer_bascule_vers_la_categorie(self, monkeypatch,
                                                tmp_path, lib_fake):

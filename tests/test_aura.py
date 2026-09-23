@@ -81,8 +81,9 @@ class TestOrchestrateur:
 
     def test_cerveau_est_llama(self, monkeypatch):
         # neutralise le niveau 0 (cache disque partagé) : on teste le repli LLM
-        from aura import filtre_instantane
+        from aura import filtre_instantane, rag_binaire
         monkeypatch.setattr(filtre_instantane, "repondre", lambda q: None)
+        monkeypatch.setattr(rag_binaire, "chercher", lambda q: None)
         r = Aura1B().executer_detaille("bonjour")
         assert r["cerveau_choisi"] == "llama-3.2-1b"
 
