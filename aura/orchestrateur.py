@@ -49,6 +49,8 @@ from . import logique as solveur_logique
 from . import potcode
 from . import agents
 from . import adaptateurs
+from . import calcul_verbal
+from . import tri_transitif
 from . import serveur_lora
 from .routeur import RouteurIntelligent
 
@@ -472,6 +474,13 @@ class Aura1B:
         """
         if X and y:
             return None
+        # TRI TRANSITIF (le plus specialise d'abord) : « A plus age que B,
+        # B plus age que C » — resolution deterministe, zero LLM. Si le
+        # parseur n'extrait pas une chaine solide (>= 2 relations), None
+        # et le mini-SAT prend le relais.
+        rep_tri = tri_transitif.repondre(question)
+        if rep_tri is not None:
+            return self._resultat_special(question, rep_tri, "tri-transitif")
         if _ENIGME_LOGIQUE.search(question.lower()):
             rep = self._resoudre_par_logique(question)
             if rep is not None:
@@ -591,6 +600,18 @@ class Aura1B:
         # EXPERTS SPECIAUX (logique exacte, code sandboxe) : signatures
         # conservatrices, repli cascade vers le chemin normal. AVANT le
         # fan-out : une enigme de logique n'a pas besoin de DuckDuckGo.
+        # CALCUL VERBAL : les petits problemes racontes (« j'ai 3 pommes,
+        # j'en mange 1, combien il m'en reste ») n'ont ni expression
+        # mathematique ni donnees PGS — sans ce detecteur, le 1B repond
+        # un essai hors-sujet (nutrition...). Traduction en calcul exact
+        # par regles ; None -> cascade normale. SANS condition riche :
+        # un probleme raconte est souvent long (> 9 mots) mais reste un
+        # calcul — la longueur ne doit pas le priver de l'exactitude.
+        verbal = calcul_verbal.resoudre(question)
+        if verbal is not None:
+            self._special_traite = True
+            return self._resultat_special(question, verbal,
+                                          "calcul-verbal")
         special = self._expert_special(question, X, y)
         if special is not None:
             self._special_traite = True     # un expert exact a repondu
