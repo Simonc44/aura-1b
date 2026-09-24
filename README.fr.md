@@ -371,7 +371,7 @@ Deux contraintes supplémentaires, par conception :
 ## 🧪 Tests & qualité
 
 ```bash
-uv run pytest -q        # 251 tests (CI : 245 + 6 sautés — pas de GGUF en CI)
+uv run pytest -q        # 323 tests (CI : verte — tests dépendant du GGUF sautés, pas de GGUF en CI)
 uv run mypy aura/       # 0 erreur
 ```
 

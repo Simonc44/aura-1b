@@ -357,7 +357,7 @@ Two more constraints, by design:
 ## 🧪 Tests & quality
 
 ```bash
-uv run pytest -q        # 251 tests (CI: 245 + 6 skipped — no GGUF in CI)
+uv run pytest -q        # 323 tests (CI: green — GGUF-dependent tests skipped, no GGUF in CI)
 uv run mypy aura/       # 0 error
 ```
 
