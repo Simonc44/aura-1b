@@ -121,8 +121,10 @@ class MemoireConversation:
         Lecture par blocs depuis la fin (le fichier et ses archives
         peuvent etre gros sans jamais etre charges entierement) ; le
         fichier courant est scrute d'abord, puis les archives de
-        rotation les plus recentes. Renvoie les extraits (role +
-        contexte) ou une chaine vide.
+        rotation les plus recentes. Une ligne a cheval sur deux blocs
+        est RECONSTRUITE (queue gardee en attente, completee par la
+        tete du bloc precedent) — aucune ligne n'est perdue. Renvoie
+        les extraits (role + contexte) ou une chaine vide.
         """
         if not mot_cle or not mot_cle.strip():
             return ""
@@ -137,16 +139,30 @@ class MemoireConversation:
                     break
                 if not chemin.exists():
                     continue              # fichier absent (apres rotation)
-                taille = chemin.stat().st_size
                 with chemin.open("rb") as f:
-                    position = taille
+                    position = chemin.stat().st_size
+                    reste = ""    # queue d'une ligne coupee, en attente
                     while position > 0 and len(resultats) < _MAX_RESULTATS:
                         debut = max(0, position - _TAMPON)
                         f.seek(debut)
-                        bloc = f.read(position - debut)
-                        position = debut
-                        for ligne in reversed(bloc.decode("utf-8",
-                                                          errors="ignore").splitlines()):
+                        texte = f.read(position - debut).decode(
+                            "utf-8", errors="ignore")
+                        if debut > 0:
+                            # le bloc commence-t-il sur une frontiere de
+                            # ligne ? (l'octet d'avant est-il un \n ?)
+                            f.seek(debut - 1)
+                            commence_ligne = f.read(1) == b"\n"
+                        else:
+                            commence_ligne = True
+                        morceaux = (texte + reste).split("\n")
+                        reste = ""
+                        if not commence_ligne:
+                            # la 1re ligne du bloc est coupee : sa queue
+                            # est ici, sa TETE arrive au bloc precedent —
+                            # on la met de cote au lieu de la perdre
+                            reste = morceaux[0]
+                            morceaux = morceaux[1:]
+                        for ligne in reversed(morceaux):
                             if len(resultats) >= _MAX_RESULTATS:
                                 break
                             ligne = ligne.strip()
@@ -155,11 +171,13 @@ class MemoireConversation:
                             try:
                                 tour = json.loads(ligne)
                             except json.JSONDecodeError:
-                                continue    # ligne tronquee (bord de bloc)
+                                continue    # fragment non reconstructible
                             contenu = str(tour.get("content", ""))
                             if aiguille in _sans_accents(contenu):
                                 resultats.append(
-                                    f"[{tour.get('role', '?')}] {contenu[:_MAX_EXTRAIT]}")
+                                    f"[{tour.get('role', '?')}] "
+                                    f"{contenu[:_MAX_EXTRAIT]}")
+                        position = debut
         except OSError:
             return ""
         return "\n---\n".join(resultats)
