@@ -19,6 +19,7 @@ aura/.cache_reponses.jsonl
 aura_system.aef
 .cache_aef/
 secret_aef.txt
+.secret_aef.txt
 
 # Serveur llama.cpp (binaire officiel + adaptateurs transposes + zips)
 serveur/
