@@ -100,3 +100,65 @@ class TestEtatEvenementiel:
         assert "Tu es Aura." in bloc               # ancre preservee
         assert "Pierre" in bloc                    # etat ajoute
         assert "historique" in bloc                # outil annonce
+
+
+class TestRotation:
+    """Rotation de l'historique : le fichier RLM grandit sans limite avec
+    l'usage ; au-dela du seuil il est archive (date) et la recherche
+    traverse les archives — la memoire longue reste accessible.
+    """
+
+    @pytest.fixture()
+    def memoire_seuil(self, tmp_path, monkeypatch):
+        import aura.memoire_conversation as mc
+        monkeypatch.setattr(mc, "_TAILLE_ROTATION", 1024)   # seuil de test
+        m = MemoireConversation(chemin=tmp_path / "conv.jsonl", fenetre=4)
+        return m
+
+    def _remplir(self, chemin, contenu="remplissage", n=30):
+        with chemin.open("w", encoding="utf-8") as f:
+            for _ in range(n):
+                f.write(json.dumps({"role": "user", "content": contenu},
+                                   ensure_ascii=False) + "\n")
+
+    def test_rotation_archive_le_fichier(self, memoire_seuil):
+        chemin = memoire_seuil._chemin
+        self._remplir(chemin)                    # > seuil (1024 o)
+        memoire_seuil.ajouter("user", "tour apres rotation")
+        archives = memoire_seuil._archives()
+        assert len(archives) == 1                # l'ancien est archive
+        assert "tour apres rotation" in chemin.read_text(encoding="utf-8")
+        assert "remplissage" in archives[0].read_text(encoding="utf-8")
+
+    def test_recherche_traverse_les_archives(self, memoire_seuil):
+        chemin = memoire_seuil._chemin
+        self._remplir(chemin, "le code wifi est CAROTTE-9")
+        memoire_seuil.ajouter("user", "tour neuf")   # declenche la rotation
+        hit = memoire_seuil.rechercher("CAROTTE")
+        assert "CAROTTE-9" in hit                # retrouve dans l'archive
+
+    def test_purge_des_vieilles_archives(self, tmp_path, monkeypatch):
+        import aura.memoire_conversation as mc
+        monkeypatch.setattr(mc, "_TAILLE_ROTATION", 1024)
+        chemin = tmp_path / "conv.jsonl"
+        m = MemoireConversation(chemin=chemin, fenetre=4)
+        for i in range(4):                       # 4 fausses archives anciennes
+            (tmp_path / f"conv-2020-01-0{i}-000000.jsonl").write_text(
+                "{}", encoding="utf-8")
+        self._remplir(chemin)
+        m.ajouter("user", "declenche")
+        archives = m._archives()
+        assert len(archives) == mc._MAX_ARCHIVES  # purge au-dela de 3
+        # les plus vieilles ont ete supprimees, les plus recentes gardees
+        assert not (tmp_path / "conv-2020-01-00-000000.jsonl").exists()
+        assert not (tmp_path / "conv-2020-01-01-000000.jsonl").exists()
+        assert (tmp_path / "conv-2020-01-03-000000.jsonl").exists()
+        # archives[0] = l'archive du jour, avec l'historique bascule dedans
+        assert archives[0].stat().st_size > 50
+
+    def test_rotation_transparente_pour_la_fenetre(self, memoire_seuil):
+        chemin = memoire_seuil._chemin
+        self._remplir(chemin)
+        memoire_seuil.ajouter("user", "je m'appelle Pierre")
+        assert memoire_seuil.etat()["utilisateur"] == "Pierre"
+        assert memoire_seuil.fenetre()[-1]["content"] == "je m'appelle Pierre"

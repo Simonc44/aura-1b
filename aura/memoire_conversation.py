@@ -30,6 +30,7 @@ Usage orchestrateur :
 import json
 import re
 import threading
+import time
 from pathlib import Path
 
 # ── 1. RLM : historique externalise en fichier ────────────────────────
@@ -37,6 +38,8 @@ from pathlib import Path
 _TAMPON = 4096                # lecture arriere par blocs de 4 Ko
 _MAX_RESULTATS = 3            # resultats max renvoyes a l'IA
 _MAX_EXTRAIT = 280            # taille max d'un extrait
+_TAILLE_ROTATION = 32 * 1024 * 1024   # rotation : archive au-dela de 32 Mo
+_MAX_ARCHIVES = 3                     # archives d'historique conservees
 
 
 def _sans_accents(texte: str) -> str:
@@ -74,41 +77,89 @@ class MemoireConversation:
         with self._chemin.open("a", encoding="utf-8") as f:
             f.write(ligne + "\n")
 
+    def _archives(self) -> list[Path]:
+        """Archives de rotation de l'historique, les plus recentes d'abord."""
+        try:
+            return sorted(self._chemin.parent.glob(
+                f"{self._chemin.stem}-*{self._chemin.suffix}"), reverse=True)
+        except OSError:
+            return []
+
+    def _rotation_si_necessaire(self) -> None:
+        """Archive l'historique quand le fichier RLM depasse la taille max.
+
+        L'historique complet est le support de la memoire longue (RLM) :
+        il grandit sans limite avec l'usage. Au-dela de _TAILLE_ROTATION,
+        le fichier est bascule dans une archive datee
+        (.conversation-AAAA-MM-JJ-HHMMSS.jsonl) et la recherche scrute le
+        fichier courant PUIS les archives les plus recentes — l'ancien
+        reste accessible, le fichier actif redevient petit. Les
+        _MAX_ARCHIVES archives les plus recentes sont conservees.
+        """
+        try:
+            taille = self._chemin.stat().st_size
+        except OSError:
+            return
+        if taille < _TAILLE_ROTATION:
+            return
+        horodatage = time.strftime("%Y-%m-%d-%H%M%S")
+        archive = self._chemin.with_name(
+            f"{self._chemin.stem}-{horodatage}{self._chemin.suffix}")
+        try:
+            self._chemin.replace(archive)
+        except OSError:
+            return
+        for vieille in self._archives()[_MAX_ARCHIVES:]:
+            try:
+                vieille.unlink()
+            except OSError:
+                pass
+
     def rechercher(self, mot_cle: str) -> str:
         """Outil RLM : recherche arriere dans le FICHIER d'historique.
 
-        Lecture par blocs depuis la fin (le fichier peut grandir sans
-        limite sans jamais etre charge entierement). Renvoie les extraits
-        (role + contexte) ou une chaine vide.
+        Lecture par blocs depuis la fin (le fichier et ses archives
+        peuvent etre gros sans jamais etre charges entierement) ; le
+        fichier courant est scrute d'abord, puis les archives de
+        rotation les plus recentes. Renvoie les extraits (role +
+        contexte) ou une chaine vide.
         """
         if not mot_cle or not mot_cle.strip():
             return ""
         aiguille = _sans_accents(mot_cle.strip())
         resultats: list[str] = []
+        # fichier courant d'abord (memoire la plus fraiche), puis les
+        # archives de rotation, les plus recentes d'abord
+        chemins: list[Path] = [self._chemin, *self._archives()]
         try:
-            taille = self._chemin.stat().st_size
-            with self._chemin.open("rb") as f:
-                position = taille
-                while position > 0 and len(resultats) < _MAX_RESULTATS:
-                    debut = max(0, position - _TAMPON)
-                    f.seek(debut)
-                    bloc = f.read(position - debut)
-                    position = debut
-                    for ligne in reversed(bloc.decode("utf-8",
-                                                      errors="ignore").splitlines()):
-                        if len(resultats) >= _MAX_RESULTATS:
-                            break
-                        ligne = ligne.strip()
-                        if not ligne:
-                            continue
-                        try:
-                            tour = json.loads(ligne)
-                        except json.JSONDecodeError:
-                            continue            # ligne tronquee (bord de bloc)
-                        contenu = str(tour.get("content", ""))
-                        if aiguille in _sans_accents(contenu):
-                            resultats.append(
-                                f"[{tour.get('role', '?')}] {contenu[:_MAX_EXTRAIT]}")
+            for chemin in chemins:
+                if len(resultats) >= _MAX_RESULTATS:
+                    break
+                if not chemin.exists():
+                    continue              # fichier absent (apres rotation)
+                taille = chemin.stat().st_size
+                with chemin.open("rb") as f:
+                    position = taille
+                    while position > 0 and len(resultats) < _MAX_RESULTATS:
+                        debut = max(0, position - _TAMPON)
+                        f.seek(debut)
+                        bloc = f.read(position - debut)
+                        position = debut
+                        for ligne in reversed(bloc.decode("utf-8",
+                                                          errors="ignore").splitlines()):
+                            if len(resultats) >= _MAX_RESULTATS:
+                                break
+                            ligne = ligne.strip()
+                            if not ligne:
+                                continue
+                            try:
+                                tour = json.loads(ligne)
+                            except json.JSONDecodeError:
+                                continue    # ligne tronquee (bord de bloc)
+                            contenu = str(tour.get("content", ""))
+                            if aiguille in _sans_accents(contenu):
+                                resultats.append(
+                                    f"[{tour.get('role', '?')}] {contenu[:_MAX_EXTRAIT]}")
         except OSError:
             return ""
         return "\n---\n".join(resultats)
@@ -116,11 +167,14 @@ class MemoireConversation:
     # -- fenetre glissante ---------------------------------------------------
 
     def ajouter(self, role: str, contenu: str) -> None:
-        """Enregistre un tour : fichier RLM + fenetre + extraction d'etat."""
+        """Enregistre un tour : rotation eventuelle, fichier RLM, fenetre,
+        extraction d'etat. La rotation passe AVANT l'ecriture : le tour
+        frais demarre le nouveau fichier, l'archive garde l'ancien."""
         contenu = (contenu or "").strip()
         if not contenu:
             return
         with self._verrou:
+            self._rotation_si_necessaire()
             self._ecrire_tour(role, contenu)
             self._tours.append({"role": role, "content": contenu})
             if len(self._tours) > self._fenetre * 2:   # (paire user/assistant)

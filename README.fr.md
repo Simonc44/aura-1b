@@ -344,6 +344,15 @@ les questions vérifiables.
 > territoire 70B — les poids sont toujours 1B, et cette honnêteté fait partie
 > de la conception.
 
+Deux contraintes supplémentaires, par conception :
+
+- **Fenêtre de contexte 1536 tokens** — les réponses longues (dissertations)
+  peuvent être tronquées ; le mode riche sectionné rédige section par section
+  pour tenir dedans, mais une dissertation de 10 pages est hors de portée.
+- **L'historique de conversation grandit avec l'usage** — le fichier RLM est
+  auto-roté (32 Mo → archive datée, 3 archives conservées) et reste
+  consultable : la mémoire ne remplit jamais le disque en silence.
+
 ## 🗺 Feuille de route
 
 - [x] Niveau 0 : maths exactes, cache sémantique, PAL

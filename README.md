@@ -330,6 +330,15 @@ facts, memory) — the organization beats the bigger brain on verifiable questio
 > **deep unanchored abstract analysis** stays 70B territory — the weights are
 > still 1B, and that honesty is part of the design.
 
+Two more constraints, by design:
+
+- **Context window 1536 tokens** — long-form answers (essays) can be
+  truncated; the sectioned rich mode writes section by section to fit,
+  but a 10-page essay is out of scope.
+- **Conversation history grows with use** — the RLM file is auto-rotated
+  (32 MB → dated archive, 3 archives kept) and stays searchable: memory
+  never silently fills the disk.
+
 ## 🗺 Roadmap
 
 - [x] Level 0: exact math, semantic cache, PAL
