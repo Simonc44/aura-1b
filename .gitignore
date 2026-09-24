@@ -31,3 +31,5 @@ cle_publique.pub
 Aura.spec
 aura_system.aef.enc
 aura/.conversation.jsonl
+eval_*.json
+hf*.log

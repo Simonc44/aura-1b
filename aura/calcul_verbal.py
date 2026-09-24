@@ -21,7 +21,8 @@ _RE_AJOUT = re.compile(
     r"plus\s+\d|en\s+plus)\b")
 _RE_RETRAIT = re.compile(
     r"\b(mange[sr]?|perds?|perdre|perdu|donne[sr]?|vend[sr]?|casse[sr]?|"
-    r"jette[sr]?|utilise[sr]?|rest(e|ent|era))\b")
+    r"jette[sr]?|utilise[sr]?|depense[sr]?|consomme[sr]?|paie|paye[sr]?|"
+    r"rest(e|ent|era))\b")
 _RE_DEPART = re.compile(
     r"\b(j'ai|j'ai|j'ai ai|j ai|avais|j'avais|possede|a|avait|"
     r"part de|compte)\s+(\d+(?:[.,]\d+)?)")
