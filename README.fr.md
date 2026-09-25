@@ -366,7 +366,7 @@ Deux contraintes supplémentaires, par conception :
 - [ ] **Fine-tune LoRA** sur Colab — profondeur de raisonnement, taille 807 Mo inchangée
 - [ ] **Édition de faits MEMIT** — corriger le savoir de niche directement dans les poids
 - [ ] **lm-evaluation-harness** — scores publics et comparables du cerveau
-- [ ] Sortie Hugging Face (`.aef` + `Aura.exe` + model card)
+- [x] Sortie Hugging Face (`.aef` + `Aura.exe` + model card)
 
 ## 🧪 Tests & qualité
 
