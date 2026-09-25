@@ -352,7 +352,7 @@ Two more constraints, by design:
 - [ ] **LoRA fine-tune** on Colab — reasoning depth, keeps the 807 MB size
 - [ ] **MEMIT fact editing** — fix long-tail facts directly in the weights
 - [ ] **lm-evaluation-harness** — public, comparable brain scores
-- [ ] Hugging Face release (`.aef` + `Aura.exe` + model card)
+- [x] Hugging Face release (`.aef` + `Aura.exe` + model card)
 
 ## 🧪 Tests & quality
 
