@@ -87,7 +87,8 @@ def _pack_code() -> bytes:
     """Archive ZIP du paquet aura/ (le systeme complet, sans les caches)."""
     import io
     buf = io.BytesIO()
-    exclusions = {"__pycache__", ".cache_routeur", ".cache_reponses.jsonl"}
+    exclusions = {"__pycache__", ".cache_routeur", ".cache_reponses.jsonl",
+                  ".conversation.jsonl", ".graphe_faits.jsonl"}
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         for chemin in sorted((RACINE / "aura").rglob("*")):
             if chemin.is_file() and not (set(chemin.parts) & exclusions):

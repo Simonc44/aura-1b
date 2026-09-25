@@ -51,6 +51,8 @@ from . import agents
 from . import adaptateurs
 from . import calcul_verbal
 from . import tri_transitif
+from . import fast_lang
+from . import typographie as _typo
 from .memoire_conversation import MemoireConversation
 from . import serveur_lora
 from .routeur import RouteurIntelligent
@@ -566,7 +568,12 @@ class Aura1B:
     # -- pipeline complet ---------------------------------------------------
 
     def executer(self, question: str, X=None, y=None) -> str:
-        return self.executer_detaille(question, X, y)["reponse"]
+        # COUTEAU TYPOGRAPHIQUE (post-processeur regex, < 0,1 ms) : la
+        # réponse finale sort propre (« l'arbre », NBSP devant ?!;:,
+        # apostrophes typographiques) — l'intérieur des blocs ```code```
+        # n'est JAMAIS touché (le code vérifié doit rester exécutable).
+        return _typo.hors_code(
+            self.executer_detaille(question, X, y)["reponse"])
 
     def executer_detaille(self, question: str, X=None, y=None) -> dict:
         # ── CYCLE UNIQUE (idea JEV #3) ─────────────────────────────────
@@ -639,6 +646,15 @@ class Aura1B:
         # par regles ; None -> cascade normale. SANS condition riche :
         # un probleme raconte est souvent long (> 9 mots) mais reste un
         # calcul — la longueur ne doit pas le priver de l'exactitude.
+        # FAST-LANG (dictionnaire symbolique SQLite, O(1)) : conjugaison
+        # et définition connues de la base répondent SANS LLM, sans
+        # hallucination possible (< 0,2 ms). Miss -> cascade normale :
+        # les définitions inconnues partent vers l'ancrage web, comme avant.
+        reponse_lang = fast_lang.moteur.repondre(question)
+        if reponse_lang is not None:
+            self._special_traite = True
+            return self._resultat_special(question, reponse_lang,
+                                          "fast-lang")
         verbal = calcul_verbal.resoudre(question)
         if verbal is not None:
             self._special_traite = True

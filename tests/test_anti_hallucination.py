@@ -20,19 +20,26 @@ def _ia(monkeypatch):
 
 
 class TestIdentite:
+    # le couteau typographique (executer) polit la sortie : la constante
+    # est comparee APRES le meme nettoyage (fond identique, forme polie)
+    @staticmethod
+    def _poli(texte: str) -> str:
+        from aura import typographie
+        return typographie.nettoyer(texte)
+
     def test_qui_es_tu_reponse_constante(self, monkeypatch):
         ia = _ia(monkeypatch)
-        assert ia.executer("qui es tu ?") == _IDENTITE
+        assert ia.executer("qui es tu ?") == self._poli(_IDENTITE)
 
     def test_createur_reponse_constante(self, monkeypatch):
         ia = _ia(monkeypatch)
         r = ia.executer("qui est ton createur ?")
         assert "Simon" in r
-        assert r == _IDENTITE
+        assert r == self._poli(_IDENTITE)
 
     def test_nom_reponse_constante(self, monkeypatch):
         ia = _ia(monkeypatch)
-        assert ia.executer("comment tu t'appelles ?") == _IDENTITE
+        assert ia.executer("comment tu t'appelles ?") == self._poli(_IDENTITE)
 
     def test_ne_passe_jamais_par_le_cerveau(self, monkeypatch):
         from aura import llama_cerveau

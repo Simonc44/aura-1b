@@ -84,6 +84,13 @@ DATASET: list[dict[str, Any]] = [
      "mode": "aucun", "categorie": "memoire"},
     {"sequence": 2, "question": "combien j'ai de serveurs",
      "attendu": "7", "mode": "numerique", "categorie": "memoire"},
+    # langue symbolique (fast-lang : conjugaison et definitions O(1))
+    {"question": "conjugue etre au futur", "attendu": "serai",
+     "mode": "contient", "categorie": "langue"},
+    {"question": "conjugue parler au present", "attendu": "parlons",
+     "mode": "contient", "categorie": "langue"},
+    {"question": "qu'est-ce que la photosynthese", "attendu": "lumiere",
+     "mode": "contient", "categorie": "langue"},
 ]
 
 # ── verification ────────────────────────────────────────────────────────
