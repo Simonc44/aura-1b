@@ -21,6 +21,7 @@ import threading
 import time
 import tkinter as tk
 from pathlib import Path
+from typing import Any
 
 # couleurs du theme sombre macOS, comme la GUI fenetree
 _ROUGE = "#FF5F57"
@@ -50,9 +51,9 @@ class Pastille(tk.Tk):
         self._file: "queue.Queue" = queue.Queue()
         self._occupe = False
         self._ecoute = False
-        self._ia = None
-        self._whisper = None
-        self._tts = None
+        self._ia: Any = None
+        self._whisper: Any = None
+        self._tts: Any = None
 
         threading.Thread(target=self._charger, daemon=True).start()
         self.after(100, self._pomper)
@@ -120,7 +121,7 @@ class Pastille(tk.Tk):
     # ---------------- chargement (threads) ----------------
     def _charger(self) -> None:
         try:
-            from faster_whisper import WhisperModel
+            from faster_whisper import WhisperModel  # type: ignore[import-untyped]
             modele = os.environ.get("AURA_VOCAL_MODELE", "small")
             self._whisper = WhisperModel(
                 modele, device="cpu", compute_type="int8")
@@ -210,7 +211,7 @@ class Pastille(tk.Tk):
     # ---------------- audio ----------------
     def _enregistrer(self) -> None:
         import numpy as np
-        import sounddevice as sd
+        import sounddevice as sd  # type: ignore[import-untyped]
         fs = 16000
         blocs: list = []
         self._file.put(("etape", "j'ecoute... parle maintenant"))
@@ -260,7 +261,7 @@ class Pastille(tk.Tk):
 
     def _dire(self, texte: str) -> None:
         try:
-            import pyttsx3
+            import pyttsx3  # type: ignore[import-untyped]
             if self._tts is None:
                 self._tts = pyttsx3.init()
                 voix = [v for v in self._tts.getProperty("voices")
