@@ -195,6 +195,37 @@ def _similar(question: str) -> int | None:
     return i if sims[i] >= _SEUIL_SIMILARITE else None
 
 
+_STOP_MOTS = frozenset((
+    "conjugue", "combien", "font", "fait", "quel", "quelle", "quels",
+    "quelles", "est", "cette", "dans", "pour", "avec", "sans", "plus",
+    "moins", "tous", "tout", "toute", "toutes", "autre", "autres",
+    "personne", "premiere", "deuxieme", "troisieme", "singulier",
+    "pluriel", "peut", "etre", "sont", "mais", "comme", "aussi",
+))
+
+
+def _hit_douteux(question: str, entree: dict) -> bool:
+    """Garde-fou anti-contamination du cache semantique : refuse un hit
+    dont la structure ressemble mais dont des mots porteurs de sens
+    (verbe, nom, nombre) sont absents de la question ET de la reponse
+    en cache. Exemple reel : « conjugue POUVOIR au present » recevait la
+    table de « conjugue FAIRE au futur » (similarite TF-IDF >= seuil)."""
+    import unicodedata
+
+    def jetons(s: str) -> set[str]:
+        n = unicodedata.normalize("NFKD", s.lower())
+        n = "".join(c for c in n if not unicodedata.combining(c))
+        return set(re.findall(r"[a-z0-9]+", n))
+
+    q_jetons = jetons(question)
+    cache_jetons = jetons(str(entree.get("q", "")) + " " +
+                          str(entree.get("r", "")))
+    for w in q_jetons:
+        if len(w) > 3 and w not in _STOP_MOTS and w not in cache_jetons:
+            return True
+    return False
+
+
 def repondre(question: str) -> str | None:
     """Tente une reponse instantanee. None = laisser le LLM prendre la main."""
     t0 = time.time()
@@ -221,6 +252,10 @@ def repondre(question: str) -> str | None:
     if _entrees:
         i = _similar(question)
         if i is not None:
+            if _hit_douteux(question, _entrees[i]):
+                LOG.info("[niveau0] hit de cache REFUSE (jetons divergents) "
+                         "pour : %s", question[:60])
+                return None
             LOG.info("[niveau0] cache semantique en %.1f ms",
                      (time.time() - t0) * 1000)
             return _entrees[i]["r"]

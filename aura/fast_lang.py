@@ -28,7 +28,7 @@ _BDD = Path(__file__).parent / "lang.db"
 _RE_VOYELLE = re.compile(r"^[aeiouyéèêàâîôûùœ]")
 # définition demandée : « qu'est-ce que X », « définis X », « que veut dire X »
 _RE_DEF_MOT = re.compile(
-    r"(?:qu'?est.?ce.?que(?:\s+la|\s+le|\s+l')?|definis|définis|"
+    r"(?:qu'?est.?ce.?qu(?:e|')?(?:\s*(?:un|une|la|le|l'))?|definis|définis|"
     r"que\s+veut\s+dire|definition\s+de|définition\s+de)\s+"
     r"([a-zà-ÿœ][\w-]+)", re.IGNORECASE)
 
