@@ -1,10 +1,15 @@
-"""Aura-Vocal : mini-barre noire arrondie en haut, boutons ronds style Apple.
+"""Aura-Vocal : l'encoche (notch) d'un MacBook, mais vivante.
 
-Deux cercles parfaits (comme les feux tricolores macOS) : le bleu =
-maintiens pour parler (rouge pendant l'ecoute), le rouge = fermer.
-Bords arrondis (fenetre a fond transparent), texte blanc, barre collee
-au bord superieur de l'ecran. Transcription faster-whisper 100 % locale,
-reponse par Aura, dite a voix haute et copiee.
+Un petit rectangle noir aux coins inferieurs arrondis, colle au bord
+superieur au centre de l'ecran, comme la notch d'un MacBook Pro :
+  - au centre : la camera (capteur visible), le voyant d'activite
+    (il s'allume quand Aura ecoute) et le capteur de luminosite ;
+  - a gauche : le statut d'Aura (comme un menu de la barre macOS) ;
+  - a droite : l'heure (comme la barre de menus).
+Maintiens l'encoche pour parler, relache : ce que tu dis s'ecrit dans
+la bulle sous l'encoche, Aura repond, dit la reponse et la copie.
+Double-clic sur l'encoche : fermer. F9 : alternative clavier.
+Transcription faster-whisper 100 % locale ; moteur Aura-1B.
 
 Usage : uv run python scripts/aura_vocal.py [--sans-voix] [--smoke]
 """
@@ -17,42 +22,43 @@ import queue
 import threading
 import time
 import tkinter as tk
+from datetime import datetime
 from typing import Any
 
-_NOIR = "#101010"
-_NOIR2 = "#181818"
+_NOIR = "#000000"
+_BULLE = "#141414"
 _BLANC = "#FFFFFF"
-_GRIS = "#9A9A9A"
+_GRIS = "#8E8E93"
 _BLEU = "#4C8DFF"
 _ROUGE = "#FF5F57"
 _JAUNE = "#FEBC2E"
 _VERT = "#28C840"
-_MAGIQUE = "#ABC012"          # couleur rendue 100 % transparente
+_LED_OFF = "#1A1A1A"
+_CAM = "#0D0D0D"
+_MAGIQUE = "#ABC012"          # rendu 100 % transparent
+_L = 560                      # largeur de l'encoche
+_H = 36                       # hauteur
 _NL = chr(10)
 
 
-def _rounded(canvas: tk.Canvas, x0: float, y0: float, x1: float, y1: float,
-             r: float, fill: str) -> None:
-    """Rectangle aux coins arrondis (polygone lisse)."""
-    pts: list[float] = []
-    for cx, cy, a0 in ((x1 - r, y0 + r, 270), (x1 - r, y1 - r, 0),
-                       (x0 + r, y1 - r, 90), (x0 + r, y0 + r, 180)):
-        for i in range(9):
-            a = math.radians(a0 + 10 * i)
-            pts.extend((cx + r * math.cos(a), cy + r * math.sin(a)))
+def _coins_bas(canvas: tk.Canvas, l: int, h: int, r: float,
+               fill: str) -> None:
+    """Rectangle plein en haut, coins INFERIEURS arrondis (notch)."""
+    pts: list[float] = [0.0, 0.0, float(l), 0.0, float(l), h - r]
+    for i in range(9):
+        a = math.radians(90 * i / 8)
+        pts.append(l - r + r * math.sin(a))
+        pts.append(h - r + r * math.cos(a))
+    for i in range(9):
+        a = math.radians(90 * i / 8)
+        pts.append(r - r * math.sin(a))
+        pts.append(h - r + r * math.cos(a))
+    pts.append(0.0)
+    pts.append(h - r)
     canvas.create_polygon(pts, fill=fill, outline="", smooth=True)
 
 
-def _cercle(canvas: tk.Canvas, cx: float, cy: float, r: float,
-            fill: str, glyphe: str = "") -> None:
-    canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=fill,
-                       outline="#3A3A3A")
-    if glyphe:
-        canvas.create_text(cx, cy + 1, text=glyphe, fill="#5A1010",
-                           font=("Segoe UI", 10, "bold"))
-
-
-class BarreVocale(tk.Tk):
+class NotchVocale(tk.Tk):
     def __init__(self, avec_voix: bool = True, smoke: bool = False) -> None:
         super().__init__()
         self.overrideredirect(True)
@@ -72,50 +78,66 @@ class BarreVocale(tk.Tk):
         self._construire()
         threading.Thread(target=self._charger, daemon=True).start()
         self.after(100, self._pomper)
+        self.after(1000, self._horloge)
         self.bind("<F9>", lambda _e: self._toggle())
         if smoke:
             self.after(4000, self.destroy)
 
-    # ---------------- construction UI ----------------
+    # ---------------- construction de l'encoche ----------------
     def _construire(self) -> None:
-        # bulle (sous la barre, barre collee au bord haut)
         self._bulle = tk.Label(
-            self, text="", bg=_NOIR2, fg=_BLANC, font=("Segoe UI", 10),
-            justify="left", anchor="w", wraplength=430, padx=14, pady=10)
-        self._bulle.pack_forget()
+            self, text="", bg=_BULLE, fg=_BLANC, font=("Segoe UI", 10),
+            justify="left", anchor="w", wraplength=_L - 40, padx=14,
+            pady=10)
 
-        barre = tk.Frame(self, bg=_MAGIQUE)
-        barre.pack(side="top")
-        self._canvas = tk.Canvas(barre, width=250, height=44, bg=_MAGIQUE,
-                                 highlightthickness=0, cursor="hand2")
-        self._canvas.pack()
-        _rounded(self._canvas, 1, 1, 249, 43, 14, _NOIR)
-        self._paint_cercles(_BLEU)
-        self._txt = self._canvas.create_text(
-            150, 22, text="chargement du cerveau...", fill=_GRIS,
-            font=("Segoe UI", 9), anchor="w", width=150)
-        self._canvas.bind("<ButtonPress-1>", self._presser)
-        self._canvas.bind("<ButtonRelease-1>", self._relacher)
-        self._canvas.bind("<B1-Motion>", self._glisser)
-        self._placer_haut()
+        encoche = tk.Frame(self, bg=_MAGIQUE)
+        encoche.pack(side="top")
+        self._cv = tk.Canvas(encoche, width=_L, height=_H, bg=_MAGIQUE,
+                             highlightthickness=0, cursor="hand2")
+        self._cv.pack()
+        _coins_bas(self._cv, _L, _H, 12, _NOIR)
 
-    def _paint_cercles(self, couleur_mic: str) -> None:
-        c = self._canvas
-        c.delete("mic", "fermer")
-        if couleur_mic == _ROUGE:
-            _cercle(c, 26, 22, 13, _ROUGE, "")
-        else:
-            _cercle(c, 26, 22, 13, couleur_mic, "")
-        _cercle(c, 60, 22, 13, _ROUGE, chr(215))
-        c.addtag_withtag("mic", "all")
+        # --- a gauche : le menu Aura (statut, texte blanc) ---
+        self._txt = self._cv.create_text(
+            16, _H // 2, text="Aura   chargement...", fill=_BLANC,
+            font=("Segoe UI", 9, "bold"), anchor="w")
+
+        # --- au centre : camera + voyant + capteur (comme la notch) ---
+        cx = _L // 2
+        self._cv.create_oval(cx - 9, 9, cx + 9, 27, fill=_CAM,
+                             outline="#222222")          # lentille camera
+        self._cv.create_oval(cx - 4, 14, cx + 2, 20,
+                             fill="#151B2E", outline="")  # reflet capteur
+        self._led_id = self._cv.create_oval(cx + 14, 15, cx + 20, 21,
+                                         fill=_LED_OFF, outline="")  # voyant
+        self._cv.create_oval(cx + 26, 16, cx + 30, 20, fill=_LED_OFF,
+                             outline="")                  # capteur lum.
+
+        # --- a droite : l'heure (comme la barre de menus macOS) ---
+        self._heure = self._cv.create_text(
+            _L - 14, _H // 2, text="", fill=_BLANC,
+            font=("Segoe UI", 9), anchor="e")
+
+        # zone cliquable : tout le canvas
+        self._cv.bind("<ButtonPress-1>", self._presser)
+        self._cv.bind("<ButtonRelease-1>", self._relacher)
+        self._cv.bind("<B1-Motion>", self._glisser)
+        self._cv.bind("<Double-Button-1>", lambda _e: self.destroy())
+        self._placer()
+
+    def _horloge(self) -> None:
+        self._cv.itemconfig(self._heure,
+                            text=datetime.now().strftime("%a %H:%M"))
+        self.after(20000, self._horloge)
+
+    def _placer(self) -> None:
+        self.update_idletasks()
+        x = max(0, (self.winfo_screenwidth() - _L) // 2)
+        self.geometry(f"+{x}+0")
 
     # ---------------- interactions ----------------
     def _presser(self, event) -> None:
-        x, y = event.x, event.y
-        if (x - 60) ** 2 + (y - 22) ** 2 <= 169:      # cercle rouge : fermer
-            self.destroy()
-            return
-        self._clic = (x, y)
+        self._clic = (event.x, event.y)
         self._moved = False
         self.after(160, self._si_maintenu)
 
@@ -142,39 +164,31 @@ class BarreVocale(tk.Tk):
         activer = (not self._ecoute) if on is None else on
         if activer and not self._ecoute and not self._occupe:
             if self._ia is None or self._whisper is None:
-                self._bulle.config(text="chargement en cours...")
+                self._bulle_texte("chargement en cours...")
                 return
             self._ecoute = True
-            self._paint_mic(_ROUGE)
-            self._ecrire("... parle (relache pour envoyer)")
+            self._led(_ROUGE)
+            self._statut("Aura   j'ecoute - relache pour envoyer")
+            self._bulle_texte("... parle")
             self._file.put(("go", None))
         elif not activer and self._ecoute:
             self._ecoute = False
-            self._paint_mic(_JAUNE)
-            self._ecrire_statut("transcription...")
+            self._led(_JAUNE)
+            self._statut("Aura   transcription...")
 
     # ---------------- affichage ----------------
-    def _ecrire(self, texte: str) -> None:
+    def _bulle_texte(self, texte: str) -> None:
         if not self._bulle.winfo_ismapped():
             self._bulle.pack(side="top", fill="x")
         self._bulle.config(text=texte)
 
-    def _ecrire_statut(self, texte: str) -> None:
-        self._canvas.itemconfig(self._txt, text=texte)
+    def _statut(self, texte: str) -> None:
+        self._cv.itemconfig(self._txt, text=texte)
 
-    def _paint_mic(self, couleur: str) -> None:
-        c = self._canvas
-        c.delete("mic")
-        c.create_oval(13, 9, 39, 35, fill=couleur, outline="#3A3A3A",
-                      tags=("mic",))
+    def _led(self, couleur: str) -> None:
+        self._cv.itemconfig(self._led_id, fill=couleur)
 
-    def _placer_haut(self) -> None:
-        self.update_idletasks()
-        l = self.winfo_reqwidth()
-        x = max(0, (self.winfo_screenwidth() - l) // 2)
-        self.geometry(f"+{x}+0")
-
-    # ---------------- chargement ----------------
+    # ---------------- chargement + micro ----------------
     def _charger(self) -> None:
         self._demute_si_besoin()
         try:
@@ -182,7 +196,7 @@ class BarreVocale(tk.Tk):
             modele = os.environ.get("AURA_VOCAL_MODELE", "small")
             self._whisper = WhisperModel(modele, device="cpu",
                                          compute_type="int8")
-            self._file.put(("etape", "voix OK (" + modele + ")"))
+            self._file.put(("etape", "voix OK"))
         except Exception as e:  # noqa: BLE001
             self._file.put(("erreur", "whisper: " + str(e)[:120]))
             return
@@ -208,16 +222,16 @@ class BarreVocale(tk.Tk):
             coll = en.EnumAudioEndpoints(EDataFlow.eCapture.value,
                                          DEVICE_STATE.ACTIVE.value)
             if coll.GetCount() == 0:
-                self._file.put(("micro", "AUCUN micro actif : branche un "
-                                "casque (JBL) ou active le micro Realtek"))
+                self._file.put(("micro", "AUCUN micro actif : connecte ton "
+                                "casque JBL ou active le micro Realtek"))
                 return
             dev = coll.Item(0)
             ptr = dev.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
             vol = cast(ptr, POINTER(IAudioEndpointVolume))
             if vol.GetMute():
                 vol.SetMute(0, None)
-                self._file.put(("micro", "ton micro etait MUET : je viens "
-                                "de le demute (volume "
+                self._file.put(("micro", "micro etait MUET : je viens de "
+                                "le demute (volume "
                                 + str(round(vol.GetMasterVolumeLevelScalar()
                                             * 100)) + " %)"))
         except Exception:
@@ -229,7 +243,7 @@ class BarreVocale(tk.Tk):
         import sounddevice as sd  # type: ignore[import-untyped]
         fs = 16000
         blocs: list = []
-        self._file.put(("etape", "j'ecoute... parle maintenant"))
+        self._file.put(("etape", "Aura   j'ecoute..."))
         try:
             with sd.InputStream(samplerate=fs, channels=1, dtype="float32",
                                 blocksize=1600) as flux:
@@ -253,13 +267,13 @@ class BarreVocale(tk.Tk):
                             + " s)"))
             return
         if pic < 0.004:
-            self._file.put(("erreur", "silence capte : micro muet ou mauvais "
-                            "peripherique (pic=" + str(round(pic, 4)) + ")"))
+            self._file.put(("erreur", "silence capte : ton micro integre "
+                            "ne transmet rien - connecte le casque JBL "
+                            "(pic=" + str(round(pic, 4)) + ")"))
             return
         if pic < 0.05:
             audio = audio * (0.3 / pic)   # gain auto si micro faible
-        self._file.put(("etape", "transcription " + str(round(duree, 1))
-                        + " s..."))
+        self._file.put(("etape", "Aura   transcription..."))
         try:
             segments, _ = self._whisper.transcribe(
                 audio, language="fr", beam_size=1, vad_filter=True,
@@ -270,8 +284,8 @@ class BarreVocale(tk.Tk):
             self._file.put(("erreur", "whisper: " + str(e)[:100]))
             return
         if not texte:
-            self._file.put(("erreur", "rien compris : parle plus fort "
-                            "(pic=" + str(round(pic, 3)) + ")"))
+            self._file.put(("erreur", "rien compris (pic="
+                            + str(round(pic, 3)) + ")"))
             return
         self._file.put(("question", texte))
 
@@ -309,33 +323,33 @@ class BarreVocale(tk.Tk):
                 msg = self._file.get_nowait()
                 g = msg[0]
                 if g == "etape":
-                    self._ecrire_statut(str(msg[1]))
+                    self._statut(str(msg[1]))
                 elif g == "niveau":
                     b = min(8, int(float(msg[1]) * 300))
-                    self._ecrire_statut("niveau " + "|" * b
-                                        + (" faible !" if b < 2 else ""))
+                    self._statut("Aura   niveau " + "|" * b
+                                 + (" faible !" if b < 2 else ""))
                 elif g == "micro":
-                    self._ecrire("[micro] " + str(msg[1]))
+                    self._bulle_texte("[micro] " + str(msg[1]))
                 elif g == "pret":
                     self._ia = msg[1]
-                    self._paint_mic(_BLEU)
-                    self._ecrire_statut("pret - maintiens le rond bleu")
+                    self._led(_VERT)
+                    self._statut("Aura   pret - maintiens l'encoche ou F9")
                 elif g == "go":
                     threading.Thread(target=self._enregistrer,
                                      daemon=True).start()
                 elif g == "question":
                     self._occupe = True
-                    self._paint_mic(_JAUNE)
-                    self._ecrire("tu : " + str(msg[1]))
-                    self._ecrire_statut("Aura reflechit...")
+                    self._led(_JAUNE)
+                    self._bulle_texte("tu : " + str(msg[1]))
+                    self._statut("Aura   reflechit...")
                     threading.Thread(target=self._repondre,
                                      args=(msg[1],), daemon=True).start()
                 elif g == "reponse":
                     q, rep, dt = str(msg[1]), str(msg[2]), msg[3]
-                    self._ecrire("tu : " + q + _NL + "Aura : " + rep)
-                    self._ecrire_statut("pret - " + str(dt)
-                                        + " s - copie (Ctrl+V)")
-                    self._paint_mic(_BLEU)
+                    self._bulle_texte("tu : " + q + _NL + "Aura : " + rep)
+                    self._statut("Aura   pret - " + str(dt)
+                                 + " s - copie (Ctrl+V)")
+                    self._led(_VERT)
                     self._occupe = False
                     try:
                         self.clipboard_clear()
@@ -346,9 +360,9 @@ class BarreVocale(tk.Tk):
                         threading.Thread(target=self._dire, args=(rep,),
                                          daemon=True).start()
                 elif g == "erreur":
-                    self._ecrire("[probleme] " + str(msg[1]))
-                    self._ecrire_statut("pret - reessaie")
-                    self._paint_mic(_BLEU)
+                    self._bulle_texte("[probleme] " + str(msg[1]))
+                    self._statut("Aura   pret - reessaie")
+                    self._led(_VERT)
                     self._occupe = False
                     self._ecoute = False
         except queue.Empty:
@@ -358,12 +372,12 @@ class BarreVocale(tk.Tk):
 
 def main() -> int:
     ap = argparse.ArgumentParser(prog="aura_vocal")
-    auto = ap.add_argument
-    auto("--sans-voix", action="store_true",
-         help="desactive la synthese vocale")
-    auto("--smoke", action="store_true", help="ferme seul apres 4 s")
+    ap.add_argument("--sans-voix", action="store_true",
+                    help="desactive la synthese vocale")
+    ap.add_argument("--smoke", action="store_true",
+                    help="ferme seul apres 4 s")
     args = ap.parse_args()
-    BarreVocale(avec_voix=not args.sans_voix, smoke=args.smoke).mainloop()
+    NotchVocale(avec_voix=not args.sans_voix, smoke=args.smoke).mainloop()
     return 0
 
 
