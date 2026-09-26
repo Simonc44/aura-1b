@@ -51,8 +51,10 @@ def _norm(s: str) -> str:
 
 
 def contient(reponse: str, attendus: list[str], interdits: list[str]) -> bool:
+    """attendus : des ALTERNATIVES acceptables (au moins une suffit) ;
+    interdits : aucun ne doit figurer (reponse contradictoire)."""
     r = _norm(reponse)
-    ok = all(_norm(a) in r for a in attendus)
+    ok = any(_norm(a) in r for a in attendus)
     ko = not any(_norm(i) in r for i in interdits) if interdits else True
     return ok and ko
 

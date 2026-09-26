@@ -15,6 +15,8 @@ solide, None -> cascade normale (zero risque d'invention).
 import re
 from collections import defaultdict
 
+from . import syllogismes
+
 # comparaisons textuelles -> (superieur, inferieur)
 _RE_PLUS = re.compile(
     r"(\w+)\s+est\s+(?:plus\s+|le\s+)?(age|grand|grande|vieux|vieille|"
@@ -29,12 +31,14 @@ _RE_SIGNE = re.compile(r"(\w+)\s*(>)\s*(\w+)|(\w+)\s*(<)\s*(\w+)")
 # mots interrogatifs de recherche d'extremum
 _RE_MAX = re.compile(r"\b(le plus (?:age|grand|vieux|lourd|rapide|fort)|"
                      r"qui est le plus|le maximum|le plus age)\b", re.I)
-_RE_MIN = re.compile(r"\b(le plus (?:petit|jeune|leger)|le minimum)\b", re.I)
+_RE_DEVANT = re.compile(
+    r"(\w+)\s+(?:est|arrive|termine|fini[sz]?)\s+devant\s+(\w+)", re.I)
+_RE_MIN = re.compile(r"\b(le plus (?:petit|jeune|leger)|le minimum|dernier)\b", re.I)
 _RE_ORDRE = re.compile(r"\b(dans l'ordre|du plus .* au plus .*\bordre)\b",
                        re.I)
 
 _MOTS_OUT = {"que", "et", "puis", "ensuite", "de", "du", "le", "la", "les",
-             "un", "une", "qui", "il", "elle", "on", "moi", "toi"}
+             "un", "une", "qui", "il", "elle", "on"}
 
 
 def _est_entite(mot: str) -> bool:
@@ -45,10 +49,12 @@ def _est_entite(mot: str) -> bool:
 def extraire_relations(texte: str) -> list[tuple[str, str]]:
     """Extrait les paires (superieur, inferieur) du texte, ou []."""
     t = texte.replace("'", "' ")
+    t = re.sub(r"\bje\s+suis\b", "moi est", t, flags=re.IGNORECASE)
+    t = re.sub(r"\btu\ses\b", "toi est", t, flags=re.IGNORECASE)
     paires: list[tuple[str, str]] = []
     # « A est plus age que B » -> (A, B) ; « A est plus petit que B »
     # -> (B, A) (petit/jeune inversent le sens)
-    for m in _RE_PLUS.finditer(texte):
+    for m in _RE_PLUS.finditer(t):
         a, adj, b = m.group(1), m.group(2).lower(), m.group(3)
         if not (_est_entite(a) and _est_entite(b)):
             continue
@@ -60,6 +66,10 @@ def extraire_relations(texte: str) -> list[tuple[str, str]]:
             paires.append((m.group(1), m.group(3)))
         elif m.group(5):
             paires.append((m.group(6), m.group(4)))
+    for m in _RE_DEVANT.finditer(t):
+        a, b2 = m.group(1), m.group(2)
+        if _est_entite(a) and _est_entite(b2):
+            paires.append((a, b2))
     return paires
 
 
@@ -94,6 +104,9 @@ def trier(paires: list[tuple[str, str]]) -> list[str] | None:
 
 def repondre(question: str) -> str | None:
     """Reponse exacte a une enigme de comparaison, ou None."""
+    rep = syllogismes.repondre(question)
+    if rep is not None:
+        return rep
     paires = extraire_relations(question)
     if len(paires) < 2:               # une seule relation = pas une enigme
         return None
