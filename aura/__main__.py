@@ -10,6 +10,11 @@ import json
 import sys
 import time
 
+# CONFIGURATION (aura.toml + profils) : AVANT tout import du cerveau,
+# les modules lisent leurs AURA_* au moment de l'import.
+from . import config as _config
+_config.appliquer()
+
 from .orchestrateur import Aura1B
 
 

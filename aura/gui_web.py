@@ -26,6 +26,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:      # uniquement pour les annotations (import relou en runtime)
     import webview
 
+from . import config as _config
+
 _ICI = Path(__file__).resolve().parent
 _RACINE = _ICI.parent                      # racine du projet (contient aura/)
 # Lancement en script direct (python aura/gui_web.py, double-clic...) :
@@ -129,8 +131,23 @@ class Api:
                 pass
             self._ia = ia
             self._pousser("aura_pret", {"latence": round(time.time() - t0, 1)})
+            self._verifier_maj()
         except Exception as e:  # noqa: BLE001
             self._pousser("aura_erreur", {"message": str(e)})
+
+    def _verifier_maj(self) -> None:
+        """Pousse 'maj_disponible' vers le JS si une release plus recente
+        existe (3 s max, silencieux hors-ligne — AURA_MAJ=0 pour couper)."""
+        try:
+            from . import maj
+            rap = maj.verifier(timeout=3.0)
+            if rap.get("dispo"):
+                self._pousser("maj_disponible",
+                              {"version": rap.get("version"),
+                               "nouvelle": rap.get("nouvelle"),
+                               "url": rap.get("url")})
+        except Exception:  # noqa: BLE001
+            pass
 
     # ---------------- question / réponse ----------------
     def envoyer(self, question: str) -> dict[str, Any]:
@@ -174,6 +191,7 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     _relancer_si_besoin()          # bons modules ? sinon relance .venv
+    _config.appliquer()            # aura.toml + profils, avant l'orchestrateur
     import webview  # pip install pywebview (apres verification des deps)
 
     api = Api()

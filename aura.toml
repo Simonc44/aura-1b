@@ -1,0 +1,31 @@
+# Configuration Aura — copie ce fichier a la racine du projet et modifie-le.
+# Priorite : variable d'environnement > ce fichier > profil > defauts du code.
+# Affichage : python -m aura.config
+
+[profil]
+# rapide    : pas d'agents (plan/double passe), verification web coupee, budget 15 s
+# equilibre : comportement par defaut
+# qualite   : tout active, budget 180 s (dissertations, analyses longues)
+nom = "equilibre"
+
+[llama]
+gguf = "Q4_K_M"            # Q4_K_M | Q6_K | MINICPM | MINICPM_Q8
+chemin = ""                # chemin libre (sinon modeles/ — chaîne vide = defaut)
+gpu = true                 # build GPU utilise si present (AURA_GPU=0 force le CPU)
+
+[serveur]
+actif = false              # true = llama-server HTTP + hot-swap LoRA (AURA_SERVEUR)
+adresse = "127.0.0.1:8757"
+spec = true                # speculative decoding n-gram (x2 sur texte repetitif)
+
+[qualite]
+budget_s = 45              # etapes facultatives coupees au-dela (AURA_BUDGET_S)
+verif_web = true           # preuve web avant livraison (AURA_VERIF_WEB)
+agents = true              # plan / double passe / compresseurs (AURA_AGENTS)
+seuil_confiance = 0.50     # seuil du routeur (AURA_SEUIL_CONFIANCE)
+
+[api]
+port = 8760                # serveur HTTP local /v1/* (AURA_API_PORT)
+
+[maj]
+verifier = true            # verification des mises a jour au demarrage GUI
