@@ -16,11 +16,15 @@ Usage        : python -m aura.gui_web   (--smoke : ferme seul apres 2,5 s)
 from __future__ import annotations
 
 import json
+import os
 import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:      # uniquement pour les annotations (import relou en runtime)
+    import webview
 
 _ICI = Path(__file__).resolve().parent
 _RACINE = _ICI.parent                      # racine du projet (contient aura/)
@@ -29,9 +33,45 @@ _RACINE = _ICI.parent                      # racine du projet (contient aura/)
 if str(_RACINE) not in sys.path:
     sys.path.insert(0, str(_RACINE))
 
-import webview  # pip install pywebview (apres le sys.path : venv du projet)
-
 _INDEX_HTML = _ICI / "web" / "index.html"
+
+# Dependencies du projet : si l'interpreteur courant n'en a pas (double-clic
+# sur le .py avec le Python global de Windows, qui n'a ni gplearn ni
+# llama_cpp), on se relance automatiquement avec .venv, sinon message clair.
+_DEPS = ("webview", "numpy", "sklearn", "gplearn", "llama_cpp")
+
+
+def _python_venv() -> Path | None:
+    for cand in (_RACINE / ".venv" / "Scripts" / "python.exe",
+                 _RACINE / ".venv" / "bin" / "python"):
+        if cand.is_file():
+            return cand
+    return None
+
+
+def _manquantes() -> list[str]:
+    import importlib.util
+    return [m for m in _DEPS if importlib.util.find_spec(m) is None]
+
+
+def _relancer_si_besoin() -> None:
+    """Relance avec .venv si des modules du projet manquent (aucune boucle :
+    dans la venv on n'est deja plus 'hors venv')."""
+    manquantes = _manquantes()
+    if not manquantes:
+        return
+    deja_venv = getattr(sys, "base_prefix", sys.prefix) != sys.prefix
+    py = _python_venv()
+    if py is not None and not deja_venv:
+        import subprocess
+        print(f"[gui_web] {', '.join(manquantes)} absent(s) de "
+              f"{sys.executable} -> relance avec {py}")
+        raise SystemExit(subprocess.call(
+            [str(py), str(Path(__file__).resolve()), *sys.argv[1:]]))
+    raise SystemExit(
+        "[gui_web] modules manquants : " + ", ".join(manquantes) + "\n"
+        "Installe-les avec :  uv sync\n"
+        "Puis lance avec    :  .venv\\Scripts\\python.exe -m aura.gui_web")
 
 
 class Api:
@@ -130,8 +170,11 @@ def main(argv=None) -> int:
     import argparse
 
     ap = argparse.ArgumentParser(prog="aura.gui_web")
-    ap.add_argument("--smoke", action="store_true", help="ferme seul après 2,5 s (test)")
+    ap.add_argument("--smoke", action="store_true", help="ferme seul apres 2,5 s (test)")
     args = ap.parse_args(argv)
+
+    _relancer_si_besoin()          # bons modules ? sinon relance .venv
+    import webview  # pip install pywebview (apres verification des deps)
 
     api = Api()
     fenetre = webview.create_window(
