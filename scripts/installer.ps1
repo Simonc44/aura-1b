@@ -52,6 +52,9 @@ Write-Host "[OK] Python trouve via '$PyCmd'"
 New-Item -ItemType Directory -Force -Path $Destination | Out-Null
 
 $elements = @("aura", "scripts\telecharger_llama.py")
+# Garde : si Destination == RacineProjet (installeur Inno qui appelle ce
+# script depuis {app}), la copie source->destination serait un copie sur soi.
+if ($RacineProjet -ne (Resolve-Path $Destination).Path) {
 foreach ($e in $elements) {
     $src = Join-Path $RacineProjet $e
     $dst = Join-Path $Destination $e
@@ -61,6 +64,7 @@ foreach ($e in $elements) {
         New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dst) | Out-Null
         Copy-Item -Force $src $dst
     }
+}
 }
 
 # Fichiers facultatifs : presents s'ils existent (exe, .aef, .sig, cerveau)
@@ -145,6 +149,47 @@ if ($ContenuProfil -notmatch [regex]::Escape("# === Aura")) {
 }
 
 # ---------------------------------------------------------------
+# 4 bis. Dependances lourdes manquantes + raccourci + config
+# ---------------------------------------------------------------
+# Le bloc 3 installait la base (numpy...) : ici on ajoute ce qui est
+# indispensable pour que `python -m aura.gui_web` et le cerveau
+# fonctionnent reels — roue CPU officielle pour llama-cpp-python.
+Write-Host "[..] Cerveau + interface (llama-cpp-python, pywebview)..."
+& $VenvPy -m pip install --quiet "huggingface-hub>=0.25" "pywebview>=6.0" `
+    "llama-cpp-python==0.3.2" `
+    --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu/
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[!] llama-cpp-python non installe (voir plus haut)." -ForegroundColor Yellow
+} else {
+    Write-Host "[OK] cerveau + interface installes"
+}
+
+# Configuration centralisee (profils rapide/equilibre/qualite)
+$TomlSrc = Join-Path $RacineProjet "aura.toml"
+if (Test-Path $TomlSrc) { Copy-Item -Force $TomlSrc $Destination }
+
+# Lancement de l'interface : un .bat + un raccourci sur le Bureau
+$Bat = Join-Path $Destination "Lancer Aura.bat"
+@"
+@echo off
+cd /d "$Destination"
+".venv\Scripts\python.exe" -m aura.gui_web %*
+pause
+"@ | Set-Content -Path $Bat -Encoding ascii
+try {
+    $Bureau = [Environment]::GetFolderPath("Desktop")
+    $Shell = New-Object -ComObject WScript.Shell
+    $Lnk = $Shell.CreateShortcut((Join-Path $Bureau "Aura.lnk"))
+    $Lnk.TargetPath = $Bat
+    $Lnk.WorkingDirectory = $Destination
+    $Lnk.Description = "Aura - IA locale 100% offline"
+    $Lnk.Save()
+    Write-Host "[OK] Raccourci 'Aura' cree sur le Bureau"
+} catch {
+    Write-Host "[!] Raccourci Bureau impossible : $_" -ForegroundColor Yellow
+}
+
+# ---------------------------------------------------------------
 # 5. Test final : boot du .aef + reponse
 # ---------------------------------------------------------------
 Write-Host "[..] Test final..."
@@ -164,4 +209,7 @@ Write-Host ""
 Write-Host "=== Installation terminee ===" -ForegroundColor Cyan
 Write-Host "Ouvre une NOUVELLE fenetre PowerShell puis :"
 Write-Host '  aura "quel est le carre de 7"'
+Write-Host "Ou double-clique sur le raccourci 'Aura' du Bureau (interface graphique)."
+Write-Host "Pour voir si une mise a jour existe :"
+Write-Host "  & `$Destination\.venv\Scripts\python.exe -m aura.maj"
 if (-not $Silencieux) { Read-Host "Entree pour fermer" }
