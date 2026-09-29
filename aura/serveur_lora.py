@@ -68,6 +68,22 @@ def _existe_serveur(timeout: float = 1.0) -> bool:
         return False
 
 
+_aides: dict[str, str] = {}
+
+
+def _aide_binaire(bin_: Path) -> str:
+    """Texte de --help du binaire (mis en cache, 1 probe au maximum)."""
+    cle = str(bin_)
+    if cle not in _aides:
+        try:
+            h = subprocess.run([str(bin_), "--help"], capture_output=True,
+                               text=True, timeout=15)
+            _aides[cle] = h.stdout + h.stderr
+        except Exception:
+            _aides[cle] = ""
+    return _aides[cle]
+
+
 def _binaire() -> Path | None:
     """Le binaire llama-server : AURA_SERVEUR_BIN, sinon serveur/llama-server.exe
     (recherche la version recente telechargee et les extractions datees)."""
@@ -77,11 +93,20 @@ def _binaire() -> Path | None:
     dossier = _RACINE / "serveur"
     if not dossier.is_dir():
         return None
-    # preferer le plus recent (b11111 > b7400) : llama-server.exe direct ou
-    # dans un sous-dossier
+    # Preferer le plus recent (b11111 > b7400) : llama-server.exe direct ou
+    # dans un sous-dossier. Le tri mtime seul se trompe ici (serveur/b7400/
+    # extraite APRES la racine donc mtime plus jeune) — or ce b7400 est un
+    # ancien build qui plante avec les 4 LoRA (GGML_ASSERT au 1er token, cf.
+    # scripts/diag_serveur_crash.py) et ignore --spec-type. Signal de
+    # version fiable : la presence de --spec-type dans le --help.
     candidats = sorted(dossier.rglob("llama-server.exe"),
                        key=lambda p: p.stat().st_mtime, reverse=True)
-    return candidats[0] if candidats else None
+    if not candidats:
+        return None
+    for c in candidats:
+        if "--spec-type" in _aide_binaire(c):
+            return c
+    return candidats[0]
 
 
 def _gguf_cerveau() -> Path | None:
@@ -112,6 +137,35 @@ def _adaptateurs_boot() -> list[Path]:
     return sorted((_RACINE / "serveur").glob("aura-*-T.gguf"))
 
 
+_spec_supporte: dict[str, bool] = {}
+
+
+def _spec_type_ok(bin_: Path) -> bool:
+    """Le binaire accepte-t-il --spec-type (speculative decoding n-gram) ?
+
+    Le dossier sert/ peut contenir plusieurs versions (b7400 sans spec,
+    b11111 avec) : on sonde --help une fois par binaire pour ne pas faire
+    crasher un ancien. AURA_SPEC=0 coupe tout.
+
+    Bench (scripts/bench_spec_serveur.py, Llama-3.2-1B Q4_K_M, 6 coeurs) :
+        sans spec          19 tok/s   (repétitif)  19 tok/s   (neuf)
+        ngram-cache        38 tok/s x2 (repétitif) 19.7 tok/s (neuf, neutre)
+        ngram-mod          37 tok/s x2 (repétitif) 17 tok/s   (neuf, -10%)
+        ngram-simple/map-* ~1.2-1.5x  mais -20% sur du texte neuf
+    -> ngram-cache : gain net partout, aucun checkpoint draft a telecharger
+    (Medusa/EAGLE-3 : inexistants pour Llama-3.2-1B).
+    """
+    if os.environ.get("AURA_SPEC", "1") == "0":
+        return False
+    cle = str(bin_)
+    if cle not in _spec_supporte:
+        aide = _aide_binaire(bin_)
+        _spec_supporte[cle] = ("--spec-type" in aide and "ngram-cache" in aide)
+        LOG.info("[serveur_lora] speculative decoding (ngram-cache) : %s",
+                 "actif" if _spec_supporte[cle] else "non supporte par ce binaire")
+    return _spec_supporte[cle]
+
+
 def _demarrer() -> bool:
     """Demarre le serveur avec le cerveau + les adaptateurs au boot."""
     global _process, _indispo
@@ -126,8 +180,19 @@ def _demarrer() -> bool:
     cmd = [str(bin_), "-m", str(gguf), "--port", str(_port()),
            "--host", _ADRESSE.rsplit(":", 1)[0], "-c", "1536", "-t", "4",
            "--no-warmup"]
-    for p in _adaptateurs_boot():
-        cmd += ["--lora", str(p)]
+    if _spec_type_ok(bin_):
+        # brouillon n-gram (cache) extrait de l'historique : x2 sur du texte
+        # repetitif, cout nul sur du texte neuf — bench scripts/bench_spec_serveur.py
+        cmd += ["--spec-type", "ngram-cache"]
+    adaptateurs = _adaptateurs_boot()
+    if "--spec-type" in _aide_binaire(bin_):
+        # build recent : --lora accepte une liste separee par des virgules
+        # (les occurrences repetees declenchent un warning deprecation).
+        if adaptateurs:
+            cmd += ["--lora", ",".join(str(p) for p in adaptateurs)]
+    else:
+        for p in adaptateurs:
+            cmd += ["--lora", str(p)]
     try:
         journal = open(_RACINE / "serveur" / "autogere.log",
                        "ab", buffering=0)

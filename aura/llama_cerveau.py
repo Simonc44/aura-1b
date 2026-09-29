@@ -308,6 +308,36 @@ def llm_charge():
     return _llm
 
 
+def _draft_model():
+    """Speculative decoding in-process : prompt-lookup / n-gram.
+
+    Le brouillon est extrait de l'historique lui-meme (recherche de n-grammes
+    deja vus) — AUCUN second modele, donc aucun cout de RAM de poids.
+
+    PAR DEFAUT OFF (AURA_SPEC=1 pour activer) et ce n'est pas un choix
+    esthetique : llama_cpp force logits_all=True des qu'un draft_model est
+    passe (~500 Mo de scores pour Llama-3.2-1B), et le bench mesure un
+    NET RECUL sur ce CPU :
+        AURA_SPEC=1 : 2.1 / 3.4 tok/s   (repétitif / neuf)
+        AURA_SPEC=0 : 6.0 / 8.8 tok/s
+    Le boosting reel passe par le chemin SERVEUR (--spec-type ngram-cache,
+    voir serveur_lora._spec_type_ok : x2 sur texte repetitif, neutre ailleurs)
+    qui n'a pas ce defaut. Ici l'interrupteur reste pour comparer/debuguer.
+
+    Medusa / EAGLE-3 : impossibles sur Llama-3.2-1B (aucun checkpoint draft
+    converti n'existe pour cette cible) — d'ou le prompt-lookup qui, lui,
+    marche avec n'importe quel modele.
+    """
+    if os.environ.get("AURA_SPEC", "0") == "0":
+        return None
+    try:
+        from llama_cpp.llama_speculative import LlamaPromptLookupDecoding
+        return LlamaPromptLookupDecoding(max_ngram_size=2, num_pred_tokens=10)
+    except Exception as e:  # noqa: BLE001  (build sans llama_speculative)
+        LOG.warning("Speculative decoding indisponible : %s", e)
+        return None
+
+
 def _charger():
     global _llm
     if _llm is not None:
@@ -333,10 +363,12 @@ def _charger():
         type_k=reg["type_kv"],          # KV cache q8_0 : RAM /2
         type_v=reg["type_kv"],
         n_gpu_layers=couches_gpu,       # GPU si dispo, sinon 0 (CPU)
+        draft_model=_draft_model(),     # spec decoding : prompt-lookup (AURA_SPEC=0 -> None)
         verbose=False,
     )
-    LOG.info("Llama 3.2 1B charge en %.1fs (%s, gpu_layers=%d)",
-             time.time() - t0, os.path.basename(_CHEMIN_GGUF), couches_gpu)
+    LOG.info("Llama 3.2 1B charge en %.1fs (%s, gpu_layers=%d, spec=%s)",
+             time.time() - t0, os.path.basename(_CHEMIN_GGUF), couches_gpu,
+             "on" if _llm.draft_model is not None else "off")
     return _llm
 
 

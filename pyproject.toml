@@ -13,6 +13,7 @@ dependencies = [
     "llama-cpp-python==0.3.2",  # wheel MSVC officielle (index abetlen) : 0.3.35 a un bug CPU_REPACK qui casse le chargement LoRA
     "huggingface-hub>=0.25",
     "cryptography>=50.0.1",
+    "pywebview>=6.0",  # GUI web (aura/gui_web.py) : fenetre frameless + pont JS <-> Python
 ]
 
 [project.optional-dependencies]
