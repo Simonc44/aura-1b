@@ -84,12 +84,33 @@ def _aide_binaire(bin_: Path) -> str:
     return _aides[cle]
 
 
+def _vulkan() -> Path | None:
+    """Build officiel win-vulkan de llama.cpp, si present et non desactive.
+
+    Installable par scripts/installer_vulkan.ps1 (zip bXXXX officiel).
+    Mesure sur ce PC (scripts/bench_gpu.py, Llama-3.2-1B Q4_K_M, 256 tok) :
+        CPU     : decode 18,6-19,0 tok/s | prefill  66-73 tok/s
+        VULKAN  : decode 20,4-20,6 tok/s | prefill 216-227 tok/s (x3,1)
+    Le prefill est ce qui compte : chaque passe du multi-pass re-traite son
+    prompt. AURA_GPU=0 force le chemin CPU.
+    """
+    if os.environ.get("AURA_GPU") == "0":
+        return None
+    exe = _RACINE / "serveur" / "vulkan" / "llama-server.exe"
+    if exe.is_file() and (exe.parent / "ggml-vulkan.dll").is_file():
+        return exe
+    return None
+
+
 def _binaire() -> Path | None:
     """Le binaire llama-server : AURA_SERVEUR_BIN, sinon serveur/llama-server.exe
     (recherche la version recente telechargee et les extractions datees)."""
     env = os.environ.get("AURA_SERVEUR_BIN")
     if env and Path(env).is_file():
         return Path(env)
+    vulkan = _vulkan()
+    if vulkan is not None:
+        return vulkan
     dossier = _RACINE / "serveur"
     if not dossier.is_dir():
         return None
@@ -145,7 +166,9 @@ def _spec_type_ok(bin_: Path) -> bool:
 
     Le dossier sert/ peut contenir plusieurs versions (b7400 sans spec,
     b11111 avec) : on sonde --help une fois par binaire pour ne pas faire
-    crasher un ancien. AURA_SPEC=0 coupe tout.
+    crasher un ancien. AURA_SERVEUR_SPEC=0 coupe tout (AURA_SPEC ne
+    concerne QUE le chemin in-process, qui lui ralentit — cf.
+    llama_cerveau._draft_model).
 
     Bench (scripts/bench_spec_serveur.py, Llama-3.2-1B Q4_K_M, 6 coeurs) :
         sans spec          19 tok/s   (repétitif)  19 tok/s   (neuf)
@@ -155,7 +178,7 @@ def _spec_type_ok(bin_: Path) -> bool:
     -> ngram-cache : gain net partout, aucun checkpoint draft a telecharger
     (Medusa/EAGLE-3 : inexistants pour Llama-3.2-1B).
     """
-    if os.environ.get("AURA_SPEC", "1") == "0":
+    if os.environ.get("AURA_SERVEUR_SPEC", "1") == "0":
         return False
     cle = str(bin_)
     if cle not in _spec_supporte:
@@ -185,6 +208,10 @@ def _demarrer() -> bool:
         # repetitif, cout nul sur du texte neuf — bench scripts/bench_spec_serveur.py
         cmd += ["--spec-type", "ngram-cache"]
     adaptateurs = _adaptateurs_boot()
+    # Build GPU (Vulkan) : tous les layers sur l'iGPU (repli CPU automatique
+    # par llama.cpp si aucun device — jamais de plantage).
+    if _vulkan() == bin_:
+        cmd += ["-ngl", "99"]
     if "--spec-type" in _aide_binaire(bin_):
         # build recent : --lora accepte une liste separee par des virgules
         # (les occurrences repetees declenchent un warning deprecation).
