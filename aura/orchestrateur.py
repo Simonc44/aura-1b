@@ -22,6 +22,7 @@ import logging
 import os
 import re
 import threading
+import time
 
 # Questions d'identite (« qui es tu », « qui t'a cree ») : reponse non
 # hallucinable — tiree d'une constante, jamais des poids du 1B.
@@ -32,6 +33,42 @@ _MOTS_IDENTITE = ("qui es tu", "qui es-tu", "qui t'a", "qui t'a cree",
                   "qui t'a cree", "ton createur", "ton nom", "tu t'appelles",
                   "tu es qui", "que sais tu faire", "que peux tu faire",
                   "tu sais faire quoi")
+
+# QUESTIONS META SUR L'IA (« es-tu une ia », « aussi puissant qu'un 8B ») :
+# ni une tache de redaction ni un fait a verifier. Sans ce garde-fou,
+# _est_complexe (>= 9 mots) declenchait le mode dissertation (plan +
+# 3 sections + double passe = ~1400 tokens de CPU, soit ~150 s) sur une
+# question fermee — d'ou la sortie hors-sujet repetee observee en prod.
+# Signature volontairement PRECISE : « es tu », « qui es tu », paroles
+# diregees AU modele + tailles de modeles (8B, GPT...). Un essai sur la
+# « puissance de la technologie » ne tombe PAS dedans (peut rester riche).
+_RE_META_IA = re.compile(
+    r"(\bes[-\s]?tu\b|\bt'es[-\s]?tu\b|\bqui es[-\s]?tu\b|"
+    r"\bton modele\b|\bton algorithme\b|\bton architecture\b|"
+    r"\bta puissance\b|\btes capacites\b|\btes performances\b|"
+    r"\bce que tu (peux|sais|connais|comprends)\b|"
+    r"\ben tant qu'ia\b|\ben tant que ia\b|\bcomment tu (fonctionnes|marches|es construit|travailles)\b|"
+    r"\b\d{1,3}[\s-]?b\b|\bgpt[-\s]?\d|\bgpt\b|\bchatgpt\b|\bopenai\b|"
+    r"\bllama[-\s]?\d|\bmistral\b|\bdeepseek\b|\bclaude[-\s]?\d|\bgemini\b)",
+    re.IGNORECASE)
+
+# Reponse-constante pour les questions de capacite (0 s, zero hallucina-
+# tion possible, meme esprit que _IDENTITE) : honnete et technique.
+_CAPACITE = (
+    "Non : je ne suis pas un modele 8B. Je suis Llama 3.2 1B — un "
+    "milliard de parametres — et je tourne EN LOCAL sur le CPU de ce "
+    "PC, sans internet ni carte graphique. Un 8B a environ 8 fois plus "
+    "de parametres : il est plus fin en nuance, en raisonnement long et "
+    "en langues rares, mais il exige une GPU. En contrepartie je suis "
+    "immediat sur les questions courtes, 100% hors-ligne (aucune donnee "
+    "ne sort de ta machine) et je m'appuie sur des experts symboliques "
+    "(maths exactes, faits verifies) qui eux ne se trompent pas. Dis-moi "
+    "ton besoin et je te dirai si je suffis — ou s'il te faut plus gros.")
+
+
+def _est_meta_ia(question: str) -> bool:
+    """Question adressee AU modele sur lui-meme (capacites, taille, identite)."""
+    return bool(_RE_META_IA.search(question or ""))
 
 # Definition/savoir (« qu'est-ce que X », « explique X ») : reponses que le
 # 1B invente avec aplomb — le juge d'un petit modele est mauvais, donc on
@@ -91,6 +128,14 @@ _DEMANDE_CODE = re.compile(
 # reel ; les maths timides sont de toute facon rattrapees par le niveau 0.
 # AURA_SEUIL_CONFIANCE=0.45 pour desserrer, 0.60 pour durcir.
 _SEUIL_CONFIANCE = float(os.environ.get("AURA_SEUIL_CONFIANCE", "0.50"))
+
+# BUDGET TEMPS GLOBAL : les etapes FACULTATIVES (double passe de style,
+# verification web) ne demarrent plus si le pipeline a deja depasse ce
+# plafond — un passage long ne doit pas se voir empiler 2 passes de +.
+# Ce garde-fou ne coupe pas une generation en cours (impossible sans tuer
+# le process llama), il empeche surtout l'empilement qui a produit les
+# 153 s observes. AURA_BUDGET_S=0 pour toujours les executer.
+_BUDGET_S = float(os.environ.get("AURA_BUDGET_S", "45"))
 
 
 class Aura1B:
@@ -304,7 +349,8 @@ class Aura1B:
                  riche: bool = False, contexte_faits: str = "",
                  personnalite: str | None = None,
                  categorie: str = "", complexe: bool = False,
-                 est_def: bool = False) -> str:
+                 est_def: bool = False,
+                 max_tokens: int | None = None) -> str:
         if self._llama is None:
             from .llama_cerveau import generer as llama_generer
             self._llama = llama_generer
@@ -334,7 +380,8 @@ class Aura1B:
                 contexte_faits=contexte_faits,
                 systeme=systeme_final,
                 categorie=categorie,
-                complexe=complexe)
+                complexe=complexe,
+                max_tokens=max_tokens)
         # AURA_SERVEUR=1 : le Dynamic Compute (reflection masquee) remplace
         # le multi-pass in-process (qui chargerait le cerveau a double).
         if riche and serveur_lora._actifs():
@@ -343,7 +390,8 @@ class Aura1B:
                                contexte_faits=contexte_faits,
                                systeme=self._historique.bloc_systeme(personnalite),
                                categorie=categorie,
-                               complexe=True)
+                               complexe=True,
+                               max_tokens=max_tokens)
         if riche:
             from .llama_cerveau import generer_riche
             return generer_riche(question, contexte_web, formule,
@@ -367,7 +415,8 @@ class Aura1B:
                            contexte_faits=contexte_faits,
                            systeme=self._historique.bloc_systeme(systeme_final),
                            categorie=categorie,
-                           complexe=complexe)
+                           complexe=complexe,
+                           max_tokens=max_tokens)
 
     # -- prompt structure ---------------------------------------------------
 
@@ -405,6 +454,11 @@ class Aura1B:
         de la dissertation TAS (these/antithese/synthese).
         """
         q = question.lower()
+        # META-IA : une question adressee AU modele n'est jamais une
+        # dissertation, meme longue (cf. _RE_META_IA) — sinon le mode
+        # riche part en plan + 3 sections pour une question fermee.
+        if _est_meta_ia(question):
+            return False
         if len(q.split()) >= 9:                      # question developpee
             return True
         return any(m in q for m in (
@@ -576,6 +630,7 @@ class Aura1B:
             self.executer_detaille(question, X, y)["reponse"])
 
     def executer_detaille(self, question: str, X=None, y=None) -> dict:
+        t0 = time.time()                 # horloge du budget global (cf. _BUDGET_S)
         # ── CYCLE UNIQUE (idea JEV #3) ─────────────────────────────────
         # maths directes + cache semantique + routage en UN passage : la
         # majorite des questions quotidiennes n'ont PAS besoin du LLM.
@@ -597,6 +652,21 @@ class Aura1B:
                     "cerveau_choisi": "constante",
                     "contexte_web": "", "formule": "",
                     "erreur_pgs": None, "reponse": _IDENTITE}
+
+        # CAPACITE (meta-IA courte, « es tu aussi puissant qu'un 8B ») :
+        # meme logique que l'identite — question fermee adressee au modele,
+        # reponse constante verifiee, 0 s de CPU, zero risque de disser-
+        # tation hors-sujet ou de boucle de repetition.
+        if _est_meta_ia(question) and len(question.split()) <= 14:
+            return {"question": question, "experts": {"identite"},
+                    "analyse": {"methodes": ["capacite"]},
+                    "cerveau_choisi": "constante-capacite",
+                    "contexte_web": "", "formule": "",
+                    "erreur_pgs": None, "reponse": _CAPACITE}
+        # meta OUVERTE (longue) : elle repond, mais JAMAIS en mode
+        # redaction par sections — _est_complexe refuse, et le budget de
+        # tokens est borne (reponse courte, pas 1400 tokens de CPU).
+        meta_ia = _est_meta_ia(question)
 
         # ── NIVEAUX 1-2 : experts + LLM ───────────────────────────────
         # VALIDATION AVANT EXECUTION (idea JEV #2 + confiance RouteLLM) :
@@ -687,8 +757,11 @@ class Aura1B:
             # riche : une definition est un lookup factuel, meme en mode
             # complexe — le style riche n'a pas de sens pour citer des faits.
             if not formule and est_def:
-                reponse_extraite = ("D'apres les sources verifiees en "
-                                    f"ligne :\n{contexte_web}")
+                # dedup : deux extraits de recherche identiques ne doivent
+                # pas etre livres cote a cote (phrase repetee a l'ecran)
+                reponse_extraite = (
+                    "D'apres les sources verifiees en ligne :\n"
+                    + llama_cerveau._sans_doublons(contexte_web))
                 filtre_instantane.enregistrer(question, reponse_extraite)
                 return {"question": question, "experts": experts | {"web"},
                         "analyse": analyse, "cerveau_choisi": "extraction-web",
@@ -777,29 +850,50 @@ class Aura1B:
                 adaptateurs.appliquer(_llm, categorie)
         except Exception as e:
             LOG.info("[adaptateurs] hot-swap impossible (%s) -> cerveau brut", e)
+        # meta-ia ouverte : budget borne (reponse courte, jamais1400 tokens)
         reponse = self._generer(question_envoyee, contexte_web, formule,
                                 riche=riche, contexte_faits=contexte_faits,
                                 personnalite=personnalite,
                                 categorie=categorie,
-                                complexe=riche, est_def=est_def)
+                                complexe=riche, est_def=est_def,
+                                max_tokens=(110 if meta_ia else None))
         # AGENT 3 (redacteur) : les tics de langage du 1B sont retires
         try:
             reponse = agents.nettoyer_style(reponse)
         except Exception as e:
             LOG.info("[agents] nettoyage impossible (%s) -> texte brut", e)
+        # GARDE-FOU FINAL (disjoncteur) : JAMAIS une reponse en boucle ne
+        # part vers l'utilisateur — on deduplique les phrases repetees ;
+        # si c'est une boucle serree (n-grammes), on coupe avant repetition.
+        try:
+            if llama_cerveau._en_boucle(reponse):
+                sans_dbl = llama_cerveau._sans_doublons(reponse)
+                reponse = (sans_dbl if not llama_cerveau._en_boucle(sans_dbl)
+                           else llama_cerveau._couper_boucle(reponse))
+                LOG.warning("[disjoncteur] reponse nettoyee en fin de chaine")
+        except Exception as e:
+            LOG.info("[disjoncteur] garde-fou impossible (%s)", e)
         # DOUBLE PASSE (le secret du 1B) : un petit modele est mediocre pour
         # ecrire parfait du premier coup, mais STATISTIQUEMENT EQUIVALENT a un
         # grand modele pour REPERER les erreurs et reformuler un texte existant.
         # Le texte redige est donc soumis a une seconde lecture (critique puis
         # version corrigee) — uniquement si un texte riche a ete produit.
-        if riche:
+        ecoule = time.time() - t0
+        if riche and (_BUDGET_S <= 0 or ecoule < _BUDGET_S):
             try:
                 reponse = agents.double_passe(reponse, question)
             except Exception as e:
                 LOG.info("[agents] double passe impossible (%s) -> texte brut", e)
+        elif riche:
+            # deja trop long : 2 passes de style de plus = le chemin qui a
+            # fait exploser la latence — on livre le texte deja produit
+            LOG.info("[budget] double passe sautee (%.0fs > %.0fs)",
+                     ecoule, _BUDGET_S)
         # VERIFICATION OUTILLEE (pattern CRITIC) : preuve web avant livraison
         verifiee = False
-        if self._a_besoin_verification(question, contexte_web, reponse):
+        if ((_BUDGET_S <= 0 or time.time() - t0 < _BUDGET_S)
+                and self._a_besoin_verification(question, contexte_web,
+                                                reponse)):
             reponse = self._verifier_au_web(question, reponse)
             verifiee = True
             # RECONSOLIDATION : la reponse verifiee remplace l'ancienne au

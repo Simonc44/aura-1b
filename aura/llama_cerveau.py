@@ -177,11 +177,14 @@ _PROMPT_SECTION = (
     "Redige la section {numero}/{total} de l'analyse de : {question}\n"
     "SECTION A REDIGER : {titre}\n"
     "{role_section}\n"
-    "Sections deja ecrites (ne te repete pas, enchaine naturellement) :\n"
+    "Deja ecrit (RESUME — coherence, PAS un modele a copier) :\n"
     "{memoire}\n"
     "Faits disponibles :\n{contexte_court}\n"
     "CONSIGNES : vocabulaire riche et precis, phrases courtes reliees par "
-    "des connecteurs logiques, 60 a 110 mots, sans titres ni balises."
+    "des connecteurs logiques, 60 a 110 mots, sans titres ni balises.\n"
+    "INTERDICTION ABSOLUE de reprendre une phrase (meme debut de phrase) "
+    "des parties deja ecrites : ecris un contenu entierement nouveau. "
+    "Ne recopie AUCUN libelle du prompt (SECTION A REDIGER, PARTIE n...)."
 )
 
 # Role rhetorique de chaque section : la partie 1 AFFIRME et prouve, la
@@ -222,6 +225,198 @@ _PROMPT_STYLE = (
 )
 
 _llm = None
+
+# ── DISJONCTEUR ANTI-REPETITION ───────────────────────────────────
+# Bug vécu : la partie 2 a recopié la partie 1 mot pour mot, la phrase
+# « La notion de puissance est souvent… » est revenue 3 fois, et la
+# generation a tourné pendant des dizaines de secondes dans le vide.
+# Ici : detection (phrase repetee / n-gramme en boucle), COUPURE IMMEDIATE
+# du stream, puis UNE relance avec penalite de repetition + temperature
+# differente. Jamais la boucle n'est livree telle quelle.
+
+_SEUIL_PHRASE = 50        # phrase « longue » candidate a la copie
+_SEUIL_NB_PHRASES = 2     # occurrences de cette phrase = boucle
+_SEUIL_NB_NGRAM = 5       # sequences de 4 mots revues 5 fois = boucle
+
+
+def _phrases(texte: str) -> list[str]:
+    """Decoupe en phrases / lignes (les balises du plan comptent comme lignes)."""
+    return [p.strip() for p in re.split(r"(?<=[.!?…])\s+|\n+", texte or "")
+            if p.strip()]
+
+
+def _en_boucle(texte: str) -> bool:
+    """Vrai si le texte CONTIENT une boucle de generation.
+
+    Deux signaux, volontairement conservateurs (faux positif = une relance
+    inutile, jamais une regression) :
+      1. une phrase de >= 50 signes apparaît au moins 2 fois
+         (le cas observe : copie inter-sections),
+      2. une sequence de 4 mots revient >= 5 fois (boucle serree).
+    """
+    if not texte:
+        return False
+    vus: dict[str, int] = {}
+    for p in _phrases(texte):
+        if len(p) >= _SEUIL_PHRASE:
+            cle = p.lower()
+            vus[cle] = vus.get(cle, 0) + 1
+            if vus[cle] >= _SEUIL_NB_PHRASES:
+                return True
+    mots = re.findall(r"[\w'’]+", (texte or "").lower())
+    if len(mots) >= 40:
+        ng: dict[tuple, int] = {}
+        for i in range(len(mots) - 3):
+            cle_ng = tuple(mots[i:i + 4])
+            ng[cle_ng] = ng.get(cle_ng, 0) + 1
+            if ng[cle_ng] >= _SEUIL_NB_NGRAM:
+                return True
+    return False
+
+
+def _couper_boucle(texte: str) -> str:
+    """Tronque AVANT la deuxieme occurrence de la phrase repetee.
+
+    Plan B du disjoncteur : si la relance derape aussi, on livre la version
+    courte (une phrase perdue vaut mieux qu'une boucle affichee).
+    """
+    vus: set[str] = set()
+    for m in re.finditer(r"[^.!?\n]{%d,}[.!?]" % _SEUIL_PHRASE, texte or ""):
+        cle = m.group(0).strip().lower()
+        if cle in vus:
+            return (texte[:m.start()]).strip()
+        vus.add(cle)
+    return (texte or "").strip()
+
+
+def _sans_copies(texte: str, deja_ecrit: str) -> str:
+    """Retire du texte les phrases mot pour mot deja presentes ailleurs.
+
+    C'est la garantie TECHNIQUE anti-recopie inter-parties : meme si le 1B
+    essaie, la phrase copiee ne sort pas. Si tout est copie (texte vide),
+    on garde l'original (mieux qu'une reponse vide).
+    """
+    if not texte or not deja_ecrit:
+        return texte
+    bas = deja_ecrit.lower()
+    gardes = []
+    for p in _phrases(texte):
+        if len(p) >= _SEUIL_PHRASE and p.lower() in bas:
+            continue                      # copie verbatim d'une partie precedente
+        gardes.append(p)
+    propre = " ".join(gardes).strip()
+    return propre if len(propre) >= 40 else texte
+
+
+def _sans_doublons(texte: str) -> str:
+    """Retire les phrases repetees AU SEIN d'un meme texte.
+
+    Utile pour les extraits web (deux resultats identiques colles cote a
+    cote) et en garde-fou final avant livraison : une phrase longue deja
+    dite n'a rien a faire deux fois dans la meme reponse.
+    """
+    if not texte:
+        return texte
+    vus: set[str] = set()
+    gardes: list[str] = []
+    for p in _phrases(texte):
+        cle = p.lower()
+        if len(p) >= _SEUIL_PHRASE and cle in vus:
+            continue
+        vus.add(cle)
+        gardes.append(p)
+    propre = " ".join(gardes).strip()
+    return propre or texte
+
+
+def _resume_sections(redige: list[str]) -> str:
+    """Resume ANTI-COPIE des parties deja ecrites : titre + 1re phrase.
+
+    L'ancienne version injectait les 900 DERNIERS CARACTERES bruts dans le
+    prompt suivant — invitait litteralement le 1B a les recopier. Un resume
+    court donne la coherence (ou en est-on ?) sans fournir le texte a copier.
+    """
+    lignes = []
+    for bloc in redige:
+        phrases = _phrases(bloc)
+        tete = phrases[0] if phrases else bloc.strip()
+        lignes.append(f"- {tete[:160]}")
+    return "\n".join(lignes)
+
+
+def _generer_avec_disjoncteur(llm, messages: list[dict], max_tokens: int,
+                              echantillonnage: dict) -> str:
+    """Generation STREAMEE avec coupure immediate sur boucle + 1 relance.
+
+    - le stream est verifie tous les ~40 signes : des qu'une boucle nait,
+      l'iteration s'arrete (le « kill » — plus aucun token de gaspille) ;
+      l'appel suivant repart d'un KV-cache neuf (chaque appel est autonome).
+    - relance UNIQUE : repeat_penalty 1.1 -> 1.25, temperature 0.5 -> 0.85.
+    - echec des deux -> texte tronque avant la repetition.
+    """
+    texte, boucle = _streamer(llm, messages, max_tokens, echantillonnage)
+    if not boucle:
+        return texte
+    LOG.warning("[disjoncteur] boucle detectee (%d signes) -> relance "
+                "penalite 1.25 / temp 0.85", len(texte))
+    relance = dict(echantillonnage)
+    relance["temperature"] = 0.85
+    relance["repeat_penalty"] = 1.25
+    alt, boucle2 = _streamer(llm, messages, max(80, int(max_tokens * 0.8)),
+                             relance)
+    if alt and not boucle2:
+        return alt
+    return _couper_boucle(texte) or texte
+
+
+def _streamer(llm, messages: list[dict], max_tokens: int,
+              echantillonnage: dict) -> tuple[str, bool]:
+    """(texte, boucle_detectee) — stream si possible, sinon appel classique."""
+    try:
+        flux = llm.create_chat_completion(messages=messages,
+                                          max_tokens=max_tokens,
+                                          stream=True, **echantillonnage)
+    except TypeError:
+        # signature sans support du stream : appel classique (post-check)
+        flux = llm.create_chat_completion(messages=messages,
+                                          max_tokens=max_tokens,
+                                          **echantillonnage)
+        texte = _contenu(flux)
+        return texte, _en_boucle(texte)
+    if isinstance(flux, dict):
+        # « stream » ignore (version ancienne / faux llm de test) :
+        # reponse complete d'un coup, meme protection en sortie
+        texte = _contenu(flux)
+        return texte, _en_boucle(texte)
+
+    texte = ""
+    prochain_controle = _SEUIL_PHRASE
+    try:
+        for morceau in flux:
+            if isinstance(morceau, dict):
+                choix = morceau.get("choices") or [{}]
+                delta = (choix[0].get("delta") or {}).get("content") or ""
+            else:
+                delta = ""
+            if not delta:
+                continue
+            texte += delta
+            if len(texte) >= prochain_controle:
+                prochain_controle = len(texte) + _SEUIL_PHRASE
+                if _en_boucle(texte):
+                    return _couper_boucle(texte), True
+    except Exception as e:      # flux interrompu : on garde ce qui est bon
+        LOG.warning("[disjoncteur] stream interrompu : %s", e)
+    return texte.strip(), _en_boucle(texte)
+
+
+def _contenu(sortie) -> str:
+    """Extrait le texte d'une reponse (dict OpenAI-like)."""
+    try:
+        return ((sortie.get("choices") or [{}])[0].get("message", {})
+                .get("content", "") or "").strip()
+    except Exception:
+        return ""
 
 # ── Sorties contraintes (GBNF) ────────────────────────────────────────
 
@@ -593,6 +788,27 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
                         propre, _ = separer_reflexion(texte2)
                 except Exception as e:
                     LOG.warning("[llama] relance reflexion echouee : %s", e)
+            # DISJONCTEUR ANTI-REPETITION : une boucle detectee dans la
+            # reponse -> UNE relance (penalite 1.25 / temperature 0.85) ;
+            # si elle derape aussi, on livre le texte COUPE avant la
+            # repetition. La boucle ne sort jamais vers l'utilisateur.
+            if propre and _en_boucle(propre):
+                LOG.warning("[disjoncteur] boucle dans la reponse -> relance")
+                try:
+                    sortie2 = llm.create_chat_completion(
+                        messages=messages,
+                        max_tokens=max(80, int(max_tokens * 0.8)),
+                        temperature=0.85, top_p=0.9, min_p=0.05,
+                        repeat_penalty=1.25,
+                        stop=["<|eot_id|>", "\nUtilisateur:", "\nUser:"],
+                        **kwargs_template,
+                    )
+                    alt, _ = separer_reflexion(_contenu(sortie2))
+                    propre = alt if (alt and not _en_boucle(alt)) \
+                        else _couper_boucle(propre)
+                except Exception as e:      # jamais bloquant
+                    LOG.warning("[disjoncteur] relance impossible : %s", e)
+                    propre = _couper_boucle(propre)
             if propre:
                 return propre
             # pensee non fermee (budget insuffisant) : ne JAMAIS livrer le
@@ -659,7 +875,7 @@ def _generer_plan(llm, question: str, contexte: str) -> str:
                   {"role": "user", "content": _PROMPT_PLAN.format(
             contexte=contexte or "(aucun contexte fourni)",
             question=question)}],
-        max_tokens=400, temperature=0.3,
+        max_tokens=280, temperature=0.3,
         stop=["<|eot_id|>"],
         grammar=grammaire_plan(),
     )
@@ -686,8 +902,11 @@ def generer_riche(question: str, contexte_web: str = "",
         return generer(question, contexte_web, formule, historique=historique)
 
     # ── Passe 1 : plan + connecteurs (sortie contrainte par grammaire) ──
+    t0_riche = time.time()
     try:
         plan = _generer_plan(llm, question, contexte)
+        LOG.info("[multi-pass] plan en %.1fs (%d car)",
+                 time.time() - t0_riche, len(plan))
     except Exception as e:
         LOG.warning("[multi-pass] passe 1 echouee : %s", e)
         plan = ""
@@ -703,10 +922,15 @@ def generer_riche(question: str, contexte_web: str = "",
     if len(sections) >= 2:
         redige: list[str] = []
         for num, titre in enumerate(sections, 1):
-            memoire = "\n\n".join(redige)[-900:]
+            # RESUME ANTI-COPIE (titre + 1re phrase) et non les 900
+            # caracteres bruts precedents : c'etait la source directe de la
+            # duplication partie 1 -> partie 2 observee en production.
+            memoire = _resume_sections(redige)
+            t0_sec = time.time()
             try:
-                ps = llm.create_chat_completion(
-                    messages=[{"role": "user", "content":
+                texte = _generer_avec_disjoncteur(
+                    llm,
+                    [{"role": "user", "content":
                         _PROMPT_SECTION.format(
                             numero=num, total=len(sections),
                             titre=titre.strip(), question=question,
@@ -714,14 +938,21 @@ def generer_riche(question: str, contexte_web: str = "",
                                 min(num, 3), _ROLES_SECTION[3]),
                             contexte_court=contexte_court,
                             memoire=memoire or "(premiere section)")}],
-                    max_tokens=220, temperature=0.5, top_p=0.95,
-                    min_p=0.05, repeat_penalty=1.1, stop=["<|eot_id|>"])
-                texte = (ps.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
+                    190,
+                    {"temperature": 0.5, "top_p": 0.95, "min_p": 0.05,
+                     "repeat_penalty": 1.1, "stop": ["<|eot_id|>"]})
+                # GARANTIE TECHNIQUE : une phrase mot pour mot deja ecrite
+                # dans une partie precedente est retirees — impossible de
+                # recopier le paragraphe precedent, meme si le 1B y veille.
+                texte = _sans_copies(texte, "\n".join(redige))
             except Exception as e:
                 LOG.warning("[storywriter] section %d echouee : %s", num, e)
                 texte = ""
             if texte:
                 redige.append(texte)
+            LOG.info("[storywriter] section %d/%d en %.1fs (cumul %.1fs)",
+                     num, len(sections), time.time() - t0_sec,
+                     time.time() - t0_riche)
         if redige:
             return "\n\n".join(redige)
         LOG.warning("[storywriter] aucune section redigee -> passe unique")
@@ -733,10 +964,13 @@ def generer_riche(question: str, contexte_web: str = "",
         for tour in _tours_fenetre(historique):
             messages.append({"role": tour["role"], "content": tour["content"]})
         p2 = llm.create_chat_completion(
-            messages=messages, max_tokens=380, temperature=0.5,
+            messages=messages, max_tokens=340, temperature=0.5,
             top_p=0.95, min_p=0.05, repeat_penalty=1.1,
             stop=["<|eot_id|>"])
-        redaction = (p2.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
+        redaction = _contenu(p2)
+        if _en_boucle(redaction):
+            LOG.warning("[disjoncteur] boucle dans la passe style -> troncature")
+            redaction = _couper_boucle(redaction)
     except Exception as e:
         LOG.warning("[multi-pass] passe 2 echouee : %s", e)
         return generer(question, contexte_web, formule, historique=historique)
