@@ -9,19 +9,28 @@ repris de ta maquette). Ce fichier Python ne fait plus que :
     donc plus de bouton système, il faut recréer ce comportement côté Python.
 
 Installation : pip install pywebview
-Usage        : python -m aura.gui_web   (--smoke : ferme seul après 2,5 s)
+Usage        : python -m aura.gui_web   (--smoke : ferme seul apres 2,5 s)
+               python aura/gui_web.py   (marche aussi, depuis n'importe quel
+               dossier : la racine du projet est ajoutee a sys.path)
 """
 from __future__ import annotations
 
 import json
+import sys
 import threading
 import time
 from pathlib import Path
 from typing import Any
 
-import webview  # pip install pywebview
-
 _ICI = Path(__file__).resolve().parent
+_RACINE = _ICI.parent                      # racine du projet (contient aura/)
+# Lancement en script direct (python aura/gui_web.py, double-clic...) :
+# sys.path[0] est alors aura/, pas la racine -> import aura impossible.
+if str(_RACINE) not in sys.path:
+    sys.path.insert(0, str(_RACINE))
+
+import webview  # pip install pywebview (apres le sys.path : venv du projet)
+
 _INDEX_HTML = _ICI / "web" / "index.html"
 
 
