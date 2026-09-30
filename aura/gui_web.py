@@ -124,6 +124,16 @@ class Api:
     def _charger_ia_thread(self) -> None:
         t0 = time.time()
         try:
+            # RECHAUFFAGE SERVEUR (aura.toml [serveur] actif = true) :
+            # llama-server Vulkan demarre EN PARALLELE du chargement du
+            # cerveau — la premiere question n'attend pas les 5-15 s de
+            # boot. AURA_SERVEUR=0 ou binaire absent -> no-op silencieux,
+            # le chemin in-process prend le relais.
+            from aura import serveur_lora as _serveur_lora
+            _serveur_lora.rechauffer()
+        except Exception:              # jamais bloquant
+            pass
+        try:
             from aura.orchestrateur import Aura1B
 
             ia = Aura1B()
@@ -162,6 +172,16 @@ class Api:
         if self._ia is None:
             return {"ok": False, "erreur": "IA non prête"}
         t0 = time.time()
+        # FLUX EN DIRECT : chaque morceau genere est pousse au JS
+        # (« morceau ») pendant l'appel — la bulle se remplit au fur et a
+        # mesure au lieu d'attendre la fin. Desabonnement garanti (finally).
+        desabonner = None
+        try:
+            from aura.llama_cerveau import abonner_flux
+            desabonner = abonner_flux(
+                lambda morceau: self._pousser("morceau", {"texte": morceau}))
+        except Exception:  # noqa: BLE001   # jamais bloquant
+            desabonner = None
         try:
             r = self._ia.executer_detaille(question)
             return {
@@ -173,6 +193,12 @@ class Api:
             }
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "erreur": str(e)}
+        finally:
+            if desabonner is not None:
+                try:
+                    desabonner()
+                except Exception:  # noqa: BLE001
+                    pass
 
     # ---------------- pousser un évènement vers JS depuis un thread Python ----------------
     def _pousser(self, evenement: str, donnees: dict) -> None:

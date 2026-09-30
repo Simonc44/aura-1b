@@ -28,6 +28,7 @@ import shutil
 import subprocess
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import urllib.request
@@ -47,7 +48,8 @@ _indispo: str | None = None        # raison d'une indisponibilite (log 1 fois)
 
 
 def _actifs() -> bool:
-    """Interrupteur : AURA_SERVEUR=0 (defaut) -> chemin in-process."""
+    """Interrupteur : AURA_SERVEUR (aura.toml [serveur] actif = true par
+    defaut). AURA_SERVEUR=0 force le chemin in-process."""
     return os.environ.get("AURA_SERVEUR", "0") != "0"
 
 
@@ -198,10 +200,12 @@ def _demarrer() -> bool:
         _indispo = "binaire llama-server ou GGUF introuvable"
         LOG.info("[serveur_lora] %s -> chemin in-process", _indispo)
         return False
-    # -c 1536 : le warmup avec 4 LoRA montes consomme ~10x la memoire de
-    # contexte d'un boot simple (GGML_ASSERT sinon) ; --no-warmup en plus.
+    # -c 3072 : meme fenetre que le cerveau in-process (histrique 4 tours
+    # + few-shot + budget de generation sans « exceed context window »).
+    # --no-warmup : le warmup avec 4 LoRA montes consomme ~10x la memoire
+    # de contexte d'un boot simple (GGML_ASSERT sinon) — pas double.
     cmd = [str(bin_), "-m", str(gguf), "--port", str(_port()),
-           "--host", _ADRESSE.rsplit(":", 1)[0], "-c", "1536", "-t", "4",
+           "--host", _ADRESSE.rsplit(":", 1)[0], "-c", "3072", "-t", "4",
            "--no-warmup"]
     if _spec_type_ok(bin_):
         # brouillon n-gram (cache) extrait de l'historique : x2 sur du texte
@@ -246,6 +250,13 @@ def _demarrer() -> bool:
     return False
 
 
+# Verrou de BOOT : le rechauffage en tache de fond (gui_web/api) et le
+# premier appel chat() peuvent arriver en meme temps — sans ce verrou,
+# deux llama-server partiraient sur le meme port.
+_verrou_boot = threading.Lock()
+_rechauffe = False
+
+
 def _assurer() -> bool:
     """Serveur operationnel (demarre si besoin)."""
     if not _actifs():
@@ -254,7 +265,32 @@ def _assurer() -> bool:
         return True
     if _indispo is not None:
         return False
-    return _demarrer()
+    with _verrou_boot:
+        if _existe_serveur():          # un autre thread a deja boot
+            return True
+        if _indispo is not None:
+            return False
+        return _demarrer()
+
+
+def rechauffer() -> None:
+    """Rechauffage en tache de fond (thread daemon unique).
+
+    Demarre llama-server AU LANCEMENT (GUI / api) : la premiere question
+    n'attend plus les 5-15 s de boot. No-op si le serveur est coupe
+    (AURA_SERVEUR=0), deja pret, deja rechauffe, ou deja indisponible
+    (binaire absent -> repli in-process automatique partout).
+    """
+    global _rechauffe
+    if not _actifs() or _rechauffe or _indispo is not None:
+        return
+    if _existe_serveur():              # serveur externe deja la
+        _rechauffe = True
+        return
+    _rechauffe = True
+    LOG.info("[serveur_lora] rechauffage en tache de fond...")
+    threading.Thread(target=_assurer, daemon=True,
+                     name="aura-rechauffage").start()
 
 
 # ── hot-swap ────────────────────────────────────────────────────────────
@@ -313,12 +349,17 @@ def activer_mixte(poids: dict[str, float]) -> bool:
             return False
 
 
-def chat(messages: list[dict], max_tokens: int = 256) -> str | None:
+def chat(messages: list[dict], max_tokens: int = 256,
+         publier: Callable[[str], None] | None = None) -> str | None:
     """Generation via /v1/chat/completions (OpenAI-compatible).
 
     None = echec -> l'appelant retombe sur le chemin in-process.
     Le verrou garantit qu'aucun hot-swap ne modifie les echelles des
     adaptateurs PENDANT la generation (sinon : sortie corrompue).
+
+    publier (optionnel) : si fourni, on passe en flux SSE (stream: true)
+    et chaque delta est pousse a ce callback au fur et a mesure — la GUI
+    ecrit la reponse pendant qu'elle arrive du serveur.
     """
     if not _assurer():
         return None
@@ -327,17 +368,55 @@ def chat(messages: list[dict], max_tokens: int = 256) -> str | None:
              "stop": ["<|eot_id|>", "\nUtilisateur:", "\nUser:"]}
     try:
         with _verrou:  # vs activer_mixte() : jamais les deux a la fois
-            req = urllib.request.Request(
-                _url("/v1/chat/completions"), method="POST",
-                data=json.dumps(corps).encode(),
-                headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=300) as r:
-                sortie = json.loads(r.read().decode())
-        return (sortie.get("choices") or [{}])[0] \
-            .get("message", {}).get("content", "").strip() or None
+            if publier is None:
+                req = urllib.request.Request(
+                    _url("/v1/chat/completions"), method="POST",
+                    data=json.dumps(corps).encode(),
+                    headers={"Content-Type": "application/json"})
+                with urllib.request.urlopen(req, timeout=300) as r:
+                    sortie = json.loads(r.read().decode())
+                return (sortie.get("choices") or [{}])[0] \
+                    .get("message", {}).get("content", "").strip() or None
+            return _chat_stream(corps, publier)
     except Exception as e:
         LOG.info("[serveur_lora] chat impossible : %s", e)
         return None
+
+
+def _chat_stream(corps: dict, publier: Callable[[str], None]) -> str | None:
+    """Reponse en flux SSE depuis llama-server (data: {...} par delta).
+
+    Chaque delta est publie immediatement ; on renvoie le texte complet
+    reconstitue (l'appelant en a besoin pour separer_reflexion/garde-fous).
+    Appele avec _verrou deja pris (hot-swap interdit pendant le flux).
+    """
+    corps = dict(corps, stream=True)
+    req = urllib.request.Request(
+        _url("/v1/chat/completions"), method="POST",
+        data=json.dumps(corps).encode(),
+        headers={"Content-Type": "application/json"})
+    morceaux: list[str] = []
+    with urllib.request.urlopen(req, timeout=300) as r:
+        for ligne in r:                       # SSE : "data: {json}\n\n"
+            texte = ligne.decode("utf-8", "replace").strip()
+            if not texte.startswith("data:"):
+                continue
+            donnees = texte[5:].strip()
+            if donnees == "[DONE]":
+                break
+            try:
+                ev = json.loads(donnees)
+            except ValueError:
+                continue
+            choix = ev.get("choices") or [{}]
+            delta = (choix[0].get("delta") or {}).get("content") or ""
+            if delta:
+                morceaux.append(delta)
+                try:
+                    publier(delta)
+                except Exception:             # abonne GUI parti : jamais bloquant
+                    LOG.debug("[serveur_lora] abonne flux en erreur")
+    return "".join(morceaux).strip() or None
 
 
 def disponible() -> bool:

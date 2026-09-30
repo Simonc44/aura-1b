@@ -140,7 +140,7 @@ def forger(gguf: Path = GGUF_DEFAUT, sortie: Path = SORTIE,
         MAGIC, VERSION[0], VERSION[1], VERSION[2], 0,
         _build_court().encode("ascii")[:8].ljust(8, b"\x00"),
         0,                       # flags : poids brutes (chargement direct)
-        1536, 768, os.cpu_count() or 4,
+        3072, 768, os.cpu_count() or 4,
         len(config), len(code), taille_gguf,
         hashlib.sha256(config).digest(),
         hashlib.sha256(code).digest(),

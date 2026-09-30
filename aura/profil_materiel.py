@@ -4,7 +4,7 @@ Trois usages :
 1. DETECTION : cpu (modele, coeurs, AVX2), RAM totale, OS, disk libre.
 2. AUTO-TUNING : calcule n_threads / n_ctx / n_batch optimaux pour LA machine
    (regles mesurees sur le PC de reference : tous les coeurs = +26%, batch
-   768 compense le ctx 1536...). Sur une autre machine, les reglages suivent.
+   768 compense le ctx 3072...). Sur une autre machine, les reglages suivent.
 3. EMPREINTE : un hash court de la machine, stocke dans le .aef forge.
    Au boot, le kernel compare : config compilee = config validee sur CE pc.
 
@@ -177,7 +177,8 @@ def reglages_optimaux(profil: dict | None = None) -> dict:
 
     Regles (issues des benchmarks reels de ce projet) :
       - n_threads = coeurs LOGIQUES (+26% vs physiques, mesure)
-      - RAM >= 6 Go  : ctx 1536 + batch 768 (qualite multi-pass)
+      - RAM >= 6 Go  : ctx 3072 + batch 768 (histrique 4 tours +
+                        few-shot sans debordement, qualite multi-pass)
         RAM <  6 Go  : ctx 1024 + batch 512 (boot garantit, latence egale)
       - RAM <  3 Go ou GGUF 3B+ : le kernel doit refuser le boot (place).
     """
@@ -187,7 +188,7 @@ def reglages_optimaux(profil: dict | None = None) -> dict:
 
     threads = logiques
     if ram_go >= 6:
-        ctx, batch = 1536, 768
+        ctx, batch = 3072, 768
     else:
         ctx, batch = 1024, 512
 

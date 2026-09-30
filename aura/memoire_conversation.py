@@ -40,6 +40,8 @@ _MAX_RESULTATS = 3            # resultats max renvoyes a l'IA
 _MAX_EXTRAIT = 280            # taille max d'un extrait
 _TAILLE_ROTATION = 32 * 1024 * 1024   # rotation : archive au-dela de 32 Mo
 _MAX_ARCHIVES = 3                     # archives d'historique conservees
+_MAX_FICHIER = 20_000                 # signes livres par la lecture fichier
+_MAX_OCTETS_FICHIER = 80_000          # octets lus au plus (fichier tronque)
 
 
 def _sans_accents(texte: str) -> str:
@@ -63,13 +65,35 @@ class MemoireConversation:
                         else Path(__file__).parent / ".conversation.jsonl")
         self._fenetre = max(2, fenetre)
         # etat civil : dictionnaire plat {cle: valeur} (JSON, quelques octets)
-        self._etat: dict[str, str] = {}
+        # — PERSISTANT : recharge depuis .etat.json au demarrage, sauvegarde
+        # a chaque extraction. Le nom de l'utilisateur survit aux sessions.
+        self._chemin_etat = self._chemin.with_suffix(".etat.json")
+        self._etat: dict[str, str] = self._charger_etat()
         # tours bruts de la session courante (pour la fenetre)
         self._tours: list[dict[str, str]] = []
         # outil RLM declare pour le prompt systeme
         self.outil_disponible = True
 
     # -- RLM : le fichier externe ------------------------------------------
+
+    def _charger_etat(self) -> dict[str, str]:
+        """Etat civil precedent session (JSON plat), {} si absent/corrompu."""
+        try:
+            brut = json.loads(self._chemin_etat.read_text(encoding="utf-8"))
+            if isinstance(brut, dict):
+                return {str(k): str(v) for k, v in brut.items()}
+        except (OSError, ValueError):
+            pass
+        return {}
+
+    def _sauver_etat(self) -> None:
+        """Ecrit l'etat civil (quelques octets) — jamais bloquant."""
+        try:
+            self._chemin_etat.write_text(
+                json.dumps(self._etat, ensure_ascii=False, sort_keys=True),
+                encoding="utf-8")
+        except OSError:
+            pass
 
     def _ecrire_tour(self, role: str, contenu: str) -> None:
         ligne = json.dumps({"role": role, "content": contenu},
@@ -230,6 +254,7 @@ class MemoireConversation:
         """
         original = texte.strip()
         t = _sans_accents(original)
+        avant = dict(self._etat)
         m = self._RE_NOM.search(t)
         if m and m.group(1).lower() not in (
                 "un", "une", "la", "le", "content", "desole", "sure",
@@ -242,6 +267,8 @@ class MemoireConversation:
             # on garde tout, mais l'etat reste ecrasable (dernier etat gagne)
             if objet not in ("pas", "plus", "peu", "trop", "besoin"):
                 self._etat[objet] = n
+        if self._etat != avant:          # changement -> persistance disque
+            self._sauver_etat()
 
     def etat_json(self) -> str:
         """L'etat civil compact (JSON une ligne), '' si vide."""
@@ -274,6 +301,10 @@ class MemoireConversation:
                 "conversation, demande : « cherche dans l'historique : "
                 "<mot> » — l'historique complet est consultable, il n'est "
                 "pas dans ta memoire immediate.")
+            morceaux.append(
+                "Pour lire un fichier texte de l'ordinateur, demande : "
+                "« lis le fichier <chemin> » (texte, "
+                f"{_MAX_FICHIER} signes max).")
         return "\n".join(morceaux) if morceaux else None
 
     def vider(self) -> None:
@@ -282,6 +313,7 @@ class MemoireConversation:
         with self._verrou:
             self._tours.clear()
             self._etat.clear()
+            self._sauver_etat()
 
     def tourner(self, question: str) -> str | None:
         """Applique l'outil RLM si la question demande l'historique.
@@ -296,3 +328,45 @@ class MemoireConversation:
         if not m:
             return None
         return self.rechercher(m.group(1).strip()) or "(aucun resultat)"
+
+    # -- outil local : lecture d'un fichier texte ---------------------------
+
+    _RE_FICHIER = re.compile(
+        r"\b(?:lis|lire|montre|ouvre)(?:\s*-\s*moi)?\s+(?:le\s+)?"
+        r"fichier\s*:?\s*(.+)", re.IGNORECASE)
+
+    def lire_fichier(self, question: str) -> str | None:
+        """Outil local : « lis le fichier <chemin> » -> contenu (ou motif).
+
+        Resolution symbolique, zero LLM, zero token injecte inutilement :
+        comme pour l'historique, seul le CONTENU est rendu au modele.
+        Garde-fous : fichier textuel uniquement (pas de nul octet),
+        lecture bornee a _MAX_OCTETS_FICHIER puis tronque a
+        _MAX_FICHIER signes — un gros binaire ne peut pas etre avale.
+        Renvoie None si la question ne demande aucun fichier.
+        """
+        m = self._RE_FICHIER.search(question)
+        if not m:
+            return None
+        brut = m.group(1).strip().strip("\"'«»<> ").split("\n")[0].strip()
+        if not brut:
+            return "(chemin manquant : lis le fichier <chemin>)"
+        try:
+            chemin = Path(brut).expanduser()
+            if not chemin.is_absolute():
+                chemin = Path.cwd() / chemin
+            if not chemin.exists():
+                return f"(fichier introuvable : {chemin})"
+            if not chemin.is_file():
+                return f"(ce n'est pas un fichier : {chemin})"
+            donnees = chemin.read_bytes()[:_MAX_OCTETS_FICHIER]
+            if b"\x00" in donnees[:2048]:
+                return f"(fichier binaire, lecture refusee : {chemin.name})"
+            texte = donnees.decode("utf-8", errors="replace")
+            if not texte.strip():
+                return f"(fichier vide : {chemin})"
+            if len(texte) > _MAX_FICHIER:
+                texte = texte[:_MAX_FICHIER] + "\n[...tronque]"
+            return texte
+        except OSError as e:
+            return f"(lecture impossible : {e})"

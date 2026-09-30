@@ -14,7 +14,9 @@ chemin = ""                # chemin libre (sinon modeles/ — chaîne vide = def
 gpu = true                 # build GPU utilise si present (AURA_GPU=0 force le CPU)
 
 [serveur]
-actif = false              # true = llama-server HTTP + hot-swap LoRA (AURA_SERVEUR)
+actif = true              # llama-server Vulkan (prefill x3, spec n-gram x2) :
+                          # ~2-3x plus rapide que le in-process. false = CPU pur.
+                          # Si le binaire/le GPU manque : repli in-process auto.
 adresse = "127.0.0.1:8757"
 spec = true                # speculative decoding n-gram (x2 sur texte repetitif)
 

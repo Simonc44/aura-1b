@@ -4,7 +4,8 @@ Optimisations CPU reelles (benchmarkees sur ce PC) :
 - flash_attn=True          : attention fusionnee, moins de passes memoire
 - type_k=8, type_v=8       : KV cache q8_0 -> RAM cache divisee par 2,
                              conversations plus longues a RAM egale
-- n_ctx=1024, n_batch=512  : prefill x2, parallelisme des 6 coeurs
+- n_ctx=3072, n_batch=768  : fenetre large (historique + few-shot sans
+                             debordement de contexte), prefill parallele
 - n_threads=os.cpu_count() : +26% vs coeurs physiques seuls
 
 Optimisations d'intelligence :
@@ -17,7 +18,9 @@ Optimisations d'intelligence :
 import logging
 import os
 import re
+import threading
 import time
+from collections.abc import Callable
 
 LOG = logging.getLogger("aura.llama")
 
@@ -87,7 +90,7 @@ def _reglages_materiel() -> dict:
         import json as _json
         cfg = _json.loads(os.environ.get("AURA_CONFIG", "{}"))
         if cfg:
-            return {"n_ctx": cfg.get("n_ctx", 1536),
+            return {"n_ctx": cfg.get("n_ctx", 3072),
                     "n_batch": cfg.get("n_batch", 768),
                     "n_threads": cfg.get("n_threads", os.cpu_count() or 4),
                     "n_threads_batch": cfg.get("n_threads_batch",
@@ -102,7 +105,7 @@ def _reglages_materiel() -> dict:
         return pm.reglages_optimaux()
     except Exception:
         n = os.cpu_count() or 4
-        return {"n_ctx": 1536, "n_batch": 768, "n_threads": n,
+        return {"n_ctx": 3072, "n_batch": 768, "n_threads": n,
                 "n_threads_batch": n, "flash_attn": True, "type_kv": 8}
 
 _SYSTEME = (
@@ -484,22 +487,39 @@ def _generer_avec_disjoncteur(llm, messages: list[dict], max_tokens: int,
 
 def _streamer(llm, messages: list[dict], max_tokens: int,
               echantillonnage: dict) -> tuple[str, bool]:
-    """(texte, boucle_detectee) — stream si possible, sinon appel classique."""
+    """(texte, boucle_detectee) — stream si possible, sinon appel classique.
+
+    Chaque morceau est PUBLIE aux abonnes du flux (GUI) au fur et a mesure
+    : la reponse s'ecrit a l'ecran pendant qu'elle est produite. La
+    protection disjoncteur (coupure sur boucle) reste en vol.
+    """
     try:
         flux = llm.create_chat_completion(messages=messages,
                                           max_tokens=max_tokens,
                                           stream=True, **echantillonnage)
     except TypeError:
-        # signature sans support du stream : appel classique (post-check)
-        flux = llm.create_chat_completion(messages=messages,
-                                          max_tokens=max_tokens,
-                                          **echantillonnage)
-        texte = _contenu(flux)
-        return texte, _en_boucle(texte)
+        # kwarg non supporte (enable_thinking sur llama-cpp 0.3.x) ou
+        # signature sans stream : on retire le kwarg fautif et on retente
+        # — stream d'abord, appel classique ensuite.
+        ech = {k: v for k, v in echantillonnage.items()
+               if k != "enable_thinking"}
+        try:
+            flux = llm.create_chat_completion(messages=messages,
+                                              max_tokens=max_tokens,
+                                              stream=True, **ech)
+            echantillonnage = ech
+        except TypeError:
+            flux = llm.create_chat_completion(messages=messages,
+                                              max_tokens=max_tokens,
+                                              **ech)
+            texte = _contenu(flux)
+            publier_flux(texte)
+            return texte, _en_boucle(texte)
     if isinstance(flux, dict):
         # « stream » ignore (version ancienne / faux llm de test) :
         # reponse complete d'un coup, meme protection en sortie
         texte = _contenu(flux)
+        publier_flux(texte)
         return texte, _en_boucle(texte)
 
     texte = ""
@@ -514,11 +534,16 @@ def _streamer(llm, messages: list[dict], max_tokens: int,
             if not delta:
                 continue
             texte += delta
+            publier_flux(delta)
             if len(texte) >= prochain_controle:
                 prochain_controle = len(texte) + _SEUIL_PHRASE
                 if _en_boucle(texte):
                     return _couper_boucle(texte), True
     except Exception as e:      # flux interrompu : on garde ce qui est bon
+        # « exceed context window » doit remonter tel quel : c'est lui qui
+        # declenche le repli sans historique de generer().
+        if "exceed context window" in str(e):
+            raise
         LOG.warning("[disjoncteur] stream interrompu : %s", e)
     return texte.strip(), _en_boucle(texte)
 
@@ -744,6 +769,124 @@ def _tours_fenetre(historique) -> list[dict]:
     return list(historique)[-6:]
 
 
+# ── BUDGET DE CONTEXTE : plus jamais « exceed context window » ──────────
+# Fenetre par defaut du cerveau in-process ET du serveur (cf.
+# _reglages_materiel / serveur_lora._demarrer : -c 3072).
+_N_CTX_DEFAUT = 3072
+# marge minimum entre prompt et n_ctx (tokens disponibles pour la
+# generation, au-dela de max_tokens) : absorbe les tokens de template
+# de fin de tour que le comptage message par message ne voit pas.
+_MARGE_CTX = 64
+
+
+def _n_ctx_cible(llm=None) -> int:
+    """n_ctx effectif : celui du LLM charge, sinon le defaut."""
+    if llm is not None:
+        n = getattr(llm, "_n_ctx", None)
+        if not isinstance(n, int) or n <= 0:
+            try:
+                n = llm.n_ctx()
+            except Exception:
+                n = None
+        if isinstance(n, int) and n > 0:
+            return n
+    return _N_CTX_DEFAUT
+
+
+def _compter_tokens(llm, texte: str) -> int:
+    """Tokens d'un texte : tokenizer reel si dispo, sinon ~3 car/token
+    (estimation prudente pour du francais accentue — surestimer est
+    toujours plus sur que sous-estimer ici)."""
+    if llm is not None:
+        try:
+            return max(1, len(llm.tokenize(texte.encode("utf-8"),
+                                           add_bos=False)))
+        except Exception:
+            pass
+    return max(1, len(texte) // 3)
+
+
+def _limiter_messages(messages: list[dict], max_tokens: int | None,
+                      llm=None, n_ctx: int | None = None) -> list[dict]:
+    """Retire les tours les PLUS ANCIENS tant que prompt + generation
+    ne tiennent pas dans la fenetre de contexte.
+
+    Bug d'origine (vu au banc) : 4 tours d'historique + prompt > 1536
+    tokens -> « Requested tokens exceed context window » -> repli brutal
+    SANS historique (la conversation perdait tout son contexte).
+    Ici on ne perd QUE les vieux tours, un par un : le systeme et la
+    derniere question sont toujours conserves (bornage `len > 2`), et
+    la conversation continue avec les tours recents.
+
+    Le repli « sans historique » de generer() reste en derniere ligne
+    de defense (systeme + question seuls qui debordent quand meme).
+    """
+    if not messages or len(messages) <= 2:
+        return messages
+    cible = n_ctx or _n_ctx_cible(llm)
+    marge = int(max_tokens or 128) + _MARGE_CTX
+    tailles = [_compter_tokens(llm, str(m.get("content") or "")) + 4
+               for m in messages]
+    total = sum(tailles)
+    retires = 0
+    while len(messages) > 2 and total + marge > cible:
+        total -= tailles.pop(1)
+        del messages[1]
+        retires += 1
+    if retires:
+        LOG.info("[llama] contexte borne : %d ancien(s) tour(s) retire(s) "
+                 "(prompt ~%d tokens, fenetre %d)", retires, total, cible)
+    return messages
+
+
+# ── FLUX (streaming) : les morceaux partent vers la GUI en direct ──────
+# La premiere reponse s'ecrit a l'ecran PENDANT que le modele (ou le
+# serveur Vulkan) la produit — latence percue divisee. Zero cout quand
+# personne n'est abonne (test sous verrou, ~100 ns).
+
+_verrou_flux = threading.Lock()
+_abonnes_flux: list = []
+
+
+def abonner_flux(fn: Callable[[str], None]) -> Callable[[], None]:
+    """Abonne `fn(morceau: str)` aux morceaux de reponse generes.
+
+    Renvoie la fonction de desabonnement (toujours a appeler en finally).
+    Thread-safe : la GUI s'abonne depuis son thread JS/pywebview pendant
+    que le cerveau publie depuis le thread d'inference.
+    """
+    with _verrou_flux:
+        _abonnes_flux.append(fn)
+
+    def _desabonner() -> None:
+        with _verrou_flux:
+            try:
+                _abonnes_flux.remove(fn)
+            except ValueError:
+                pass
+    return _desabonner
+
+
+def flux_actif() -> bool:
+    """Au moins un abonne -> le serveur HTTP peut streamer (SSE)."""
+    with _verrou_flux:
+        return bool(_abonnes_flux)
+
+
+def publier_flux(morceau: str) -> None:
+    """Diffuse un morceau de texte aux abonnes (jamais bloqueur : un
+    abonne foireux ne tue pas la generation en cours)."""
+    if not morceau:
+        return
+    with _verrou_flux:
+        abonnes = list(_abonnes_flux)
+    for fn in abonnes:
+        try:
+            fn(morceau)
+        except Exception:      # noqa: BLE001
+            pass
+
+
 def generer(question: str, contexte_web: str = "", formule: str = "",
             max_tokens: int | None = None,
             historique: list[dict] | None = None,
@@ -799,7 +942,13 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
                 budget_srv = max((max_tokens or 0) * 2, 400)
             else:
                 budget_srv = max_tokens or _max_tokens_adaptatif(question)
-            reponse = serveur_lora.chat(messages_srv, max_tokens=budget_srv)
+            # BUDGET DE CONTEXTE : prompt + generation doivent tenir dans
+            # la fenetre du serveur (sinon HTTP 400 -> repli in-process).
+            messages_srv = _limiter_messages(messages_srv, budget_srv,
+                                             llm=_llm)
+            reponse = serveur_lora.chat(
+                messages_srv, max_tokens=budget_srv,
+                **({"publier": publier_flux} if flux_actif() else {}))
             if reponse:
                 propre, _ = separer_reflexion(reponse)
                 return propre or reponse
@@ -839,6 +988,12 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
         # pas couper la pensee avant la reponse
         max_tokens = max(int(max_tokens * 2.5), 200)
 
+    # BUDGET DE CONTEXTE : historique + prompt + generation doivent tenir
+    # dans n_ctx — sinon llama_cpp leve « exceed context window » avant
+    # meme d'avoir commence. On rogne sur les VIEUX tours (les plus
+    # exploits de toute facon), jamais sur la question courante.
+    messages = _limiter_messages(messages, max_tokens, llm)
+
     # interrupteur de reflexion native : par defaut OFF (reponse directe,
     # rapide — l'orchestration d'Aura gere deja le raisonnement par experts).
     # AURA_THINK=1 ou think=True par question pour les puzzles difficiles.
@@ -852,51 +1007,38 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
 
     try:
         t0 = time.time()
-        try:
-            sortie = llm.create_chat_completion(
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=0.4,      # faible variance : ancre sur les faits
-                top_p=0.9,
-                min_p=0.05,           # coupe la queue -> reponses plus sures
-                repeat_penalty=1.1,
-                stop=["<|eot_id|>", "\nUtilisateur:", "\nUser:"],
-                **kwargs_template,
-            )
-        except (TypeError, ValueError):
-            # version de llama-cpp-python sans kwargs de template : appel
+        # GENERATION STREAMEE : _streamer pousse chaque morceau aux abonnes
+        # de la GUI au fur et a mesure, coupe des qu'une boucle nait, et
+        # retente sans kwargs de template si la signature ne les supporte pas.
+        echantillonnage = {
+            "temperature": 0.4,      # faible variance : ancre sur les faits
+            "top_p": 0.9,
+            "min_p": 0.05,           # coupe la queue -> reponses plus sures
+            "repeat_penalty": 1.1,
+            "stop": ["<|eot_id|>", "\nUtilisateur:", "\nUser:"],
+            **kwargs_template,
+        }
+        texte, en_boucle = _streamer(llm, messages, max_tokens, echantillonnage)
+        LOG.info("[llama] reponse en %.1fs (%d signes)",
+                 max(time.time() - t0, 1e-6), len(texte))
+        # (l'ancien appel de secours sans kwargs de template est gere par
+        # _streamer : TypeError -> relance sans le kwarg fautif)
             # standard (le strip de <think> + relance gerent le reste)
-            sortie = llm.create_chat_completion(
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=0.4,
-                top_p=0.9,
-                min_p=0.05,
-                repeat_penalty=1.1,
-                stop=["<|eot_id|>", "\nUtilisateur:", "\nUser:"],
-            )
-        texte = (sortie.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
-        n_gen = sortie.get("usage", {}).get("completion_tokens", 0)
-        if n_gen:
-            duree = max(time.time() - t0, 1e-6)
-            LOG.info("[llama] %d tokens en %.1fs = %.1f tok/s",
-                     n_gen, duree, n_gen / duree)
+
         if texte:
             propre, reflexion = separer_reflexion(texte)
             if not propre and reflexion and not want_think:
                 # pensee coupee, reponse vide malgre enable_thinking=False :
                 # relance unique budget triple
                 try:
-                    sortie = llm.create_chat_completion(
-                        messages=messages,
-                        max_tokens=max(max_tokens * 3, 512),
-                        temperature=0.4, top_p=0.9, min_p=0.05,
-                        repeat_penalty=1.1,
-                        stop=["<|eot_id|>", "\nUtilisateur:", "\nUser:"],
-                        **kwargs_template,
-                    )
-                    texte2 = (sortie.get("choices") or [{}])[0] \
-                        .get("message", {}).get("content", "").strip()
+                    brut2, _ = _streamer(
+                        llm, messages, max(max_tokens * 3, 512),
+                        {"temperature": 0.4, "top_p": 0.9, "min_p": 0.05,
+                         "repeat_penalty": 1.1,
+                         "stop": ["<|eot_id|>", "\nUtilisateur:",
+                                  "\nUser:"],
+                         **kwargs_template})
+                    texte2 = brut2.strip()
                     if texte2:
                         propre, _ = separer_reflexion(texte2)
                 except Exception as e:
@@ -905,19 +1047,19 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
             # reponse -> UNE relance (penalite 1.25 / temperature 0.85) ;
             # si elle derape aussi, on livre le texte COUPE avant la
             # repetition. La boucle ne sort jamais vers l'utilisateur.
-            if propre and _en_boucle(propre):
+            if propre and (en_boucle or _en_boucle(propre)):
                 LOG.warning("[disjoncteur] boucle dans la reponse -> relance")
                 try:
-                    sortie2 = llm.create_chat_completion(
-                        messages=messages,
-                        max_tokens=max(80, int(max_tokens * 0.8)),
-                        temperature=0.85, top_p=0.9, min_p=0.05,
-                        repeat_penalty=1.25,
-                        stop=["<|eot_id|>", "\nUtilisateur:", "\nUser:"],
-                        **kwargs_template,
-                    )
-                    alt, _ = separer_reflexion(_contenu(sortie2))
-                    propre = alt if (alt and not _en_boucle(alt)) \
+                    brut2, boucle2 = _streamer(
+                        llm, messages, max(80, int(max_tokens * 0.8)),
+                        {"temperature": 0.85, "top_p": 0.9, "min_p": 0.05,
+                         "repeat_penalty": 1.25,
+                         "stop": ["<|eot_id|>", "\nUtilisateur:",
+                                  "\nUser:"],
+                         **kwargs_template})
+                    alt, _ = separer_reflexion(brut2)
+                    propre = alt if (alt and not boucle2
+                                     and not _en_boucle(alt)) \
                         else _couper_boucle(propre)
                 except Exception as e:      # jamais bloquant
                     LOG.warning("[disjoncteur] relance impossible : %s", e)
@@ -933,9 +1075,10 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
         return texte or "[Aura] Reponse vide du modele."
     except Exception as e:
         LOG.error("[llama] generation echouee : %s", e)
-        # DEBORDEMENT DE CONTEXTE (fenetre d'historique plus longue que la
-        # fenetre de 1536 tokens — vu au banc) : on repart SANS historique
-        # plutot que de livrer « [Aura] Erreur ... » a l'utilisateur.
+        # DEBORDEMENT DE CONTEXTE (les VIEUX tours sont deja rognes par
+        # _limiter_messages, mais systeme + question seuls peuvent parfois
+        # deborder quand meme) : on repart SANS historique plutot que de
+        # livrer « [Aura] Erreur ... » a l'utilisateur.
         if "exceed context window" in str(e) and _tours_fenetre(historique):
             LOG.warning("[llama] repli sans historique (contexte deborde)")
             try:
@@ -1095,6 +1238,7 @@ def generer_riche(question: str, contexte_web: str = "",
             plan=plan, question=question, contexte_court=contexte_court)}]
         for tour in _tours_fenetre(historique):
             messages.append({"role": tour["role"], "content": tour["content"]})
+        messages = _limiter_messages(messages, 340, llm)
         p2 = llm.create_chat_completion(
             messages=messages, max_tokens=340, temperature=0.5,
             top_p=0.95, min_p=0.05, repeat_penalty=1.1,

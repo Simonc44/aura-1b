@@ -168,6 +168,8 @@ document.getElementById('btn-reduire').onclick = () => window.pywebview && windo
 document.getElementById('btn-agrandir').onclick = () => window.pywebview && window.pywebview.api.agrandir();
 
 // ---------------- évènements poussés depuis Python (chargement du cerveau) ----------------
+let bulleStream = null;   // bulle en cours de remplissage (flux « morceau »)
+
 window.auraEvenement = function (evenement, donnees) {
   if (evenement === 'aura_pret') {
     iaPrete = true;
@@ -175,6 +177,14 @@ window.auraEvenement = function (evenement, donnees) {
     elStatut.className = 'status pret';
     elStatutTexte.textContent = 'prêt (' + donnees.latence + ' s)';
     elApLignes.textContent = 'Cerveau chargé.\nPosez votre question.';
+  } else if (evenement === 'morceau') {
+    // réponse en cours de génération : on écrit au fur et à mesure
+    if (!bulleStream) {
+      masquerAccueil();
+      bulleStream = ajouterBulle('', 'aura');
+    }
+    bulleStream.textContent += donnees.texte;
+    elMessages.scrollTop = elMessages.scrollHeight;
   } else if (evenement === 'aura_erreur') {
     elStatut.className = 'status erreur';
     elStatutTexte.textContent = 'erreur';
@@ -223,11 +233,14 @@ async function envoyer() {
   ajouterBulle(question, 'toi');
   elStatutTexte.textContent = 'réflexion...';
   afficherReflexion(true);
+  bulleStream = null;   // une nouvelle question = une nouvelle bulle
 
   try {
     const r = await window.pywebview.api.envoyer(question);
     afficherReflexion(false);
     if (r.ok) {
+      // la réponse finale (post-traitée) remplace le flux en direct
+      if (bulleStream) { bulleStream.remove(); bulleStream = null; }
       ajouterBulle(r.reponse, 'aura');
       const experts = (r.experts && r.experts.length) ? r.experts.join(', ') : '-';
       ajouterMessageInfo('experts ' + experts + ' · ' + r.latence + ' s');

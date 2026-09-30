@@ -212,6 +212,13 @@ def main(argv=None) -> int:
         if args.smoke:
             code = _smoke(args.port)
             return code
+        # rechauffage du serveur Vulkan en tache de fond : la premiere
+        # question ne paie pas les 5-15 s de boot llama-server
+        try:
+            from . import serveur_lora
+            serveur_lora.rechauffer()
+        except Exception:              # jamais bloquant
+            pass
         if not args.no_preload:
             threading.Thread(target=etat.charger, daemon=True).start()
             print("[api] chargement du cerveau en tache de fond...")

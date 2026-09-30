@@ -147,7 +147,7 @@ class TestSignatureIntegree:
         sig = aef_forge.with_suffix(".aef.sig")
         sig.write_bytes(bloc)
         cfg = kernel.ouvrir_et_verifier(aef_forge)      # ne doit PAS lever
-        assert cfg["n_ctx"] == 1536
+        assert cfg["n_ctx"] == 3072
         sig.unlink()
 
     def test_sig_falsifie_refuse(self, aef_forge, monkeypatch, tmp_path):

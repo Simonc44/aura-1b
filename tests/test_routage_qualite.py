@@ -219,9 +219,52 @@ class TestFinitionDePhrase:
 
 
 class TestRepliContexte:
-    """Fenetre d'historique trop longue pour le contexte de 1536 tokens :
-    erreur vue au banc (Requested tokens exceed context window). Le repli
-    repart SANS historique au lieu de livrer « [Aura] Erreur ... »."""
+    """Fenetre d'historique trop longue pour la fenetre de contexte :
+    erreur vue au banc (Requested tokens exceed context window).
+
+    Deux lignes de defense :
+    1. _limiter_messages rogne les VIEUX tours avant l'appel (la
+       conversation continue avec les tours recents) ;
+    2. si meme systeme + question debordent, le repli repart SANS
+       historique au lieu de livrer « [Aura] Erreur ... ».
+    """
+
+    def test_limite_les_vieux_tours_avant_l_appel(self, monkeypatch):
+        """Prompt trop grand pour n_ctx -> seuls les anciens tours sautent,
+        le systeme et la question courante restent (pas de repli brutal)."""
+        class FauxLlm:
+            _n_ctx = 400                      # fenetre minuscule (test)
+
+            def __init__(self):
+                self.appels: list[list] = []
+
+            def tokenize(self, texte, add_bos=False):
+                # ~1 token par caractere : le comptage est exact ici
+                return list(texte)
+
+            def create_chat_completion(self, messages, **kw):
+                self.appels.append(list(messages))
+                # se plante si plus de 2 tours d'historique passent
+                if len(messages) > 4:
+                    raise ValueError("Requested tokens (9999) exceed "
+                                     "context window of 400")
+                return {"choices": [{"message": {
+                    "content": "Reponse bornee."}}]}
+
+        faux = FauxLlm()
+        monkeypatch.setattr(llama_cerveau, "_charger", lambda: faux)
+        monkeypatch.setattr("aura.serveur_lora._actifs", lambda: False)
+        hist = [{"role": "user", "content": "Tour un " + "x" * 150},
+                {"role": "assistant", "content": "Reponse un " + "y" * 150},
+                {"role": "user", "content": "Tour deux " + "z" * 150},
+                {"role": "assistant", "content": "Reponse deux " + "w" * 150}]
+        r = llama_cerveau.generer("Et maintenant ?", historique=hist)
+        assert r == "Reponse bornee."
+        appels = faux.appels[0]
+        # systeme + question presents, tours trop vieux rognes
+        assert appels[0]["role"] == "system"
+        assert appels[-1]["content"].startswith("Et maintenant")
+        assert len(appels) < 1 + len(hist) + 1
 
     def test_debordement_reessaie_sans_historique(self, monkeypatch):
         class FauxLlm:
@@ -246,3 +289,80 @@ class TestRepliContexte:
         assert r == "Reponse sans memoire."
         assert len(faux.appels[0]) > 2        # 1er essai : avec historique
         assert len(faux.appels[-1]) == 2      # repli : systeme + question
+
+
+class TestFluxDirect:
+    """Streaming GUI : abonnes aux morceaux + desabonnement garanti."""
+
+    def test_abonnes_recoivent_puis_ne_recoivent_plus(self):
+        recus: list[str] = []
+        desabonner = llama_cerveau.abonner_flux(recus.append)
+        try:
+            llama_cerveau.publier_flux("bon")
+            llama_cerveau.publier_flux("jour")
+        finally:
+            desabonner()
+        assert recus == ["bon", "jour"]
+        llama_cerveau.publier_flux("apres")      # desabonne : ignore
+        assert recus == ["bon", "jour"]
+
+    def test_abonne_en_erreur_ne_tue_pas_la_publication(self):
+        recus: list[str] = []
+
+        def _foireux(_m: str) -> None:
+            raise RuntimeError("abonne ko")
+
+        d1 = llama_cerveau.abonner_flux(_foireux)
+        d2 = llama_cerveau.abonner_flux(recus.append)
+        try:
+            llama_cerveau.publier_flux("ok")
+        finally:
+            d1()
+            d2()
+        assert recus == ["ok"]
+
+
+class TestMemoirePersistante:
+    """Etat civil entre sessions + outil local « lis le fichier »."""
+
+    @staticmethod
+    def _memoire(tmp_path):
+        from aura.memoire_conversation import MemoireConversation
+        return MemoireConversation(chemin=tmp_path / "conv.jsonl")
+
+    def test_etat_civil_survit_une_restauration(self, tmp_path):
+        m = self._memoire(tmp_path)
+        m.ajouter("user", "je m'appelle Simon")
+        assert m.etat().get("utilisateur") == "Simon"
+        # nouvelle session (nouvelle instance, meme disque) -> meme etat
+        assert self._memoire(tmp_path).etat().get("utilisateur") == "Simon"
+
+    def test_vider_efface_aussi_etat_disque(self, tmp_path):
+        m = self._memoire(tmp_path)
+        m.ajouter("user", "je m'appelle Simon")
+        m.vider()
+        assert m.etat() == {}
+        assert self._memoire(tmp_path).etat() == {}
+
+    def test_outil_fichier_inactif_sur_question_normale(self, tmp_path):
+        m = self._memoire(tmp_path)
+        assert m.lire_fichier("quel temps fait-il ?") is None
+
+    def test_outil_fichier_lit_le_texte(self, tmp_path):
+        cible = tmp_path / "notes.txt"
+        cible.write_text("code du projet : 42", encoding="utf-8")
+        m = self._memoire(tmp_path)
+        contenu = m.lire_fichier(f"lis le fichier {cible}")
+        assert contenu is not None and "42" in contenu
+
+    def test_outil_fichier_signale_lintrouvable(self, tmp_path):
+        m = self._memoire(tmp_path)
+        r = m.lire_fichier(f"lis le fichier {tmp_path / 'absent.txt'}")
+        assert r is not None and "introuvable" in r
+
+    def test_outil_fichier_refuse_le_binaire(self, tmp_path):
+        binaire = tmp_path / "data.bin"
+        binaire.write_bytes(b"\x00\x01\x02taille quelconque")
+        m = self._memoire(tmp_path)
+        r = m.lire_fichier(f"lis le fichier {binaire}")
+        assert r is not None and "binaire" in r

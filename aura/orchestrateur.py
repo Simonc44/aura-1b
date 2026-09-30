@@ -424,6 +424,19 @@ class Aura1B:
                 categorie=categorie,
                 complexe=complexe,
                 max_tokens=max_tokens)
+        # OUTIL LOCAL : « lis le fichier <chemin> » -> contenu injecte
+        # (resolution symbolique, meme esprit que le RLM — zero LLM).
+        contenu_fichier = self._historique.lire_fichier(question)
+        if contenu_fichier is not None:
+            return self._llama(
+                f"{question}\n\nCONTENU DU FICHIER :\n{contenu_fichier}",
+                contexte_web, formule,
+                historique=self._historique,
+                contexte_faits=contexte_faits,
+                systeme=systeme_final,
+                categorie=categorie,
+                complexe=complexe,
+                max_tokens=max_tokens)
         # AURA_SERVEUR=1 : le Dynamic Compute (reflection masquee) remplace
         # le multi-pass in-process (qui chargerait le cerveau a double).
         if riche and serveur_lora._actifs():
