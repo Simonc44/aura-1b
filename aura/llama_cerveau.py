@@ -237,12 +237,71 @@ _llm = None
 _SEUIL_PHRASE = 50        # phrase « longue » candidate a la copie
 _SEUIL_NB_PHRASES = 2     # occurrences de cette phrase = boucle
 _SEUIL_NB_NGRAM = 5       # sequences de 4 mots revues 5 fois = boucle
+_SEUIL_FRAGMENT = 40      # fenetre de 40 signes : toute suite partagee
+                          # d'au moins 45 signes = copie (cf. _deja_dit)
+_PAS_FRAGMENT = 5         # pas de glissement de la fenetre (5 garantit
+                          # la detection des copies de 45 signes+)
 
 
 def _phrases(texte: str) -> list[str]:
     """Decoupe en phrases / lignes (les balises du plan comptent comme lignes)."""
     return [p.strip() for p in re.split(r"(?<=[.!?…])\s+|\n+", texte or "")
             if p.strip()]
+
+
+def _deja_dit(fragment: str, bas: str) -> bool:
+    """Vrai si `fragment` (minuscules) est deja present dans `bas`.
+
+    Mot pour mot (copie verbatim) OU par FENETRE de 40 signes glissee de
+    5 en 5 : une phrase reprise avec un autre premier mot (« Pourtant,
+    cette question souleve un debat... » puis « En definitive, cette
+    question souleve un debat... ») est une copie, meme si la comparaison
+    exacte echoue. Toute suite partagee d'au moins 45 signes est vue.
+    """
+    if not fragment or not bas:
+        return False
+    if fragment in bas:
+        return True
+    n = len(fragment)
+    if n < _SEUIL_FRAGMENT:
+        return False
+    for i in range(0, n - _SEUIL_FRAGMENT + 1, _PAS_FRAGMENT):
+        if fragment[i:i + _SEUIL_FRAGMENT] in bas:
+            return True
+    return False
+
+
+_RE_FIN_PHRASE = re.compile(r"[.!?…][\"»')\]]*\s*$")
+# Mots d'accroche qui ne terminent JAMAIS une phrase : leur presence en
+# fin de texte signale une troncature sur max_tokens (cas observe au
+# banc : « ... la puissance de la technologie est »).
+_RE_QUEUE_MORTE = re.compile(
+    r"(?:['’]|[-–—]|\b[a-z]|\b(?:et|ou|mais|donc|car|de|des|du|la|le|les|un|une|"
+    r"en|dans|pour|avec|sur|par|chez|vers|jusque|qui|que|quoi|dont|"
+    r"ce|cette|est|sont|etre|se)\s*)$", re.I)
+
+
+def _finir_phrase(texte: str, forcer: bool = False) -> str:
+    """Evite de livrer une phrase INCOMPLETE en fin de texte.
+
+    - forcer=True : coupe apres le dernier . ! ? … (le disjoncteur coupe
+      au milieu d'une phrase, parfois au milieu d'un mot : « ... et d' ») ;
+    - sinon : ne coupe que si la fin sent la troncature (mot d'accroche,
+      apostrophe, tiret) — « ... gagne du terrain » reste intact.
+
+    Un texte deja ponctue, ou sans ponctuation aucune, est rendu tel quel :
+    jamais de texte complet jete par erreur.
+    """
+    t = (texte or "").strip()
+    if not t or _RE_FIN_PHRASE.search(t):
+        return t
+    if not forcer and not _RE_QUEUE_MORTE.search(t):
+        return t
+    fins = list(re.finditer(r"[.!?…]", t))
+    if not fins:
+        return t
+    coupe = t[:fins[-1].end()].rstrip()
+    return coupe if coupe else t
 
 
 def _en_boucle(texte: str) -> bool:
@@ -284,7 +343,10 @@ def _couper_boucle(texte: str) -> str:
     for m in re.finditer(r"[^.!?\n]{%d,}[.!?]" % _SEUIL_PHRASE, texte or ""):
         cle = m.group(0).strip().lower()
         if cle in vus:
-            return (texte[:m.start()]).strip()
+            # la coupure tombe AU MILIEU d'une phrase : on la termine
+            # proprement (jamais « ... et d' » livree a l'utilisateur)
+            coupe = (texte[:m.start()]).strip()
+            return _finir_phrase(coupe, forcer=True) or coupe
         vus.add(cle)
     return (texte or "").strip()
 
@@ -301,8 +363,9 @@ def _sans_copies(texte: str, deja_ecrit: str) -> str:
     bas = deja_ecrit.lower()
     gardes = []
     for p in _phrases(texte):
-        if len(p) >= _SEUIL_PHRASE and p.lower() in bas:
-            continue                      # copie verbatim d'une partie precedente
+        if len(p) >= _SEUIL_PHRASE and _deja_dit(p.lower(), bas):
+            # copie : verbatim OU fragment de 45+ signes partages
+            continue
         gardes.append(p)
     propre = " ".join(gardes).strip()
     return propre if len(propre) >= 40 else texte
@@ -311,22 +374,72 @@ def _sans_copies(texte: str, deja_ecrit: str) -> str:
 def _sans_doublons(texte: str) -> str:
     """Retire les phrases repetees AU SEIN d'un meme texte.
 
-    Utile pour les extraits web (deux resultats identiques colles cote a
-    cote) et en garde-fou final avant livraison : une phrase longue deja
-    dite n'a rien a faire deux fois dans la meme reponse.
+    Mot pour mot OU par fragment (45+ signes partages avec un debut de
+    phrase different) : utile pour les extraits web (deux resultats
+    colles cote a cote) et en garde-fou final avant livraison. La mise en
+    page est preservee : si rien n'est a retirer, le texte original sort
+    tel quel (sinon les paragraphes \n\n le restent).
     """
     if not texte:
         return texte
-    vus: set[str] = set()
-    gardes: list[str] = []
-    for p in _phrases(texte):
-        cle = p.lower()
-        if len(p) >= _SEUIL_PHRASE and cle in vus:
+    propres: list[str] = []
+    bas = ""
+    touche = False
+    for bloc in re.split(r"\n{2,}", texte):
+        phrases = _phrases(bloc)
+        gardes: list[str] = []
+        for p in phrases:
+            if len(p) >= _SEUIL_PHRASE and _deja_dit(p.lower(), bas):
+                touche = True            # copie (verbatim ou fragment)
+                continue
+            gardes.append(p)
+            bas = (bas + "\n" + p.lower()) if bas else p.lower()
+        if not gardes:
+            if bloc.strip():
+                touche = True            # bloc entier copie -> jete
             continue
-        vus.add(cle)
-        gardes.append(p)
-    propre = " ".join(gardes).strip()
+        propres.append(bloc if len(gardes) == len(phrases)
+                       else " ".join(gardes))
+    if not touche:
+        return texte                     # rien a retirer : texte intact
+    propre = "\n\n".join(propres).strip()
     return propre or texte
+
+
+_RE_LIBELLE_PLAN = re.compile(
+    r"\*{0,2}(?:SECTION\s+A\s+REDIGER\s*:|PARTIE\s*[1-9]\s*[:\-–]|"
+    r"CONNECTEURS\s*:)", re.I)
+
+
+def _sans_libelles(texte: str) -> str:
+    """Retire les libelles de plan recopies dans la redaction finale.
+
+    Le prompt de section contient litteralement « SECTION A REDIGER :
+    PARTIE n » et le 1B le repete parfois en tete de sa copie (observe au
+    banc : riche-puissance KO sur cette balise ecolee). La ligne partant
+    du libelle est jetee ; sauf si elle est fermee par ** et suivie de
+    vrai texte, auquel cas on garde ce qui suit la fermeture.
+    """
+    if not texte:
+        return texte
+    lignes = []
+    for ligne in texte.split("\n"):
+        while True:
+            m = _RE_LIBELLE_PLAN.search(ligne)
+            if not m:
+                break
+            suite = ligne[m.end():]
+            cloture = re.search(r"\*\*", suite)
+            if cloture:
+                # entete en gras fermee puis texte reel -> on garde la suite
+                ligne = ligne[:m.start()] + suite[cloture.end():]
+                continue
+            # pas de fermeture : tout ce qui suit est le libelle -> la
+            # fin de la ligne saute (le vrai texte est sur les suivantes)
+            ligne = ligne[:m.start()]
+            break
+        lignes.append(ligne)
+    return "\n".join(lignes).strip()
 
 
 def _resume_sections(redige: list[str]) -> str:
@@ -820,6 +933,19 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
         return texte or "[Aura] Reponse vide du modele."
     except Exception as e:
         LOG.error("[llama] generation echouee : %s", e)
+        # DEBORDEMENT DE CONTEXTE (fenetre d'historique plus longue que la
+        # fenetre de 1536 tokens — vu au banc) : on repart SANS historique
+        # plutot que de livrer « [Aura] Erreur ... » a l'utilisateur.
+        if "exceed context window" in str(e) and _tours_fenetre(historique):
+            LOG.warning("[llama] repli sans historique (contexte deborde)")
+            try:
+                return generer(question, contexte_web, formule,
+                               max_tokens=max_tokens, historique=None,
+                               systeme=systeme, contexte_faits=contexte_faits,
+                               think=think, categorie=categorie,
+                               complexe=complexe)
+            except Exception as e2:
+                LOG.error("[llama] repli sans historique echoue : %s", e2)
         return f"[Aura] Erreur de generation : {e}"
 
 
@@ -945,6 +1071,12 @@ def generer_riche(question: str, contexte_web: str = "",
                 # dans une partie precedente est retirees — impossible de
                 # recopier le paragraphe precedent, meme si le 1B y veille.
                 texte = _sans_copies(texte, "\n".join(redige))
+                # LIBELLES DE PLAN : l'en-tete du prompt (SECTION A
+                # REDIGER : PARTIE n) ne doit jamais figurer dans la
+                # reponse, et une phrase coupee par max_tokens est
+                # terminee proprement avant d'etre raccrochee.
+                texte = _sans_libelles(texte)
+                texte = _finir_phrase(texte)
             except Exception as e:
                 LOG.warning("[storywriter] section %d echouee : %s", num, e)
                 texte = ""

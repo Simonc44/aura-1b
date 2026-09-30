@@ -44,10 +44,15 @@ _MOTS_IDENTITE = ("qui es tu", "qui es-tu", "qui t'a", "qui t'a cree",
 # « puissance de la technologie » ne tombe PAS dedans (peut rester riche).
 _RE_META_IA = re.compile(
     r"(\bes[-\s]?tu\b|\bt'es[-\s]?tu\b|\bqui es[-\s]?tu\b|"
+    r"\best[-\s]?ce que tu (es|sois|puisses|saches|comprennes)\b|"
+    r"\btu es\s+(?:une?\s+)?(ia|intelligence artificielle|robot|modele|"
+    r"assistant|conscient|intelligent|capable)\b|"
     r"\bton modele\b|\bton algorithme\b|\bton architecture\b|"
     r"\bta puissance\b|\btes capacites\b|\btes performances\b|"
     r"\bce que tu (peux|sais|connais|comprends)\b|"
-    r"\ben tant qu'ia\b|\ben tant que ia\b|\bcomment tu (fonctionnes|marches|es construit|travailles)\b|"
+    r"\ben tant qu'ia\b|\ben tant que ia\b|"
+    r"\bcomment tu (fonctionnes|marches|es construit|travailles)\b|"
+    r"\bintelligence artificielle\b|"
     r"\b\d{1,3}[\s-]?b\b|\bgpt[-\s]?\d|\bgpt\b|\bchatgpt\b|\bopenai\b|"
     r"\bllama[-\s]?\d|\bmistral\b|\bdeepseek\b|\bclaude[-\s]?\d|\bgemini\b)",
     re.IGNORECASE)
@@ -64,6 +69,43 @@ _CAPACITE = (
     "ne sort de ta machine) et je m'appuie sur des experts symboliques "
     "(maths exactes, faits verifies) qui eux ne se trompent pas. Dis-moi "
     "ton besoin et je te dirai si je suffis — ou s'il te faut plus gros.")
+
+
+# Question qui attend une VALEUR/UN FAIT court (« quel age a Alice »,
+# « quel est le prix du carburant ») : la dissertation multi-pass (75-86 s
+# mesures au banc) y est du gachis — on reste en reponse courte.
+_RE_REPONSE_COURTE = re.compile(
+    r"(\bquel\s+(age|est|sont|prix|nombre|est-ce)|\bquelle?\s+(est|sont|la "
+    r"capitale|la reponse)|\bcombien\b|\bqui (est|a|trouve)|"
+    r"\bo[ùu] se trouve\b|\bquand (est-ce|a-t-il|est ne)\b|\bprix de\b)",
+    re.IGNORECASE)
+
+# Refus INTEGRAL (le modele declina puis se tait) : ne doit jamais etre
+# mis en cache ni livre comme si c'etait une reponse. S'il y a une vraie
+# suite derriere, c'est un simple tic de tete -> retire.
+_RE_REFUS = re.compile(
+    r"^\s*(je suis desole|je suis desolee|je ne peux pas|"
+    r"je ne suis pas en mesure|desole, mais|pardon, mais)", re.IGNORECASE)
+
+
+def _est_refus(texte: str) -> bool:
+    """Refus court = pas une reponse (refus long avec suite = garde-fou
+    legitime, cf. filet hors-ligne)."""
+    return bool(texte and _RE_REFUS.search(texte) and len(texte) < 400)
+
+
+def _retirer_refus_tete(texte: str) -> str:
+    """Si la reponse REFUSE puis repond quand meme, coupe le refus de tete
+    (« Je suis desole, mais... » suivi d'une vraie analyse = tic parasite)."""
+    if not texte or not _RE_REFUS.search(texte):
+        return texte
+    phrases = re.split(r"(?<=[.!?])\s+", texte.strip())
+    if len(phrases) < 2:
+        return texte
+    reste = " ".join(phrases[1:]).strip()
+    # on ne coupe que si la suite est substantielle (sinon on garde le
+    # garde-fou : un refus honnete reste un refus honnete)
+    return reste if len(reste) >= 200 else texte
 
 
 def _est_meta_ia(question: str) -> bool:
@@ -459,6 +501,10 @@ class Aura1B:
         # riche part en plan + 3 sections pour une question fermee.
         if _est_meta_ia(question):
             return False
+        # REPONSE COURTE attendue (age, prix, capitale...) : le multi-pass
+        # (75-86 s mesures au banc) y est du gachis.
+        if _RE_REPONSE_COURTE.search(question):
+            return False
         if len(q.split()) >= 9:                      # question developpee
             return True
         return any(m in q for m in (
@@ -636,11 +682,22 @@ class Aura1B:
         # majorite des questions quotidiennes n'ont PAS besoin du LLM.
         instant, analyse = self._decider(question)
         if instant is not None and not (X and y):
-            return {"question": question, "experts": {"instantane"},
-                    "analyse": {"methodes": ["niveau0"]},
-                    "cerveau_choisi": "niveau0-instantane",
-                    "contexte_web": "", "formule": "",
-                    "erreur_pgs": None, "reponse": instant}
+            # NETTOYAGE DU CACHE : une reponse sale peut y etre restee d'un
+            # run precedent (phrase en double, refus) — vu au banc
+            # (logique-ages : refus double servi en 0,1 s).
+            instant = llama_cerveau._sans_doublons(instant)
+            # une vieille entree de cache peut contenir un libelle de plan
+            # (SECTION A REDIGER, PARTIE n :) : il est retire au service.
+            instant = llama_cerveau._sans_libelles(instant) or instant
+            if _est_refus(instant):
+                LOG.info("[niveau0] refus servi par le cache -> pipeline complet")
+                instant, analyse = None, self.analyser(question)
+            else:
+                return {"question": question, "experts": {"instantane"},
+                        "analyse": {"methodes": ["niveau0"]},
+                        "cerveau_choisi": "niveau0-instantane",
+                        "contexte_web": "", "formule": "",
+                        "erreur_pgs": None, "reponse": instant}
 
         # IDENTITE : reponse constante, hors des poids — l'apparence d'Aura
         # ne se negocie pas avec un 1B (question « qui es tu » -> reponse
@@ -687,25 +744,6 @@ class Aura1B:
             experts.add("web")
         riche = self._est_complexe(question)
 
-        # RAG BINAIRE (source 2 de la cascade) : le savoir verifie local
-        # repond en ~5 ms SANS reseau. Si l'index connait la question
-        # (similarite suffisante), pas besoin de « Knuckles Go » : on
-        # renvoie la reponse extraite telle quelle — zero hallucination
-        # possible (rien n'est genere, tout est extrait). Miss -> cascade
-        # normale (web, graphe, experts...).
-        if not riche:
-            try:
-                rag_rep = rag_binaire.chercher(question)
-            except Exception as e:
-                LOG.info("[rag] indisponible (%s)", e)
-                rag_rep = None
-            if rag_rep:
-                return {"question": question,
-                        "experts": experts | {"rag"},
-                        "analyse": analyse, "cerveau_choisi": "rag-binaire",
-                        "contexte_web": "", "formule": "",
-                        "erreur_pgs": None, "reponse": rag_rep}
-
         # EXPERTS SPECIAUX (logique exacte, code sandboxe) : signatures
         # conservatrices, repli cascade vers le chemin normal. AVANT le
         # fan-out : une enigme de logique n'a pas besoin de DuckDuckGo.
@@ -735,6 +773,29 @@ class Aura1B:
             self._special_traite = True     # un expert exact a repondu
             return special
         self._special_traite = False
+
+        # RAG BINAIRE (source 2 de la cascade) : le savoir verifie local
+        # repond en ~5 ms SANS reseau. Si l'index connait la question
+        # (similarite suffisante), on renvoie la reponse extraite telle
+        # quelle — zero hallucination possible (rien n'est genere).
+        # APRES les experts speciaux : un lookup flou ne doit JAMAIS
+        # primer sur une resolution exacte (tri-transitif, SAT) — sinon
+        # une enigme « qui est le plus age ? » est servie par l'index au
+        # lieu du solveur (regression vue au banc). Les PUZZLES sont
+        # egalement exclus : ils se deduisent (PoT + AST), ils ne se
+        # documentent pas — l'index n'a rien a y faire avant le raisonneur.
+        if not riche and not self._est_puzzle(question):
+            try:
+                rag_rep = rag_binaire.chercher(question)
+            except Exception as e:
+                LOG.info("[rag] indisponible (%s)", e)
+                rag_rep = None
+            if rag_rep:
+                return {"question": question,
+                        "experts": experts | {"rag"},
+                        "analyse": analyse, "cerveau_choisi": "rag-binaire",
+                        "contexte_web": "", "formule": "",
+                        "erreur_pgs": None, "reponse": rag_rep}
 
         # FAN-OUT PARALLELE (idea JEV #1) : web ∥ PGS en un aller-retour
         contexte_web, formule = self._executer_experts(
@@ -865,12 +926,27 @@ class Aura1B:
         # GARDE-FOU FINAL (disjoncteur) : JAMAIS une reponse en boucle ne
         # part vers l'utilisateur — on deduplique les phrases repetees ;
         # si c'est une boucle serree (n-grammes), on coupe avant repetition.
+        # PUIS tete de refus parasite : « Je suis desole, mais... » suivi
+        # d'une vraie suite est coupe (un refus SANS suite reste conserve).
         try:
+            # LIBELLES DE PLAN : « SECTION A REDIGER : PARTIE n » recopie
+            # par le 1B ne doit JAMAIS arriver a l'utilisateur (banc :
+            # riche-puissance KO sur cette balise ecolee).
+            reponse = llama_cerveau._sans_libelles(reponse) or reponse
+            # PHRASES COPIEES : mot pour mot OU par fragment de 45 signes
+            # (« Pourtant, cette question souleve... » puis « En definitive,
+            # cette question souleve... » reste une copie malgre son debut).
+            sans_dbl = llama_cerveau._sans_doublons(reponse)
+            if sans_dbl != reponse:
+                LOG.warning("[disjoncteur] phrases copiees retirees en fin "
+                            "de chaine")
+                reponse = sans_dbl
             if llama_cerveau._en_boucle(reponse):
-                sans_dbl = llama_cerveau._sans_doublons(reponse)
-                reponse = (sans_dbl if not llama_cerveau._en_boucle(sans_dbl)
-                           else llama_cerveau._couper_boucle(reponse))
+                reponse = llama_cerveau._couper_boucle(reponse)
                 LOG.warning("[disjoncteur] reponse nettoyee en fin de chaine")
+            # phrase tronquee en fin de texte (max_tokens) : finition propre
+            reponse = llama_cerveau._finir_phrase(reponse)
+            reponse = _retirer_refus_tete(reponse)
         except Exception as e:
             LOG.info("[disjoncteur] garde-fou impossible (%s)", e)
         # DOUBLE PASSE (le secret du 1B) : un petit modele est mediocre pour
@@ -921,6 +997,16 @@ class Aura1B:
                         graphe_faits.renforcer(s, o)
                     except Exception:
                         pass
+        # NETTOYAGE FINAL AVANT LIVRAISON ET MEMORISATION : quoi qu'aient
+        # produit la double passe ou la verification web, aucun libelle de
+        # plan, aucune phrase copiee ni fin tronquee ne doit etre servi
+        # (ni servi ulterieurement depuis le cache).
+        try:
+            reponse = llama_cerveau._sans_libelles(reponse) or reponse
+            reponse = llama_cerveau._sans_doublons(reponse)
+            reponse = llama_cerveau._finir_phrase(reponse)
+        except Exception as e:
+            LOG.info("[nettoyage final] impossible (%s)", e)
         # memorise pour les futures questions (cache semantique + conversation)
         filtre_instantane.enregistrer(question, reponse)
         self._historique.ajouter("user", question)

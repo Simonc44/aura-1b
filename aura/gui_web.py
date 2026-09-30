@@ -26,14 +26,16 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:      # uniquement pour les annotations (import relou en runtime)
     import webview
 
-from . import config as _config
-
 _ICI = Path(__file__).resolve().parent
 _RACINE = _ICI.parent                      # racine du projet (contient aura/)
 # Lancement en script direct (python aura/gui_web.py, double-clic...) :
 # sys.path[0] est alors aura/, pas la racine -> import aura impossible.
 if str(_RACINE) not in sys.path:
     sys.path.insert(0, str(_RACINE))
+
+# NB : config/maj sont importes LOCALEMENT (dans main/_verifier_maj) :
+# un import top-level de `aura.*` execute aura/__init__.py -> orchestrateur
+# -> gplearn/llama_cpp, absents du Python global AVANT la relance venv.
 
 _INDEX_HTML = _ICI / "web" / "index.html"
 
@@ -139,7 +141,10 @@ class Api:
         """Pousse 'maj_disponible' vers le JS si une release plus recente
         existe (3 s max, silencieux hors-ligne — AURA_MAJ=0 pour couper)."""
         try:
-            from . import maj
+            try:
+                from . import maj
+            except ImportError:           # lancement en script direct
+                from aura import maj
             rap = maj.verifier(timeout=3.0)
             if rap.get("dispo"):
                 self._pousser("maj_disponible",
@@ -191,6 +196,11 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     _relancer_si_besoin()          # bons modules ? sinon relance .venv
+    # config APRES la verification des deps (voir commentaire module)
+    try:
+        from . import config as _config
+    except ImportError:             # lancement en script direct
+        from aura import config as _config
     _config.appliquer()            # aura.toml + profils, avant l'orchestrateur
     import webview  # pip install pywebview (apres verification des deps)
 

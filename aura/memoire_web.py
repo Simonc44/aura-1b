@@ -9,6 +9,7 @@ extraction d'un lexique de « briques de langage » injectees au modele pour
 ameliorer la redaction.
 """
 import logging
+import os
 import re
 from collections import Counter
 
@@ -40,8 +41,16 @@ def a_besoin_web(question: str) -> bool:
     return any(mot in q for mot in _MOTS_CLES_WEB)
 
 
-def chercher(requete: str, max_resultats: int = 3, timeout: int = 10) -> str:
-    """Renvoie un contexte texte filtre (titre + extrait), vide si echec."""
+def chercher(requete: str, max_resultats: int = 3,
+             timeout: int | None = None) -> str:
+    """Renvoie un contexte texte filtre (titre + extrait), vide si echec.
+
+    timeout : borne la recherche (AURA_WEB_TIMEOUT, defaut 6 s) — une
+    question factuelle hors-ligne ne doit pas attendre 86 s (mesure au
+    banc_qualite) que DuckDuckGo decide de repondre ou non.
+    """
+    if timeout is None:
+        timeout = int(os.environ.get("AURA_WEB_TIMEOUT", "6"))
     try:
         try:
             from ddgs import DDGS

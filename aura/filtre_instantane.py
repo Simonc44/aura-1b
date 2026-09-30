@@ -21,6 +21,7 @@ import ast
 import json
 import logging
 import operator
+import os
 import re
 import time
 import unicodedata
@@ -30,7 +31,12 @@ import numpy as np
 
 LOG = logging.getLogger("aura.filtre0")
 
-_FICHIER = Path(__file__).parent / ".cache_reponses.jsonl"
+# Cache de reponses (jsonl) : AURA_FILTRE_CACHE permet d'en pointer un
+# AUTRE — indispensable pour les bancs (scripts/bench_qualite.py) qui ne
+# doivent ni polluer la memoire reelle du projet ni les tests (un hit de
+# cache y ferait echouer le routage testé).
+_FICHIER = Path(os.environ.get("AURA_FILTRE_CACHE")
+                or (Path(__file__).parent / ".cache_reponses.jsonl"))
 _SEUIL_SIMILARITE = 0.85
 
 # reponses contextuelles (liées a l'utilisateur ou a la conversation) :
