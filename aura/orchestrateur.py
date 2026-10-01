@@ -410,6 +410,19 @@ class Aura1B:
                                  if personnalite else brique)
         except Exception:
             pass
+        # DETECTEUR DE CONCEPTS : la question releve-t-elle d'un concept
+        # abstrait connu (bibliotheque MiniLM) ? Alors un bloc LEXIQUE est
+        # ajoute au prompt systeme : le 1B recopie une formulation exacte
+        # et calibree au lieu d'improviser sur un mot qu'il ne maitrise
+        # pas. Desactive par AURA_CONCEPTS=0.
+        try:
+            from . import concepts
+            ancrage = concepts.ancrage(question)
+            if ancrage:
+                systeme_final = (f"{systeme_final}\n{ancrage}"
+                                 if systeme_final else ancrage)
+        except Exception:  # noqa: BLE001
+            pass
         # OUTIL RLM (MIT) : la question demande-t-elle l'historique ?
         # Resolution symbolique (recherche fichier arriere) — zero LLM,
         # zero token d'historique injecte.

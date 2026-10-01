@@ -11,9 +11,11 @@ generer. Deux detecteurs, du plus rapide au plus cher :
 1bis. **PAL** (< 1 ms) — dates (« dans 45 jours », « combien de jours
    jusqu'au 25 decembre »), unites (« 5 miles en km », « 100 f en c »),
    pourcentages composes (« 15% de 200 plus 30% de 100 ») : voir pal.py.
-2. **Cache semantique** (~1 ms) — TF-IDF char n-grams + cosinus sur les
-   reponses deja donnees : une question similaire (>= 0.85) renvoie la
-   reponse enregistree. Le systeme « apprend » ses reponses.
+2. **Cache semantique** (~4 ms) — deux lectures des reponses deja
+   donnees : vecteurs MiniLM (cosinus >= 0.70 = vraie reformulation
+   reconnue, index dense NumPy persiste en .npy) puis, a defaut ou en
+   repli, TF-IDF char n-grams (>= 0.85). Une question similaire renvoie
+   la reponse enregistree : le systeme « apprend » ses reponses.
 
 Si rien ne matche → None → le routeur et le Llama prennent la main.
 """
@@ -37,7 +39,12 @@ LOG = logging.getLogger("aura.filtre0")
 # cache y ferait echouer le routage testé).
 _FICHIER = Path(os.environ.get("AURA_FILTRE_CACHE")
                 or (Path(__file__).parent / ".cache_reponses.jsonl"))
-_SEUIL_SIMILARITE = 0.85
+_SEUIL_SIMILARITE = 0.85   # repli TF-IDF (formes)
+# Seuil du vecteur MiniLM (sens) : calibre sur le cache reel — les paires
+# a risque (« conjugue X » vs « conjugue Y », enonces de logique) scorent
+# 0.72-0.93 mais sont filtrees en aval par _hit_douteux (jetons porteurs),
+# tandis que les reformulations vraies (0.70+) deviennent des hits.
+_SEUIL_VECTEUR = 0.70
 
 # reponses contextuelles (liées a l'utilisateur ou a la conversation) :
 # a ne JAMAIS mettre en cache, la reponse serait fausse hors contexte.
@@ -171,6 +178,73 @@ def _fmt(v: float) -> str:
 _vectoriseur = None
 _matrice = None
 _entrees: list[dict] = []
+_vecteurs = None          # np.ndarray (n, 384) float32 | None : index MiniLM
+
+
+def _fichier_vecteurs() -> Path:
+    """Index dense colle au cache jsonl (suit AURA_FILTRE_CACHE)."""
+    return Path(str(_FICHIER) + ".vecs.npy")
+
+
+def _encoder(textes: list[str]) -> np.ndarray | None:
+    """Vecteurs MiniLM, ou None (coupe, modele absent, erreur)."""
+    try:
+        from . import embeddings
+        if not embeddings.actif():
+            return None
+        return embeddings.encoder(textes)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _minilm_actif() -> bool:
+    """Coupe generale : AURA_MINILM=0 desactive l'index semantique."""
+    try:
+        from . import embeddings
+        return embeddings.actif()
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _construire_vecteurs() -> None:
+    """Charge l'index semantique (.npy) ou le reconstruit (~4 ms/entree).
+
+    Sans MiniLM : index vide, le cache retombe sur le TF-IDF historique
+    (comportement inchange).
+    """
+    global _vecteurs
+    if not _entrees or not _minilm_actif():
+        _vecteurs = None
+        return
+    fich = _fichier_vecteurs()
+    if fich.exists():
+        try:
+            v = np.load(fich)
+            if v.shape == (len(_entrees), 384):
+                _vecteurs = v.astype(np.float32, copy=False)
+                return
+        except (OSError, ValueError):
+            pass
+    v = _encoder([e["q"] for e in _entrees])
+    if v is None:
+        _vecteurs = None
+        try:
+            fich.unlink(missing_ok=True)   # npy orphelin (MiniLM coupee)
+        except OSError:
+            pass
+        return
+    _vecteurs = np.asarray(v, dtype=np.float32)
+    _sauver_vecteurs()
+
+
+def _sauver_vecteurs() -> None:
+    if _vecteurs is None:
+        return
+    try:
+        with _fichier_vecteurs().open("wb") as f:
+            np.save(f, _vecteurs)
+    except OSError as e:
+        LOG.debug("[niveau0] index vectoriel non ecrit : %s", e)
 
 
 def _charger_cache():
@@ -188,14 +262,29 @@ def _charger_cache():
         _vectoriseur = TfidfVectorizer(analyzer="char", ngram_range=(2, 4),
                                        max_features=2000)
         _matrice = _vectoriseur.fit_transform([e["q"] for e in _entrees])
+    _construire_vecteurs()
 
 
 def _similar(question: str) -> int | None:
-    """Index de l'entree la plus similaire si >= seuil, sinon None."""
+    """Index de l'entree la plus proche si >= seuil, sinon None.
+
+    1. Sens (MiniLM) : cosinus >= _SEUIL_VECTEUR sur l'index dense —
+       une reformulation est reconnue, pas seulement sa copie de forme.
+    2. Repli TF-IDF char n-grams (>= _SEUIL_SIMILARITE) : present sans
+       MiniLM, et conserve comme second avis.
+    """
+    q = question.lower().strip()
+    if _vecteurs is not None:
+        v = _encoder([q])
+        if v is not None:
+            sims = _vecteurs @ np.asarray(v[0], dtype=np.float32)
+            i = int(np.argmax(sims))
+            if float(sims[i]) >= _SEUIL_VECTEUR:
+                return i
     from sklearn.metrics.pairwise import cosine_similarity
     if _vectoriseur is None or _matrice is None:
         return None
-    vec = _vectoriseur.transform([question.lower().strip()])
+    vec = _vectoriseur.transform([q])
     sims = cosine_similarity(vec, _matrice)[0]
     i = int(np.argmax(sims))
     return i if sims[i] >= _SEUIL_SIMILARITE else None
@@ -289,7 +378,7 @@ def enregistrer(question: str, reponse: str):
         with _FICHIER.open("a", encoding="utf-8") as f:
             f.write(json.dumps(entree, ensure_ascii=False) + "\n")
         from sklearn.feature_extraction.text import TfidfVectorizer
-        global _vectoriseur, _matrice
+        global _vectoriseur, _matrice, _vecteurs
         if _vectoriseur is None:
             _vectoriseur = TfidfVectorizer(analyzer="char", ngram_range=(2, 4),
                                            max_features=2000)
@@ -300,6 +389,16 @@ def enregistrer(question: str, reponse: str):
             _matrice = vstack([_matrice, nouvelle])
     except OSError as e:
         LOG.warning("[niveau0] cache non ecrit : %s", e)
+    # memoire semantique : garde l'index aligne (1er enregistrement inclus)
+    if _vecteurs is None or _vecteurs.shape[0] not in (
+            len(_entrees), len(_entrees) - 1):
+        _construire_vecteurs()          # (re)construit l'index complet
+    if _vecteurs is not None and _vecteurs.shape[0] == len(_entrees) - 1:
+        v = _encoder([entree["q"]])
+        if v is not None:
+            _vecteurs = np.vstack([_vecteurs,
+                                   np.asarray(v, dtype=np.float32)])
+            _sauver_vecteurs()
 
 
 def mettre_a_jour(question: str, reponse: str) -> bool:
@@ -337,7 +436,7 @@ def mettre_a_jour(question: str, reponse: str) -> bool:
 
 def purger_contextuelles():
     """Retire du cache les entrees contextuelles (mises en cache avant le filtre)."""
-    global _vectoriseur, _matrice, _entrees
+    global _vectoriseur, _matrice, _entrees, _vecteurs
     _charger_cache()
     avant = len(_entrees)
     garder = [e for e in _entrees
@@ -345,6 +444,11 @@ def purger_contextuelles():
     if len(garder) != avant:
         _entrees = garder
         _vectoriseur, _matrice = None, None   # recalcule au prochain acces
+        _vecteurs = None                      # index reconstruit au prochain acces
+        try:
+            _fichier_vecteurs().unlink(missing_ok=True)
+        except OSError:
+            pass
         try:
             with _FICHIER.open("w", encoding="utf-8") as f:
                 for e in _entrees:

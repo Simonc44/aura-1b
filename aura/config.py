@@ -56,6 +56,12 @@ _CLES: dict[tuple[str, str], str] = {
     ("qualite", "seuil_confiance"): "AURA_SEUIL_CONFIANCE",
     ("api", "port"): "AURA_API_PORT",
     ("maj", "verifier"): "AURA_MAJ",
+    # Briques vectorielles (embeddings MiniLM) : encodeur partage,
+    # detecteur de concepts, 2e avis flou du routeur.
+    ("minilm", "actif"): "AURA_MINILM",
+    ("concepts", "actif"): "AURA_CONCEPTS",
+    ("concepts", "seuil"): "AURA_CONCEPTS_SEUIL",
+    ("flou", "actif"): "AURA_FLOU",
 }
 
 

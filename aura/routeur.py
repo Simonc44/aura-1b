@@ -234,6 +234,38 @@ _PROTOTYPES = {
 
 # -- classes ----------------------------------------------------------------
 
+def exemples_entrainement() -> tuple[list[str], list[str]]:
+    """(questions, categories) : le savoir du routeur, self-play compris.
+
+    Source de verite partagee entre le classifieur TF-IDF historique et
+    le classificateur flou sur vecteurs MiniLM
+    (aura/classificateur_flou.py) : meme savoir, deux lectures
+    (formules vs sens).
+    """
+    questions = list(_EXEMPLES_MATH + _EXEMPLES_WEB + _EXEMPLES_GENERAL)
+    labels = (["math"] * len(_EXEMPLES_MATH)
+              + ["web"] * len(_EXEMPLES_WEB)
+              + ["general"] * len(_EXEMPLES_GENERAL))
+    try:
+        suppl = RouteurIntelligent._exemples_selfplay()
+    except Exception:  # noqa: BLE001
+        suppl = []
+    questions.extend(q for q, _ in suppl)
+    labels.extend(c for _, c in suppl)
+    return questions, labels
+
+
+def _probas_flou(question: str) -> dict | None:
+    """2e avis (MiniLM + LinearSVC) — None si coupe/indisponible.
+
+    Import paresse : classificateur_flou importe ce module (cycle).
+    """
+    try:
+        from .classificateur_flou import probas
+        return probas(question)
+    except Exception:  # noqa: BLE001
+        return None
+
 class RouteurIntelligent:
     """Classe la question et renvoie les experts a activer."""
 
@@ -261,17 +293,9 @@ class RouteurIntelligent:
         from sklearn.feature_extraction.text import TfidfVectorizer
         from sklearn.linear_model import LogisticRegression
 
-        questions = _EXEMPLES_MATH + _EXEMPLES_WEB + _EXEMPLES_GENERAL
-        labels = (["math"] * len(_EXEMPLES_MATH) +
-                  ["web"] * len(_EXEMPLES_WEB) +
-                  ["general"] * len(_EXEMPLES_GENERAL))
-
-        # SELF-PLAY -> ROUTEUR : les defis valides par le juge exact
-        # enrichissent le training set (libelles par type de defi). Le
-        # routeur apprend de la pratique du systeme, pas d'une liste figee.
-        suppl = self._exemples_selfplay()
-        questions.extend(q for q, _ in suppl)
-        labels.extend(c for _, c in suppl)
+        # Meme savoir que le classificateur flou : self-play compris
+        # (source de verite unique -> exemples_entrainement).
+        questions, labels = exemples_entrainement()
 
         self._vectoriseur = TfidfVectorizer(
             analyzer="char", ngram_range=(2, 4), max_features=2000)
@@ -382,6 +406,21 @@ class RouteurIntelligent:
         pred = self._classifieur.predict(X)[0]
         probas = _probas(self._classifieur, X)
 
+        # FUSION FLOU : 2e avis sur le SENS (vecteurs MiniLM + SVM), fonde
+        # 50/50 avec l'avis TF-IDF sur les formules — paraphrases mieux
+        # vues, confiance plus juste pour l'aiguillage (experts, mix LoRA,
+        # garde-fous de confiance). Sans MiniLM : inchange.
+        methodes = ["LogReg", "cosinus"]
+        flou = _probas_flou(q)
+        if flou:
+            cles = set(probas) | set(flou)
+            fondus = {k: 0.5 * float(probas.get(k, 0.0))
+                          + 0.5 * float(flou.get(k, 0.0)) for k in cles}
+            total = sum(fondus.values()) or 1.0
+            probas = {k: v / total for k, v in fondus.items()}
+            pred = max(probas, key=probas.get)
+            methodes.append("MiniLM-SVM")
+
         # methode 2 : similarité cosinus avec prototypes
         self._charger_protos()
         from sklearn.metrics.pairwise import cosine_similarity
@@ -402,7 +441,7 @@ class RouteurIntelligent:
             experts = {pred}
 
         return {
-            "methodes": ["LogReg", "cosinus"],
+            "methodes": methodes,
             "scores": {k: round(v, 3) for k, v in probas.items()},
             "proto_score": round(score_proto, 3),
             "proto_label": best_proto,

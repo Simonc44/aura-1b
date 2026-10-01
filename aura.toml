@@ -29,5 +29,17 @@ seuil_confiance = 0.50     # seuil du routeur (AURA_SEUIL_CONFIANCE)
 [api]
 port = 8760                # serveur HTTP local /v1/* (AURA_API_PORT)
 
+[minilm]
+actif = true               # encodeur vectoriel partage (AURA_MINILM) :
+                           # concepts, routeur flou, cache semantique.
+                           # false = chaque brique retombe sur son repli.
+
+[concepts]
+actif = true               # detecteur de concepts -> bloc LEXIQUE (AURA_CONCEPTS)
+seuil = 0.40               # cosinus mini pour affirmer le concept (AURA_CONCEPTS_SEUIL)
+
+[flou]
+actif = true               # 2e avis du routeur sur vecteurs MiniLM (AURA_FLOU)
+
 [maj]
 verifier = true            # verification des mises a jour au demarrage GUI
