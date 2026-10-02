@@ -55,17 +55,64 @@ class TestPotExtraction:
         bloc = raisonneur.construire_verification(etapes, res)
         assert "VERIFICATION" in bloc and "= 8" in bloc and "= 11" in bloc
 
+    # -- tolerance aux 3 formes REELLES du 1B ---------------------------
+
+    def test_forme_B_calcul_plus_resultat(self):
+        """B : ETAPE n : phrase = calcul = resultat (le 1B ajoute le total)."""
+        brut = "ETAPE 1 : Bob a 4 ans de plus que Clara = 4 + 4 = 8"
+        etapes = raisonneur.extraire_etapes(brut)
+        assert etapes == [("Bob a 4 ans de plus que Clara", "4 + 4")]
+        assert raisonneur.verifier_calculs(etapes) == [8.0]
+
+    def test_forme_C_sans_prefixe_etape(self):
+        """C : ligne libre avec unite, sans 'ETAPE n :' — meme contrat."""
+        brut = "Alice a 3 ans de plus que Bob = 6 + 3 = 9 ans"
+        etapes = raisonneur.extraire_etapes(brut)
+        assert etapes == [("Alice a 3 ans de plus que Bob", "6 + 3")]
+        assert raisonneur.verifier_calculs(etapes) == [9.0]
+
+    def test_forme_chaine_de_noms(self):
+        """Chaine : Bob = Clara + 2 = 4 + 2 = 6 -> on prend le calcul."""
+        etapes = raisonneur.extraire_etapes("Bob = Clara + 2 = 4 + 2 = 6")
+        assert etapes == [("Bob", "4 + 2")]
+        assert raisonneur.verifier_calculs(etapes) == [6.0]
+
+    def test_rejets_prose_algebrique_et_unite_seule(self):
+        # prose sans '=' -> rien ; nom = nom + 3 (algebrique) -> rien
+        # « 6 ans » sans operateur -> rien : seul l'AST aurait autorite
+        assert raisonneur.extraire_etapes("je reflechis a la reponse") == []
+        assert raisonneur.extraire_etapes("Alice = Bob + 3") == []
+        assert raisonneur.extraire_etapes("Alice a 6 ans = 6 ans") == []
+
+    def test_deux_etapes_dans_une_reponse_libre(self):
+        """2 lignes sans ETAPE -> >= 2 etapes : le seuil PoT est atteint."""
+        brut = ("Alice a 3 ans de plus que Bob = 4 + 3 = 7 ans\n"
+                "Bob a 2 ans de plus que Clara = 5 + 2 = 7 ans\n"
+                "REPONSE : Alice a 7 ans.")
+        etapes = raisonneur.extraire_etapes(brut)
+        assert len(etapes) == 2
+        assert raisonneur.verifier_calculs(etapes) == [7.0, 7.0]
+
+    def test_phrase_verifiee_construite_par_le_code(self):
+        """Garde-fou de synthese : la derniere etape AST rendue en phrase."""
+        etapes = raisonneur.extraire_etapes(self.BRUT_VALIDE)
+        res = raisonneur.verifier_calculs(etapes)
+        assert raisonneur.phrase_verifiee(etapes, res) == (
+            "Verification exacte : Paul a 3 ans de plus que Marie = "
+            "8 + 3 = 11.")
+
 
 class TestPotPipeline:
     def test_resoudre_par_pot_valide(self, monkeypatch):
         from aura import llama_cerveau
-        reponses = iter([
-            "ETAPE 1 : Marie a le double = 2 * 4\n"
-            "ETAPE 2 : Paul a 3 de plus = 8 + 3\nREPONSE : 11 ans.",
-            "Paul a 11 ans.",
-        ])
-        monkeypatch.setattr(llama_cerveau, "generer",
-                            lambda *a, **k: next(reponses))
+        etapes = ("ETAPE 1 : Marie a le double = 2 * 4\n"
+                  "ETAPE 2 : Paul a 3 de plus = 8 + 3\nREPONSE : 11 ans.")
+        # majorite : les N essais PoT recoivent le meme brut valide ->
+        # vote 3/3, puis 1 seule synthese (brouillon prouve reinjecte)
+        monkeypatch.setattr(
+            llama_cerveau, "generer",
+            lambda *a, **k: etapes if k.get("systeme")
+            else "Paul a 11 ans.")
         r = Aura1B()._resoudre_par_pot("puzzle quelconque")
         assert r == "Paul a 11 ans."
 

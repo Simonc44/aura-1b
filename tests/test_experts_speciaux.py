@@ -98,7 +98,9 @@ class TestLogique:
         monkeypatch.setattr(llama_cerveau, "generer", faux_generer)
         rep = Aura1B()._resoudre_par_logique("enigme quelconque")
         assert rep == "Paul est chevalier et Marie est menteur."
-        assert appels["n"] == 2          # formalisation + synthese
+        # majorite : 3 formalisations votees (identiques ici -> 3/3) +
+        # 1 synthese ancree par la verification du solveur
+        assert appels["n"] == 4
 
 
 # ── 2. PoT-code (sandbox a builtins restreints) ─────────────────────────
@@ -186,7 +188,7 @@ class TestPotCode:
 class TestRoutageSpeciaux:
     def test_enigme_route_vers_logique(self, monkeypatch):
         monkeypatch.setattr(Aura1B, "_resoudre_par_logique",
-                            lambda self, q: "solution logique")
+                            lambda self, q, t0=None: "solution logique")
         r = Aura1B()._expert_special(
             "Deux chevaliers et un menteur : qui dit la verite ?", None, None)
         assert r["cerveau_choisi"] == "logique-1b+sat"
@@ -202,7 +204,7 @@ class TestRoutageSpeciaux:
     def test_donnees_numeriques_passent_avant(self, monkeypatch):
         appels = []
         monkeypatch.setattr(Aura1B, "_resoudre_par_logique",
-                            lambda self, q: appels.append(1) or None)
+                            lambda self, q, t0=None: appels.append(1) or None)
         assert Aura1B()._expert_special(
             "enigme de logique quelconque", [[1.0], [2.0]], [1.0, 4.0]) is None
         assert not appels

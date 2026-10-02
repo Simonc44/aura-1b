@@ -54,6 +54,9 @@ _CLES: dict[tuple[str, str], str] = {
     ("qualite", "verif_web"): "AURA_VERIF_WEB",
     ("qualite", "agents"): "AURA_AGENTS",
     ("qualite", "seuil_confiance"): "AURA_SEUIL_CONFIANCE",
+    # Majorite d'experts (self-consistency) sur puzzles/enigmes :
+    # N echantillons valides par les solveurs, vote sur la reponse.
+    ("qualite", "majorite"): "AURA_MAJORITE_N",
     ("api", "port"): "AURA_API_PORT",
     ("maj", "verifier"): "AURA_MAJ",
     # Briques vectorielles (embeddings MiniLM) : encodeur partage,
@@ -61,6 +64,9 @@ _CLES: dict[tuple[str, str], str] = {
     ("minilm", "actif"): "AURA_MINILM",
     ("concepts", "actif"): "AURA_CONCEPTS",
     ("concepts", "seuil"): "AURA_CONCEPTS_SEUIL",
+    # Bibliotheque etendue : fichier TOML externe (vide = concepts.toml
+    # a la racine du projet).
+    ("concepts", "fichier"): "AURA_CONCEPTS_TOML",
     ("flou", "actif"): "AURA_FLOU",
 }
 

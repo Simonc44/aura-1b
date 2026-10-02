@@ -887,6 +887,16 @@ def publier_flux(morceau: str) -> None:
             pass
 
 
+# Instruction AUTO-THINK / Dynamic Compute, posee dans le TOUR
+# UTILISATEUR (suffrage apres la question) : en message assistant
+# (prefill), le 1B se contente de la RECITER en reponse au lieu de la
+# suivre — observe sur logique-ages (bench 13/14 avant correction).
+_INSTRUCTION_THINK = (
+    "Pour les questions complexes, reflechis d'abord entre "
+    "<thinking> et </thinking> (analyse, plan, verification), "
+    "puis ecris la reponse finale apres la balise fermante.")
+
+
 def generer(question: str, contexte_web: str = "", formule: str = "",
             max_tokens: int | None = None,
             historique: list[dict] | None = None,
@@ -934,11 +944,13 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
             # DYNAMIC COMPUTE : sur question complexe, un brouillon masque
             # <thinking> est demande (budget x2) puis separe par
             # separer_reflexion — l'utilisateur ne voit que la reponse.
-            if complexe and not systeme:
-                messages_srv.append({"role": "assistant", "content":
-                    ("Pour les questions complexes, reflechis d'abord entre "
-                     "<thinking> et </thinking> (analyse, plan, verification), "
-                     "puis ecris la reponse finale apres la balise fermante.")})
+            # AUTO-THINK (think=True, pose par l'orchestrateur sur les
+            # puzzles/enigmes) : meme logique, MEME si un systeme est pose
+            # — c'est le filet du 1B sur ses terrains les plus durs.
+            if (complexe and not systeme) or think:
+                messages_srv[-1] = {"role": "user",
+                                    "content": question + "\n"
+                                    + _INSTRUCTION_THINK}
                 budget_srv = max((max_tokens or 0) * 2, 400)
             else:
                 budget_srv = max_tokens or _max_tokens_adaptatif(question)
@@ -987,6 +999,15 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
         # cerveau a reflexion native : budget x2.5 (plancher 200) pour ne
         # pas couper la pensee avant la reponse
         max_tokens = max(int(max_tokens * 2.5), 200)
+    elif think:
+        # AUTO-THINK sur cerveau SANS reflexion native (Llama 3.2) :
+        # instruction dans le tour utilisateur + budget x1.5 — posee en
+        # message assistant (prefill), le 1B la reciterait au lieu de la
+        # suivre. Aucun effet si think est absent/faux (inchange).
+        messages[-1] = {"role": "user",
+                        "content": messages[-1]["content"] + "\n"
+                        + _INSTRUCTION_THINK}
+        max_tokens = max(int(max_tokens * 1.5), 240)
 
     # BUDGET DE CONTEXTE : historique + prompt + generation doivent tenir
     # dans n_ctx — sinon llama_cpp leve « exceed context window » avant

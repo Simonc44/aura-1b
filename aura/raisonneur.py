@@ -78,32 +78,78 @@ def est_puzzle(question: str) -> bool:
 _SYSTEME_POT = (
     "Tu resous des puzzles de logique par ETAPES NUMERIQUEES.\n"
     "Format OBLIGatoire :\n"
-    "ETAPE 1 : <phrase courte de raisonnement> = <un seul calcul arithmetique>\n"
+    "ETAPE 1 : <phrase courte> = <un calcul avec un operateur>\n"
     "ETAPE 2 : <phrase courte> = <calcul>\n"
     "...\n"
     "REPONSE : <la reponse finale en une phrase>\n"
+    # EXEMPLE few-shot : sans modele concret a imiter, le 1B ecrit des
+    # lignes libres (« Bob : 4 + 2 = 6 ans ») ou du algebrique
+    # (« Alice = Bob + 3 ») que l'AST ne peut pas verifier -> PoT tombe a
+    # 0 etape et laisse le puzzle au hasard. Banc de variantes mesure :
+    # ce format donne 4/4 branches dont la derniere etape vaut la bonne
+    # valeur (l'ancien n'en donnait 1/4, avec 23 et 8 comme reponses).
+    "Exemple :\n"
+    "ETAPE 1 : Marie a le double de Leo (5 ans) = 5 * 2\n"
+    "ETAPE 2 : Paul a 3 ans de plus que Marie = 10 + 3\n"
+    "REPONSE : Paul a 13 ans.\n"
     "Regles :\n"
-    "- chaque ETAPE contient EXACTEMENT un calcul avec des nombres\n"
-    "- jamais plusieurs operations dans une meme etape si evitable\n"
-    "- le calcul utilise des nombres, jamais des noms\n"
-    "- la REPONSE finale s'appuie sur le dernier resultat"
+    "- COMMENCE par les valeurs donnees dans l enonce, puis enchaine\n"
+    "- 'X a n ans de plus que Y' se traduit par X = Y + n (jamais Y - n)\n"
+    "- chaque calcul n utilise que des nombres DEJA connus\n"
+    "- chaque ETAPE contient EXACTEMENT un calcul avec un operateur\n"
+    "- jamais de noms dans le calcul, uniquement des nombres\n"
+    "- la REPONSE finale s appuie sur le dernier resultat"
 )
 
-_EXTRACT_CALCUL = re.compile(r"=\s*([-+]?\d+(?:\.\d+)?(?:\s*[-+*/]\s*[-+]?\d+(?:\.\d+)?)+)\s*$")
+# Tolerant aux 3 formes REELLES du 1B (mesurees sur 10 echantillons) :
+#   A canon   : ETAPE 1 : phrase = 4 + 4
+#   B calc+res: ETAPE 1 : phrase = 4 + 4 = 8
+#   C libre   : phrase = 6 + 3 = 9 ans      (sans prefixe ETAPE)
+# L'AST (verifier_calculs) reste l'unique reference de verite : on EXTRAIT
+# seulement ce qui ressemble a un calcul, on ne tranchera jamais ici.
+_CALCUL_EXACT = re.compile(r"[-+]?\d+(?:\.\d+)?(?:\s*[-+*/]\s*[-+]?\d+(?:\.\d+)?)+")
+_NON_CALCUL = re.compile(r"[^0-9+\-*/.\s]")
 _EXTRACT_ETAPE = re.compile(r"ETAPE\s*\d+\s*:(.*)", re.IGNORECASE)
 
 
+def _calcul(fragment: str | None) -> str | None:
+    """Normalise un fragment et renvoie son calcul exact, sinon None.
+
+    Lettres et ponctuation sautent : « 6 ans » -> « 6 » (pas d'operateur,
+    refuse), « Bob + 3 » -> « + 3 » (incomplet, refuse), tandis que
+    « 4 + 4 » ressort intact de « 4 + 4 = 8 ».
+    """
+    if not fragment:
+        return None
+    propre = fragment.replace("\u00d7", "*").replace("\u00f7", "/")
+    # le 1B ecrit « 2 x 4 » (lettre) pour la multiplication : chiffre autour
+    # uniquement, pour ne pas avaler une variable « x »
+    propre = re.sub(r"(?<=\d)\s*[xX]\s*(?=[-+]?\d)", " * ", propre)
+    propre = _NON_CALCUL.sub(" ", propre)
+    propre = re.sub(r"\s+", " ", propre).strip()
+    return propre if _CALCUL_EXACT.fullmatch(propre) else None
+
+
 def extraire_etapes(texte: str) -> list[tuple[str, str]]:
-    """Extrait [(phrase, calcul)] des lignes 'ETAPE n : ... = calcul'."""
-    etapes = []
+    """Extrait [(phrase, calcul)] des lignes ETAPE (formes A/B/C du 1B)."""
+    etapes: list[tuple[str, str]] = []
     for ligne in texte.splitlines():
         m = _EXTRACT_ETAPE.search(ligne)
-        if not m:
+        corps = m.group(1).strip() if m else ligne.strip()
+        if "=" not in corps:
+            continue                    # prose sans calcul : aucune etape
+        parties = [p.strip() for p in corps.split("=")]
+        phrase = parties[0]
+        if not phrase:
             continue
-        corps = m.group(1).strip()
-        mc = _EXTRACT_CALCUL.search(corps)
-        if mc:
-            etapes.append((corps[:mc.start()].strip(), mc.group(1).strip()))
+        # A/B/C : le calcul est a droite, ou incruste dans la phrase
+        if len(parties) > 2:
+            calcul = (_calcul(parties[-2]) or _calcul(parties[1])
+                      or _calcul(phrase))
+        else:
+            calcul = _calcul(parties[1]) or _calcul(phrase)
+        if calcul:
+            etapes.append((phrase, calcul))
     return etapes
 
 
@@ -128,5 +174,20 @@ def construire_verification(etapes: list[tuple[str, str]],
     lignes = ["VERIFICATION DE TES ETAPES (calculees exactement) :"]
     for (phrase, calcul), res in zip(etapes, resultats):
         lignes.append(f"- {phrase} = {calcul} = {_fmt(res)}")
-    lignes.append("Utilise ces valeurs EXACTES pour la reponse finale.")
+    # mesure : la synthese rederivait parfois malgre ce bloc (« 7 » au
+    # lieu de « 9 ») — on interdit explicitement le recalcul maison
+    lignes.append("Utilise ces valeurs EXACTES pour la reponse finale, "
+                  "sans recalculer : reponds en UNE seule phrase.")
     return "\n".join(lignes)
+
+
+def phrase_verifiee(etapes: list[tuple[str, str]],
+                    resultats: list[float]) -> str:
+    """Derniere etape AST-verifiee rendue en phrase, construite PAR LE CODE.
+
+    Garde-fou de la synthese : si le modele ignore les valeurs verifiees,
+    cette phrase (arithmetiquement exacte, l'AST l'a prouvee) complete la
+    reponse — la bonne valeur ne disparait jamais de la sortie.
+    """
+    (phrase, calcul), res = etapes[-1], resultats[-1]
+    return f"Verification exacte : {phrase} = {calcul} = {_fmt(res)}."

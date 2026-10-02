@@ -1,0 +1,14 @@
+# Concepts etendus — genere par scripts/extraire_concepts.py
+# (savoir RAG verifie : datasets/, graphe de faits, knowledge).
+# Complete/surcharge les 30 concepts integres de aura/concepts.py ;
+# detection : AURA_CONCEPTS_SEUIL, desactivation : AURA_CONCEPTS=0.
+
+[concepts]
+cuisine-alimentation = "cuisine et alimentation : faut-il prendre un petit dejeuner ? -> Ce n'est pas obligatoire : l'important est une alimentation équilibrée sur la journée. ; combien de temps cuire des pates ? -> 8 à 12 minutes selon le type ; goûter pour vérifier. ; combien de temps cuire un oeuf dur ? -> Environ 9 à 10 minutes dans l'eau bouillante."
+culture-generale = "culture generale : objets et usages du quotidien : a quoi sert un parapluie ? -> À se protéger de la pluie. ; a quoi sert un refrigerateur ? -> À conserver les aliments au froid pour qu'ils ne se gâtent pas. ; a quoi sert une bouilloire ? -> À chauffer l'eau, souvent pour le thé ou le café."
+geographie-monde = "geographie du monde : la capitale de la France ? -> Paris ; la capitale de l'Italie ? -> Rome ; la capitale de l'Espagne ? -> Madrid ; la capitale du Japon ? -> Tokyo ; la capitale de la Chine ? -> Pékin (Beijing) ; la capitale de l'Australie ? -> Canberra (et non Sydney) ; la capitale du Canada ? -> Ottawa (et non Toronto)"
+informatique-bases = "informatique : bases et environnement : qu'est-ce qu'un navigateur ? -> Un logiciel pour aller sur internet et afficher les sites web (Chrome, Firefox, Edge). ; qu'est-ce qu'un fichier ? -> Un ensemble de données enregistré sur un support : un document, une photo, une vidéo."
+langue-francaise = "langue francaise : sens et differences : difference entre HTML et CSS ? -> HTML structure le contenu ; CSS gère l'apparence (couleurs, mise en page). ; difference entre RAM et disque dur ? -> La RAM est la mémoire de travail (rapide, effacée à l'arrêt) ; le disque stocke durablement les fichiers."
+programmation = "programmation et code : J'ai besoin de ça : ecrire une fonction python {nom} qui additionne deux nombres -> def addition(a, b): return a + b # Exemple : addition(2, 3) -> 5"
+sante-hygiene = "sante et hygiene de vie : comment se proteger des virus sur internet ? -> Mises à jour, antivirus, méfiance devant les liens et pièces jointes, mots de passe solides. ; pourquoi se lave-t-on les mains ? -> Pour éliminer les microbes et éviter les maladies. ; combien de temps faut-il dormir par nuit ? -> 7 à 9 heures pour un adulte."
+sciences-exactes = "sciences : chimie et physique : le symbole chimique de l'or ? -> Au ; le symbole chimique du fer ? -> Fe ; la vitesse de la lumiere ? -> Environ 300 000 km par seconde"

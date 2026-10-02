@@ -126,6 +126,7 @@ from . import expert_symbolique, memoire_web, autoamelioration, filtre_instantan
 from . import llama_cerveau, raisonneur, graphe_faits
 from . import logique as solveur_logique
 from . import potcode
+from . import arbre_reflexion
 from . import agents
 from . import adaptateurs
 from . import calcul_verbal
@@ -179,6 +180,63 @@ _SEUIL_CONFIANCE = float(os.environ.get("AURA_SEUIL_CONFIANCE", "0.50"))
 # 153 s observes. AURA_BUDGET_S=0 pour toujours les executer.
 _BUDGET_S = float(os.environ.get("AURA_BUDGET_S", "45"))
 
+# MAJORITE D'EXPERTS (self-consistency) : sur les terrains EXACTS (puzzles
+# d'ages, enigmes de logique), le meme cerveau est echantillonne N fois et
+# CHAQUE essai passe un solveur deterministe — la reponse retenue est celle
+# qui recueille le plus de voix VERIFIEES (un essai casse ne vote pas).
+# AURA_MAJORITE_N=1 coupe (ancien comportement : un seul essai).
+# Borne a 3 : au-dela le gain mesurable est negligeable face au cout CPU.
+_MAJORITE_MAX = 3
+
+
+def _nb_majorite(t0: float | None = None) -> int:
+    """Nombre d'essais a lancer (1 si coupe ou budget epuise)."""
+    try:
+        n = int(os.environ.get("AURA_MAJORITE_N", "3"))
+    except ValueError:
+        n = 3
+    n = max(1, min(n, _MAJORITE_MAX))
+    if n > 1 and t0 is not None and _BUDGET_S > 0 \
+            and time.time() - t0 >= _BUDGET_S:
+        return 1                     # budget epuise : plus d'essai supp.
+    return n
+
+
+def _cle_reponse_pot(brut: str, dernier: float | None) -> str:
+    """Cle de vote d'un essai PoT : le nombre de la REPONSE, sinon texte.
+
+    Deux essais qui annoncent « 11 ans » et « REPONSE : 11 » doivent voter
+    POUR LA MEME chose — la cle est le chiffre extrait de la reponse (a
+    defaut, le dernier resultat AST, puis le texte normalise).
+    """
+    m = re.search(r"REPONSE\s*:\s*(.+)", brut, re.IGNORECASE)
+    texte = m.group(1) if m else (raisonneur._fmt(dernier)
+                                  if dernier is not None else "")
+    texte = " ".join(texte.lower().split())
+    chiffres = re.search(r"\d+(?:[.,]\d+)?", texte)
+    return chiffres.group(0).replace(",", ".") if chiffres else texte
+
+
+def _contient_valeur(texte: str | None, cibles: list[str]) -> bool:
+    """Vrai si le texte exprime deja l'une des valeurs attendues.
+
+    Garde-fou de la synthese PoT : « 9 » compte vu dans « Alice a 9 ans »
+    comme dans « ... = 9 » (meme tolérance que le banc de qualité).
+    """
+    if not texte:
+        return False
+    return any(c and c in texte for c in cibles)
+
+
+# Relance de la synthese PoT : le 1B re-derive parfois en ignorant le bloc
+# verifie (mesure : « 5 » / « 7 » repondus alors que la derniere etape AST
+# valait 9). Un systeme STERILE (« tu ne calcules jamais ») portait la
+# reprise a 3/3 au banc, contre 0/2 sans systeme.
+_SYSTEME_RECOPIE = (
+    "Tu es un assistant qui RECOPIE des valeurs deja calculees par un "
+    "programme. Tu ne recalcules et ne deduis JAMAIS. Reponds en UNE "
+    "seule phrase qui contient la valeur exacte qui te est donnee.")
+
 
 class Aura1B:
     """Systeme MoE autonome : cerveau Llama + experts PGS / web."""
@@ -198,6 +256,9 @@ class Aura1B:
         self._historique = MemoireConversation()
         self._chaine_faits: list = []        # chaine graphe de la question
         self._derniere_categorie = "general"
+        # Dernier arbre de reflexion construit (PoT) : trace exploitable
+        # pour le debug/les tests (meme esprit que derniere_formule).
+        self._dernier_arbre: arbre_reflexion.ArbreReflexion | None = None
 
     # -- memoire de conversation -------------------------------------------
 
@@ -392,7 +453,8 @@ class Aura1B:
                  personnalite: str | None = None,
                  categorie: str = "", complexe: bool = False,
                  est_def: bool = False,
-                 max_tokens: int | None = None) -> str:
+                 max_tokens: int | None = None,
+                 think: bool | None = None) -> str:
         if self._llama is None:
             from .llama_cerveau import generer as llama_generer
             self._llama = llama_generer
@@ -459,7 +521,10 @@ class Aura1B:
                                systeme=self._historique.bloc_systeme(personnalite),
                                categorie=categorie,
                                complexe=True,
-                               max_tokens=max_tokens)
+                               max_tokens=max_tokens,
+                               # think pose SEULEMENT actif (tests/mocks
+                               # a signature etroite : kwarg absent si off)
+                               **({"think": think} if think else {}))
         if riche:
             from .llama_cerveau import generer_riche
             return generer_riche(question, contexte_web, formule,
@@ -484,7 +549,8 @@ class Aura1B:
                            systeme=self._historique.bloc_systeme(systeme_final),
                            categorie=categorie,
                            complexe=complexe,
-                           max_tokens=max_tokens)
+                           max_tokens=max_tokens,
+                           **({"think": think} if think else {}))
 
     # -- prompt structure ---------------------------------------------------
 
@@ -551,44 +617,95 @@ class Aura1B:
         except Exception:
             return False
 
+    @staticmethod
+    def _auto_think(question: str) -> bool:
+        """Puzzle d'ages ou enigme de logique -> brouillon <thinking> utile.
+
+        Le 1B derape justement sur ces terrains : une passe de reflexion
+        masquee (separee par separer_reflexion, jamais montree a
+        l'utilisateur) coute ~2x de tokens mais est le levier de
+        profondeur restant sur un cerveau 1B sans reflexion native.
+        """
+        return (Aura1B._est_puzzle(question)
+                or bool(_ENIGME_LOGIQUE.search(question.lower())))
+
     # -- enigme logique (mini-SAT pur Python) -------------------------------
 
-    def _resoudre_par_logique(self, question: str) -> str | None:
+    def _resoudre_par_logique(self, question: str,
+                              t0: float | None = None) -> str | None:
         """Le 1B formalise (entites/domaine/dits), le solveur deduit exactement.
 
-        Avec UNE relance de correction : si la formalisation est rejetee,
-        le modele voit SON texte + le motif du refus (self-debug, une seule
-        fois). UNIQUE -> reponse garantie ; MULTIPLE/AUCUNE -> None.
+        MAJORITE D'EXPERTS : N formalisations independantes sont echantillon-
+        nees et CHAQUE vote avec sa SOLUTION — une formalisation fausse est
+        sortie du lot par les autres ; ex aequo -> la premiere solution
+        unique vue (ancien comportement, jamais plus strict qu'avant).
+        UNE relance de correction (self-debug) si le 1er essai est rejete.
+        Aucun essai exploitable -> None (chemin normal).
         """
+        n = _nb_majorite(t0)
+        voix: dict[frozenset, int] = {}
+        details: dict[frozenset, tuple] = {}
+        ordre: list[frozenset] = []
+        relance = False
         try:
-            # cadrage « Enigme : … / Formalisme : » : mesuré en réel, c'est
-            # celui qui fait respecter le format au 1B (noms exacts)
-            brut = llama_cerveau.generer(
-                f"Enigme :\n{question}\n\nFormalisme :",
-                systeme=solveur_logique._SYSTEME_LOGIQUE,
-                max_tokens=300)
-            try:
-                puzzle = solveur_logique.parser_puzzle(brut)
-            except ValueError as e:
-                LOG.info("[logique] formalisation rejetee (%s) -> 1 relance", e)
-                second = llama_cerveau.generer(
-                    question + "\n\nTa reponse precedente etait :\n" + brut
-                    + "\n\nElle a ete REJETEE car : " + str(e)
-                    + "\nReponds a nouveau, STRICTEMENT selon le format, "
-                      "avec les vrais noms de l'enigme et SANS inventer de "
-                      "contrainte.",
+            for i in range(n):
+                # cadrage « Enigme : … / Formalisme : » : mesuré en réel, c'est
+                # celui qui fait respecter le format au 1B (noms exacts)
+                brut = llama_cerveau.generer(
+                    f"Enigme :\n{question}\n\nFormalisme :",
                     systeme=solveur_logique._SYSTEME_LOGIQUE,
                     max_tokens=300)
-                puzzle = solveur_logique.parser_puzzle(second)
-            r = solveur_logique.resoudre(puzzle)
-            if r["statut"] != "unique":
-                LOG.info("[logique] statut %s -> chemin normal", r["statut"])
+                try:
+                    puzzle = solveur_logique.parser_puzzle(brut)
+                except ValueError as e:
+                    if relance or i > 0:
+                        # la relance self-debug est unique (cout borne) :
+                        # les essais suivants sont simplement eclates
+                        LOG.info("[logique] formalisation %d/%d rejetee (%s)",
+                                 i + 1, n, e)
+                        continue
+                    relance = True
+                    LOG.info("[logique] formalisation rejetee (%s) -> 1 relance", e)
+                    second = llama_cerveau.generer(
+                        question + "\n\nTa reponse precedente etait :\n" + brut
+                        + "\n\nElle a ete REJETEE car : " + str(e)
+                        + "\nReponds a nouveau, STRICTEMENT selon le format, "
+                          "avec les vrais noms de l'enigme et SANS inventer de "
+                          "contrainte.",
+                        systeme=solveur_logique._SYSTEME_LOGIQUE,
+                        max_tokens=300)
+                    try:
+                        puzzle = solveur_logique.parser_puzzle(second)
+                    except ValueError as e2:
+                        LOG.info("[logique] relance rejetee (%s)", e2)
+                        continue
+                r = solveur_logique.resoudre(puzzle)
+                if r["statut"] != "unique":
+                    LOG.info("[logique] statut %s (essai %d/%d)",
+                             r["statut"], i + 1, n)
+                    continue
+                cle = frozenset(tuple(sorted(s.items()))
+                                for s in r["solutions"])
+                if cle not in voix:
+                    voix[cle] = 0
+                    details[cle] = (puzzle, r["solutions"])
+                    ordre.append(cle)
+                voix[cle] += 1
+            if not voix:
+                LOG.info("[logique] aucun essai unique -> chemin normal")
                 return None
+            # majorite si elle existe, sinon la 1re solution unique vue
+            cle_gagnante = max(ordre, key=lambda c: voix[c])
+            if len(voix) > 1:
+                LOG.info("[logique] vote : %d solutions divergentes, "
+                         "gagnante %d/%d voix", len(voix),
+                         voix[cle_gagnante], n)
+            puzzle_gagnant, solutions_gagnantes = details[cle_gagnante]
             verification = solveur_logique.bloc_verification(
-                puzzle, r["solutions"])
+                puzzle_gagnant, solutions_gagnantes)
             finale = llama_cerveau.generer(question, contexte_web=verification,
                                            max_tokens=150)
-            LOG.info("[logique] enigme resolue exactement")
+            LOG.info("[logique] enigme resolue exactement (%d essai(s))", n)
             return finale
         except (ValueError, Exception) as e:      # noqa: B014 — jamais bloquant
             LOG.info("[logique] formalisation/refus (%s) -> chemin normal", e)
@@ -626,7 +743,8 @@ class Aura1B:
                 LOG.info("[agents] boucle code impossible (%s) -> chemin normal", e2)
                 return None
 
-    def _expert_special(self, question: str, X, y) -> dict | None:
+    def _expert_special(self, question: str, X, y,
+                        t0: float | None = None) -> dict | None:
         """Routage des experts speciaux, dans l'ordre de specialisation.
 
         Donnees numeriques -> PGS direct (pas de PoT/logique). Renvoie le
@@ -642,7 +760,7 @@ class Aura1B:
         if rep_tri is not None:
             return self._resultat_special(question, rep_tri, "tri-transitif")
         if _ENIGME_LOGIQUE.search(question.lower()):
-            rep = self._resoudre_par_logique(question)
+            rep = self._resoudre_par_logique(question, t0=t0)
             if rep is not None:
                 return self._resultat_special(question, rep, "logique-1b+sat")
         if _DEMANDE_CODE.search(question.lower()):
@@ -658,37 +776,123 @@ class Aura1B:
                 "cerveau_choisi": cerveau, "contexte_web": "", "formule": "",
                 "erreur_pgs": None, "reponse": reponse}
 
-    def _resoudre_par_pot(self, question: str) -> str | None:
+    def _resoudre_par_pot(self, question: str,
+                          t0: float | None = None) -> str | None:
         """Passe PoT : le 1B ecrit les etapes, l'AST verifie chaque calcul.
 
-        Renvoie None si le modele ne produit pas >= 2 etapes calculables —
+        MAJORITE D'EXPERTS + ARBRE DE REFLEXION : chaque essai echantillonne
+        devient une BRANCHE de l'arbre (structures MCTS), notee par l'AST
+        etape par etape (validee 1.0 / cassee 0.0) ; les branches valides
+        votent sur la reponse finale — la majorite gagne, ex aequo -> la
+        meilleure branche. La branche gagnante est reinjectee a la synthese
+        comme brouillon deja prouve (branche_vers_prompt).
+
+        Renvoie None si AUCUN essai ne produit >= 2 etapes calculables —
         dans ce cas on retombe sur le chemin normal (jamais pire qu'avant).
         """
-        try:
-            brut = llama_cerveau.generer(question, systeme=raisonneur._SYSTEME_POT,
-                                         max_tokens=280)
-        except Exception as e:
-            LOG.info("[pot] generation impossible : %s", e)
+        n = _nb_majorite(t0)
+        arbre = arbre_reflexion.ArbreReflexion(question=question)
+        self._dernier_arbre = arbre
+        essais: list = []      # (etapes, resultats, cle de vote, branche)
+        for i in range(n):
+            try:
+                brut = llama_cerveau.generer(question,
+                                             systeme=raisonneur._SYSTEME_POT,
+                                             max_tokens=280)
+            except Exception as e:
+                LOG.info("[pot] generation %d/%d impossible : %s", i + 1, n, e)
+                break
+            etapes = raisonneur.extraire_etapes(brut)
+            if len(etapes) < 2:
+                LOG.info("[pot] pas assez d'etapes calculables (%d, essai %d/%d)",
+                         len(etapes), i + 1, n)
+                continue
+            branche = arbre.nouvelle_branche()
+            resultats: list = []
+            valide = True
+            for phrase, calcul in etapes:
+                try:
+                    res = raisonneur.verifier_calculs([(phrase, calcul)])[0]
+                    ok = True
+                except ValueError:
+                    res, ok, valide = None, False, False
+                branche.ajouter(f"{phrase} = {calcul}", expert="pot",
+                                score=1.0 if ok else 0.0, valide=ok)
+                resultats.append(res)
+            if not valide:
+                continue       # branche KO conservee dans l'arbre (trace)
+            essais.append((etapes, resultats,
+                           _cle_reponse_pot(brut, resultats[-1]), branche))
+        if not essais:
+            LOG.info("[pot] aucun essai valide -> chemin normal")
             return None
-        etapes = raisonneur.extraire_etapes(brut)
-        if len(etapes) < 2:
-            LOG.info("[pot] pas assez d'etapes calculables (%d) -> chemin normal",
-                     len(etapes))
-            return None
-        try:
-            resultats = raisonneur.verifier_calculs(etapes)
-        except ValueError as e:
-            LOG.info("[pot] calcul illisible (%s) -> chemin normal", e)
-            return None
+        # VOTE : la cle = la reponse annoncee (chiffre) ; majorite si elle
+        # existe, ex aequo -> l'arbre tranche (branche seriee puis notee).
+        voix: dict[str, int] = {}
+        for essai in essais:
+            voix[essai[2]] = voix.get(essai[2], 0) + 1
+        cle_gagnante = max(voix, key=lambda c: voix[c])   # ex aequo -> 1re vue
+        candidats = [e for e in essais if e[2] == cle_gagnante]
+        # La branche dont le CALCUL AST confirme la reponse votee passe
+        # devant (mesure : une etape mal ordonnee faisait dire « 8 » a la
+        # synthese alors que le vote portait « 9 »).
+        confirmes = [e for e in candidats
+                     if e[1] and raisonneur._fmt(e[1][-1]) == cle_gagnante]
+        etapes, resultats, cle, branche = max(
+            confirmes or candidats,
+            key=lambda e: (e[3].serie,
+                           e[3].score if e[3].score is not None else -1.0))
+        if len(essais) > 1:
+            LOG.info("[pot] majorite %d/%d voix vers %r", voix[cle],
+                     len(essais), cle)
+        LOG.info("[pot] arbre de reflexion :\n%s", arbre.trace())
         verification = raisonneur.construire_verification(etapes, resultats)
+        brouillon = arbre_reflexion.branche_vers_prompt(branche)
+        if brouillon:
+            verification += ("\n\nREFLEXION PROUVEE A METTRE EN FRANCAIS :\n"
+                             + brouillon)
         try:
             finale = llama_cerveau.generer(question,
                                            contexte_web=verification,
-                                           max_tokens=120)
+                                           max_tokens=160)
         except Exception as e:
             LOG.info("[pot] synthese impossible : %s", e)
             return None
-        LOG.info("[pot] puzzle resolu : %d etapes verifiees", len(etapes))
+        # GARANTIE DE LA VALEUR VERIFIEE : la synthese LLM re-derive parfois
+        # en ignorant le bloc verifie (mesure : « 6 » / « 7 » repondus alors
+        # que la derniere etape AST valait 9). Une relance explicite, puis —
+        # si le modele s'obstine — une phrase construite PAR LE PROGRAMME :
+        # la valeur prouvee ne disparait jamais de la reponse.
+        cibles = [raisonneur._fmt(resultats[-1])]     # dernier resultat AST
+        if cle and cle not in cibles:
+            cibles.append(cle)                        # majorite des essais
+        if not _contient_valeur(finale, cibles):
+            try:
+                relance = llama_cerveau.generer(
+                    question,
+                    systeme=_SYSTEME_RECOPIE,
+                    contexte_web=(verification
+                                  + f"\nLa valeur exacte est {cibles[0]}. "
+                                  "Reponds en UNE seule phrase qui contient "
+                                  "cette valeur."),
+                    max_tokens=80)
+                if _contient_valeur(relance, cibles):
+                    finale = relance
+            except Exception as e:
+                LOG.info("[pot] relance impossible : %s", e)
+        if not _contient_valeur(finale, cibles):
+            # deux echecs : on livre la reponse PAR LE CODE, en une phrase
+            # seule plutot qu'en accumulant deux ages contradictoires
+            LOG.info("[pot] synthese sans la valeur verifiee -> reponse du code")
+            if (cle and cle != cibles[0]
+                    and re.fullmatch(r"\d+(?:[.,]\d+)?", cle)):
+                # vote et calcul AST divergent : on annonce la reponse VOTEE
+                # (contrat du vote), jamais un chiffre que le vote rejette
+                finale = f"Reponse retenue par la majorite des essais : {cle}."
+            else:
+                finale = raisonneur.phrase_verifiee(etapes, resultats)
+        LOG.info("[pot] puzzle resolu : %d etapes verifiees (%d essai(s))",
+                 len(etapes), len(essais))
         return finale
 
     # -- pipeline complet ---------------------------------------------------
@@ -769,6 +973,13 @@ class Aura1B:
             experts.discard("general")
             experts.add("web")
         riche = self._est_complexe(question)
+        # DETECTION UNIQUE (executes une seule fois) :
+        # - est_puzzle pilote le gate RAG et la passe PoT ;
+        # - auto_think pilote le brouillon <thinking> a la generation
+        #   finale (les puzzles/enigmes qui ont RATE leurs experts
+        #   deterministes repartent avec une passe de reflexion masquee).
+        est_puzzle = self._est_puzzle(question)
+        auto_think = self._auto_think(question)
 
         # EXPERTS SPECIAUX (logique exacte, code sandboxe) : signatures
         # conservatrices, repli cascade vers le chemin normal. AVANT le
@@ -794,7 +1005,7 @@ class Aura1B:
             self._special_traite = True
             return self._resultat_special(question, verbal,
                                           "calcul-verbal")
-        special = self._expert_special(question, X, y)
+        special = self._expert_special(question, X, y, t0=t0)
         if special is not None:
             self._special_traite = True     # un expert exact a repondu
             return special
@@ -810,7 +1021,7 @@ class Aura1B:
         # lieu du solveur (regression vue au banc). Les PUZZLES sont
         # egalement exclus : ils se deduisent (PoT + AST), ils ne se
         # documentent pas — l'index n'a rien a y faire avant le raisonneur.
-        if not riche and not self._est_puzzle(question):
+        if not riche and not est_puzzle:
             try:
                 rag_rep = rag_binaire.chercher(question)
             except Exception as e:
@@ -880,8 +1091,8 @@ class Aura1B:
         # PAS de condition !riche : les puzzles sont structurellement
         # longs (>= 9 mots = mode riche) — leur signature (ages+relations)
         # est plus fiable que le comptage de mots.
-        if not (X and y) and not contexte_web and self._est_puzzle(question):
-            pot = self._resoudre_par_pot(question)
+        if not (X and y) and not contexte_web and est_puzzle:
+            pot = self._resoudre_par_pot(question, t0=t0)
             if pot is not None:
                 filtre_instantane.enregistrer(question, pot)
                 return {"question": question, "experts": experts | {"pot"},
@@ -943,7 +1154,11 @@ class Aura1B:
                                 personnalite=personnalite,
                                 categorie=categorie,
                                 complexe=riche, est_def=est_def,
-                                max_tokens=(110 if meta_ia else None))
+                                max_tokens=(110 if meta_ia else None),
+                                # AUTO-THINK : puzzles/enigmes seulement,
+                                # et seulement s'il reste du budget
+                                think=(auto_think and (_BUDGET_S <= 0
+                                       or time.time() - t0 < _BUDGET_S)))
         # AGENT 3 (redacteur) : les tics de langage du 1B sont retires
         try:
             reponse = agents.nettoyer_style(reponse)
