@@ -2,6 +2,16 @@
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _apis_publiques_coupees(monkeypatch):
+    """Aucun reseau : les API publiques sont coupees dans TOUS les tests.
+
+    Les tests dedieses de aura/apis_publiques.py re-active la brique avec
+    monkeypatch.setenv("AURA_APIS", "1") + un urllib mocke.
+    """
+    monkeypatch.setenv("AURA_APIS", "0")
+
+
 @pytest.fixture(scope="session")
 def aef_forge(tmp_path_factory):
     from scripts.forger_aef import forger

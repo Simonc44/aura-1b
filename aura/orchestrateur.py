@@ -127,6 +127,7 @@ from . import llama_cerveau, raisonneur, graphe_faits
 from . import logique as solveur_logique
 from . import potcode
 from . import arbre_reflexion
+from . import apis_publiques
 from . import agents
 from . import adaptateurs
 from . import calcul_verbal
@@ -256,6 +257,10 @@ class Aura1B:
         self._historique = MemoireConversation()
         self._chaine_faits: list = []        # chaine graphe de la question
         self._derniere_categorie = "general"
+        # Contexte API publique recolte par _executer_experts (consomme par
+        # le pipeline APRES le compresseur : la ligne de donnees ne doit
+        # pas partir au top-3 des phrases « utiles »).
+        self._contexte_api = ""
         # Dernier arbre de reflexion construit (PoT) : trace exploitable
         # pour le debug/les tests (meme esprit que derniere_formule).
         self._dernier_arbre: arbre_reflexion.ArbreReflexion | None = None
@@ -402,19 +407,28 @@ class Aura1B:
     # -- fan-out parallele des experts (idea JEV #1) ------------------------
 
     def _executer_experts(self, experts, question, X, y, riche):
-        """Lance les experts en parallele (web ∥ PGS), un aller-retour.
+        """Lance les experts en parallele (web ∥ PGS ∥ API publiques), un
+        aller-retour.
 
-        Deux experts -> deux threads (le reseau et le CPU se recouvrent) ;
-        un seul expert -> appel direct, zero surcout. Un expert qui echoue
+        Deux taches -> deux threads (le reseau et le CPU se recouvrent) ;
+        une seule -> appel direct, zero surcout. Un expert qui echoue
         ne bloque jamais l'autre : chaque tache est isolee, echec = chaine
-        vide. Renvoie (contexte_web, formule).
+        vide. Renvoie (contexte_web, formule) ; le contexte API est mis
+        de cote dans self._contexte_api (consomme ensuite par le pipeline).
         """
+        self._contexte_api = ""
         taches = {}
         if "web" in experts:
             fn = memoire_web.chercher_enrichi if riche else memoire_web.chercher
             taches["web"] = (fn, (question,))
         if "math" in experts:
             taches["pgs"] = (self.resoudre_numerique, (X, y))
+        # API PUBLIQUES (liste public-apis) : meteo, devises, definitions,
+        # livres, geocodage — sans cle, stdlib. La detection est une regex
+        # LOCALE (zero octet si hors sujet) et la tache part en parallele :
+        # sa latence se cache sous celle de DuckDuckGo.
+        if apis_publiques.detecte(question):
+            taches["api"] = (apis_publiques.chercher, (question,))
 
         if not taches:
             return "", ""
@@ -444,6 +458,7 @@ class Aura1B:
                 threads.append(t)
             for t in threads:
                 t.join()
+        self._contexte_api = resultats.get("api", "")
         return resultats.get("web", ""), resultats.get("pgs", "")
 
     # -- cerveau ------------------------------------------------------------
@@ -1034,10 +1049,19 @@ class Aura1B:
                         "contexte_web": "", "formule": "",
                         "erreur_pgs": None, "reponse": rag_rep}
 
-        # FAN-OUT PARALLELE (idea JEV #1) : web ∥ PGS en un aller-retour
+        # FAN-OUT PARALLELE (idea JEV #1) : web ∥ PGS ∥ API publiques, un
+        # aller-retour
         contexte_web, formule = self._executer_experts(
             experts, question, X, y, riche)
-
+        # API PUBLIQUES (meteo, devises, definitions, livres, geoloc) :
+        # recollee APRES le compresseur — une ligne de donnees structurees
+        # ne doit pas etre jetee au top-3 — puis livree telle quelle si
+        # elle est SEULE : zero generation (rapide), zero hallucination,
+        # et le 1B ne peut plus refuser des donnees « en temps reel »
+        # (refus observe en direct alors que la meteo etait au contexte).
+        api = self._contexte_api
+        self._contexte_api = ""
+        sans_web = not contexte_web
         # AGENT 2 (compresseur RAG) : le contexte web brut est filtre —
         # seules les phrases utiles a la question alimentent le LLM
         if contexte_web:
@@ -1046,6 +1070,17 @@ class Aura1B:
                                                  riche=riche)
             except Exception as e:
                 LOG.info("[agents] compression impossible (%s) -> texte brut", e)
+        if api:
+            contexte_web = (f"{contexte_web}\n{api}"
+                            if contexte_web else api)
+        if api and sans_web and not formule:
+            LOG.info("[api] livraison extractive : %d car.", len(api))
+            filtre_instantane.enregistrer(question, api)
+            return {"question": question, "experts": experts | {"api"},
+                    "analyse": analyse, "cerveau_choisi": "extraction-api",
+                    "contexte_web": api, "formule": "",
+                    "erreur_pgs": None, "reponse": api}
+        if contexte_web:
             # ANCRAGE EXTRACTIF des definitions : le contexte web VERIFIE
             # est la reponse — on le cite tel quel au lieu de le faire
             # reformuler par le 1B (c'est LA que l'hallucination entrait :
@@ -1148,17 +1183,17 @@ class Aura1B:
                 adaptateurs.appliquer(_llm, categorie)
         except Exception as e:
             LOG.info("[adaptateurs] hot-swap impossible (%s) -> cerveau brut", e)
-        # meta-ia ouverte : budget borne (reponse courte, jamais1400 tokens)
+        # meta-ia ouverte : budget borne (reponse courte, jamais 1400 tokens)
         reponse = self._generer(question_envoyee, contexte_web, formule,
-                                riche=riche, contexte_faits=contexte_faits,
-                                personnalite=personnalite,
-                                categorie=categorie,
-                                complexe=riche, est_def=est_def,
-                                max_tokens=(110 if meta_ia else None),
-                                # AUTO-THINK : puzzles/enigmes seulement,
-                                # et seulement s'il reste du budget
-                                think=(auto_think and (_BUDGET_S <= 0
-                                       or time.time() - t0 < _BUDGET_S)))
+                                 riche=riche, contexte_faits=contexte_faits,
+                                 personnalite=personnalite,
+                                 categorie=categorie,
+                                 complexe=riche, est_def=est_def,
+                                 max_tokens=(110 if meta_ia else None),
+                                 # AUTO-THINK : puzzles/enigmes seulement,
+                                 # et seulement s'il reste du budget
+                                 think=(auto_think and (_BUDGET_S <= 0
+                                        or time.time() - t0 < _BUDGET_S)))
         # AGENT 3 (redacteur) : les tics de langage du 1B sont retires
         try:
             reponse = agents.nettoyer_style(reponse)
