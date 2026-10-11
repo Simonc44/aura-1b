@@ -10,8 +10,6 @@ everything (and hallucinate when it can't).</p>
 
 ![Last commit](https://img.shields.io/github/last-commit/Simonc44/rontogpt/main?label=last%20commit&color=5bc0de&logo=git&logoColor=white)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-5bc0de?logo=python&logoColor=white)
-![mypy](https://img.shields.io/badge/mypy-checked-5bc0de?logo=python&logoColor=white)
-![PRs](https://img.shields.io/badge/PRs-welcome-5bc0de?logo=github&logoColor=white)
 ![GPU](https://img.shields.io/badge/GPU-not%20required-5bc0de)
 ![Engine](https://img.shields.io/badge/powered%20by-llama.cpp-5bc0de?logo=openai&logoColor=white)
 ![Format](https://img.shields.io/badge/sealed%20format-.aef-5bc0de?logo=icloud&logoColor=white)
