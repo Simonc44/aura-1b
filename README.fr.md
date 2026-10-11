@@ -4,24 +4,15 @@
 
 **La réponse la plus rapide est celle qu'on n'a pas besoin de générer.**
 
-```text
-$ rontogpt "quel est le carré de 7 ?"
-49
-```
+<p>Une IA locale conçue pour répondre vite, avec des outils spécialisés autour de son modèle de langage.</p>
 
-Pour les calculs pris en charge, RontoGPT utilise un évaluateur déterministe
-au lieu de demander au modèle de deviner. Au dernier banc enregistré de
-100 questions, le système hybride a réussi **85/85 questions vérifiables** ;
-ce résultat ne mesure pas le cerveau 1B seul.
-
-Une IA 100 % locale, native-CPU, qui sépare le langage, les maths exactes et la
-mémoire factuelle en modules spécialisés — au lieu de demander à un seul petit
-modèle de tout faire (et d'halluciner quand il n'y arrive pas).
-
-Des experts symboliques, une mémoire persistante et une recherche web sourcée
-complètent un cerveau local 1B. Ces outils peuvent améliorer certaines tâches
-ciblées ; ils ne transforment pas le modèle en un 3B, 8B ou modèle de qualité
-équivalente.
+<table align="center">
+  <tr>
+    <td align="center"><strong>🧠 IA locale</strong><br/>Pas de GPU requis</td>
+    <td align="center"><strong>⚡ Calcul vérifiable</strong><br/>Opérations prises en charge</td>
+    <td align="center"><strong>🌐 Recherche ciblée</strong><br/>Sources citées dans les réponses web</td>
+  </tr>
+</table>
 
 [![Tests](https://github.com/Simonc44/rontogpt/actions/workflows/tests.yml/badge.svg?style=flat-square)](https://github.com/Simonc44/rontogpt/actions/workflows/tests.yml)
 [![Licence GPLv3](https://img.shields.io/badge/Licence-GPLv3-5bc0de.svg)](LICENSE)
@@ -52,12 +43,6 @@ cd rontogpt
 uv sync
 uv run python scripts/telecharger_llama.py  # télécharge le cerveau (~807 Mo) une fois
 uv run rontogpt --chat
-```
-
-Essayez un calcul vérifié :
-
-```bash
-uv run rontogpt "quel est le carré de 7 ?"  # 49
 ```
 
 **Installeur Windows :** [télécharger l'archive ZIP](https://github.com/Simonc44/rontogpt/archive/refs/heads/main.zip), l'extraire, puis lancer `scripts/installer.ps1` depuis le dossier extrait.

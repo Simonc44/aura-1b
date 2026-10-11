@@ -4,23 +4,15 @@
 
 **The fastest answer is the one you never generate.**
 
-```text
-$ rontogpt "what is 7 squared?"
-49
-```
+<p>A local AI designed for fast answers, with specialized tools around its language model.</p>
 
-For supported calculations, RontoGPT uses a deterministic evaluator instead
-of asking the language model to guess. In the latest saved 100-question run,
-it passed **85/85 verifiable questions**; that measures the full hybrid system,
-not the standalone 1B brain.
-
-A 100% local, CPU-native AI system that splits language, exact math and factual
-memory into specialized modules — instead of asking one small model to do
-everything (and hallucinate when it can't).
-
-Symbolic experts, persistent memory, and sourced web search complement a local
-1B brain. These tools can improve specific tasks; they do not turn the model
-into a 3B, 8B, or equivalent-quality model.
+<table align="center">
+  <tr>
+    <td align="center"><strong>🧠 Local AI</strong><br/>No GPU required</td>
+    <td align="center"><strong>⚡ Verifiable arithmetic</strong><br/>Exact on supported operations</td>
+    <td align="center"><strong>🌐 Targeted search</strong><br/>Sources cited in web answers</td>
+  </tr>
+</table>
 
 [![Tests](https://github.com/Simonc44/rontogpt/actions/workflows/tests.yml/badge.svg?style=flat-square)](https://github.com/Simonc44/rontogpt/actions/workflows/tests.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-5bc0de.svg)](LICENSE)
@@ -51,12 +43,6 @@ cd rontogpt
 uv sync
 uv run python scripts/telecharger_llama.py  # downloads the ~807 MB brain once
 uv run rontogpt --chat
-```
-
-Try a verified calculation:
-
-```bash
-uv run rontogpt "7 ** 2"  # 49
 ```
 
 **Windows installer:** [download the source ZIP](https://github.com/Simonc44/rontogpt/archive/refs/heads/main.zip), extract it, then run `scripts/installer.ps1` from the extracted folder.
