@@ -51,14 +51,6 @@ That's it. Start talking to RontoGPT.
 
 </details>
 
----
-
-<p align="center">
-  <a href="https://github.com/Simonc44/rontogpt/stargazers">
-    <img src="https://img.shields.io/github/stars/Simonc44/rontogpt?style=for-the-badge&logo=github&color=5bc0de" alt="Star RontoGPT on GitHub">
-  </a>
-</p>
-
 <details>
 <summary>Technical details, architecture, and benchmarks</summary>
 
