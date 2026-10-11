@@ -28,7 +28,7 @@ everything (and hallucinate when it can't).</p>
 git clone https://github.com/Simonc44/rontogpt.git
 cd rontogpt
 uv sync
-uv run python scripts/telecharger_llama.py   # one-time download, ~807 MB
+uv run python scripts/telecharger_llama.py
 uv run rontogpt --chat
 ```
 
