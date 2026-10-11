@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/RontoGPT.png" alt="Logo RontoGPT" width="780"/>
+<img src="assets/RontoGPT.png" alt="Logo RontoGPT" width="640"/>
 
 **La réponse la plus rapide est celle qu'on n'a pas besoin de générer.**
 
@@ -13,20 +13,20 @@ complètent un cerveau local 1B. Ces outils peuvent améliorer certaines tâches
 ciblées ; ils ne transforment pas le modèle en un 3B, 8B ou modèle de qualité
 équivalente.
 
-[![Tests](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml/badge.svg?style=flat-square)](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml)
+[![Tests](https://github.com/Simonc44/rontogpt/actions/workflows/tests.yml/badge.svg?style=flat-square)](https://github.com/Simonc44/rontogpt/actions/workflows/tests.yml)
 [![Licence GPLv3](https://img.shields.io/badge/Licence-GPLv3-5bc0de.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-5bc0de)
 ![mypy](https://img.shields.io/badge/mypy-v%C3%A9rifi%C3%A9-5bc0de)
-![Dernier commit](https://img.shields.io/github/last-commit/Simonc44/aura-1b/main?label=dernier%20commit&color=5bc0de)
+![Dernier commit](https://img.shields.io/github/last-commit/Simonc44/rontogpt/main?label=dernier%20commit&color=5bc0de)
 ![PR](https://img.shields.io/badge/PRs-bienvenues-5bc0de)
-<a href="https://github.com/Simonc44/aura-1b/stargazers"><img src="https://img.shields.io/github/stars/Simonc44/aura-1b?style=social" alt="étoiles - aura-1b" /></a>
+<a href="https://github.com/Simonc44/rontogpt/stargazers"><img src="https://img.shields.io/github/stars/Simonc44/rontogpt?style=social" alt="étoiles - RontoGPT" /></a>
 
 ![GPU](https://img.shields.io/badge/GPU-non%20requis-5bc0de)
 ![Cerveau](https://img.shields.io/badge/cerveau-807%20Mo%20Q4__K__M-5bc0de)
 ![Moteur](https://img.shields.io/badge/propuls%C3%A9%20par-llama.cpp-5bc0de)
 ![Format](https://img.shields.io/badge/format%20scell%C3%A9-.aef-5bc0de)
 
-[Pourquoi](#-pourquoi-aura-1b) •
+[Pourquoi](#-pourquoi-rontogpt) •
 [Démarrage](#-démarrage-rapide) •
 [Architecture](#️-architecture) •
 [L'entraîner](#-entraîner-son-ia) •
@@ -164,22 +164,22 @@ node_loraserver -.->|"serves model"| node_llama
 node_adapters -.->|"mounts adapter"| node_llama
 node_aef -.->|"boots from"| node_kernel
 node_kernel -.->|"starts assistant"| node_orchestrator
-click node_cli "https://github.com/simonc44/aura-1b/blob/main/aura/__main__.py"
-click node_orchestrator "https://github.com/simonc44/aura-1b/blob/main/aura/orchestrateur.py"
-click node_fast "https://github.com/simonc44/aura-1b/blob/main/aura/filtre_instantane.py"
-click node_router "https://github.com/simonc44/aura-1b/blob/main/aura/routeur.py"
-click node_pal "https://github.com/simonc44/aura-1b/blob/main/aura/pal.py"
-click node_symbolic "https://github.com/simonc44/aura-1b/blob/main/aura/expert_symbolique.py"
-click node_pot "https://github.com/simonc44/aura-1b/blob/main/aura/raisonneur.py"
-click node_logic "https://github.com/simonc44/aura-1b/blob/main/aura/logique.py"
-click node_potcode "https://github.com/simonc44/aura-1b/blob/main/aura/potcode.py"
-click node_agents "https://github.com/simonc44/aura-1b/blob/main/aura/agents.py"
-click node_webmemory "https://github.com/simonc44/aura-1b/blob/main/aura/memoire_web.py"
-click node_factgraph "https://github.com/simonc44/aura-1b/blob/main/aura/graphe_faits.py"
-click node_llm "https://github.com/simonc44/aura-1b/blob/main/aura/llama_cerveau.py"
-click node_adapters "https://github.com/simonc44/aura-1b/blob/main/aura/adaptateurs.py"
-click node_loraserver "https://github.com/simonc44/aura-1b/blob/main/aura/serveur_lora.py"
-click node_kernel "https://github.com/simonc44/aura-1b/blob/main/aura/kernel.py"
+click node_cli "https://github.com/simonc44/rontogpt/blob/main/aura/__main__.py"
+click node_orchestrator "https://github.com/simonc44/rontogpt/blob/main/aura/orchestrateur.py"
+click node_fast "https://github.com/simonc44/rontogpt/blob/main/aura/filtre_instantane.py"
+click node_router "https://github.com/simonc44/rontogpt/blob/main/aura/routeur.py"
+click node_pal "https://github.com/simonc44/rontogpt/blob/main/aura/pal.py"
+click node_symbolic "https://github.com/simonc44/rontogpt/blob/main/aura/expert_symbolique.py"
+click node_pot "https://github.com/simonc44/rontogpt/blob/main/aura/raisonneur.py"
+click node_logic "https://github.com/simonc44/rontogpt/blob/main/aura/logique.py"
+click node_potcode "https://github.com/simonc44/rontogpt/blob/main/aura/potcode.py"
+click node_agents "https://github.com/simonc44/rontogpt/blob/main/aura/agents.py"
+click node_webmemory "https://github.com/simonc44/rontogpt/blob/main/aura/memoire_web.py"
+click node_factgraph "https://github.com/simonc44/rontogpt/blob/main/aura/graphe_faits.py"
+click node_llm "https://github.com/simonc44/rontogpt/blob/main/aura/llama_cerveau.py"
+click node_adapters "https://github.com/simonc44/rontogpt/blob/main/aura/adaptateurs.py"
+click node_loraserver "https://github.com/simonc44/rontogpt/blob/main/aura/serveur_lora.py"
+click node_kernel "https://github.com/simonc44/rontogpt/blob/main/aura/kernel.py"
 classDef toneNeutral fill:#f8fafc,stroke:#334155,stroke-width:1.5px,color:#0f172a
 classDef toneBlue fill:#dbeafe,stroke:#2563eb,stroke-width:1.5px,color:#172554
 classDef toneAmber fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#78350f
@@ -387,7 +387,15 @@ peut s'égarer — d'où un budget de tokens par tour et une seule relance born�
 l'historique de conversation. Le parseur de calcul est corrigé (5/5 au format)
 et les garde-fous RAG passent un jeu exploratoire de 23 questions sans faux
 résultat. Les demandes longues restent le point faible (4/10 conformes dans le
-dernier banc complet, jusqu'à 83 s). Voir [la référence détaillée](docs/BASELINE_2026-10-11.md). Comparatif cerveau seul sur 7 questions : Gemma 5/7 en 19 s (pic RSS 1 165,6 MiB), R1 4/7 en 505 s (1 870,5 MiB); aucun gain pour RontoGPT dans ce quiz, details et limites dans le rapport. Nouveau banc de r?daction : 14/20 sur deux r?p?titions au crit?re historique de longueur; cela ne mesure pas encore la qualit?. R?ponses conserv?es pour une notation par pertinence, couverture, exactitude, structure et clart?.
+dernier banc complet, jusqu'à 83 s). Voir [la référence détaillée](docs/BASELINE_2026-10-11.md).
+
+Sur un quiz exploratoire de sept questions, Gemma obtient 5/7 en 19 s
+(pic RSS : 1 165,6 MiB) et R1 4/7 en 505 s (1 870,5 MiB). Ce petit échantillon
+ne permet pas de conclure à une supériorité générale. Le banc de rédaction
+atteint 14/20 au critère historique de longueur sur deux répétitions ; il ne
+mesure pas encore la pertinence, la couverture, l'exactitude, la structure ou
+la clarté des réponses. Les [résultats détaillés](docs/BASELINE_2026-10-11.md)
+décrivent le protocole et ses limites.
 
 Un banc exploratoire commun de 28 questions est disponible pour RontoGPT, le
 cerveau seul et les modèles exposés par Ollama. Exemple pour un 8B :

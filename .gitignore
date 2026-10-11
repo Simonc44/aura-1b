@@ -39,6 +39,7 @@ hf*.log
 
 # Sorties de benchmarks / diagnostics (regenerables, a la racine)
 banc_100_*.json
+banc_100.*.json
 banc_100_cache*.jsonl
 bench_*.json
 bench_*.jsonl
@@ -46,6 +47,10 @@ bench_*.jsonl
 mic_levels.txt
 captures_gui/
 .mypy_cache/
+
+# Fichiers historiques / sorties de build qui ne servent pas à l'exécution
+adaptateurs/_archive_llama_3.2/
+assets_hf/aura.png
 
 # Donnees locales / privees de l'utilisateur (jamais dans git)
 aura/.conversation.etat.json

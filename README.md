@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/RontoGPT.png" alt="RontoGPT logo" width="780"/>
+<img src="assets/RontoGPT.png" alt="RontoGPT logo" width="640"/>
 
 **The fastest answer is the one you never generate.**
 
@@ -12,13 +12,13 @@ Symbolic experts, persistent memory, and sourced web search complement a local
 1B brain. These tools can improve specific tasks; they do not turn the model
 into a 3B, 8B, or equivalent-quality model.
 
-[![Tests](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml/badge.svg?style=flat-square)](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml)
+[![Tests](https://github.com/Simonc44/rontogpt/actions/workflows/tests.yml/badge.svg?style=flat-square)](https://github.com/Simonc44/rontogpt/actions/workflows/tests.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-5bc0de.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-5bc0de)
 ![mypy](https://img.shields.io/badge/mypy-checked-5bc0de)
-![Last commit](https://img.shields.io/github/last-commit/Simonc44/aura-1b/main?label=last%20commit&color=5bc0de)
+![Last commit](https://img.shields.io/github/last-commit/Simonc44/rontogpt/main?label=last%20commit&color=5bc0de)
 ![PRs](https://img.shields.io/badge/PRs-welcome-5bc0de)
-<a href="https://github.com/Simonc44/aura-1b/stargazers"><img src="https://img.shields.io/github/stars/Simonc44/aura-1b?style=social" alt="stars - aura-1b" /></a>
+<a href="https://github.com/Simonc44/rontogpt/stargazers"><img src="https://img.shields.io/github/stars/Simonc44/rontogpt?style=social" alt="stars - RontoGPT" /></a>
 
 ![GPU](https://img.shields.io/badge/GPU-not%20required-5bc0de)
 ![Brain](https://img.shields.io/badge/brain-807%20MB%20Q4__K__M-5bc0de)
@@ -27,7 +27,7 @@ into a 3B, 8B, or equivalent-quality model.
 
 **Other languages:** [Français](README.fr.md)
 
-[Why](#-why-aura-1b) •
+[Why](#-why-rontogpt) •
 [Quickstart](#-quickstart) •
 [Architecture](#-architecture) •
 [Teach it](#-teaching-your-ai) •
@@ -162,22 +162,22 @@ node_loraserver -.->|"serves model"| node_llama
 node_adapters -.->|"mounts adapter"| node_llama
 node_aef -.->|"boots from"| node_kernel
 node_kernel -.->|"starts assistant"| node_orchestrator
-click node_cli "https://github.com/simonc44/aura-1b/blob/main/aura/__main__.py"
-click node_orchestrator "https://github.com/simonc44/aura-1b/blob/main/aura/orchestrateur.py"
-click node_fast "https://github.com/simonc44/aura-1b/blob/main/aura/filtre_instantane.py"
-click node_router "https://github.com/simonc44/aura-1b/blob/main/aura/routeur.py"
-click node_pal "https://github.com/simonc44/aura-1b/blob/main/aura/pal.py"
-click node_symbolic "https://github.com/simonc44/aura-1b/blob/main/aura/expert_symbolique.py"
-click node_pot "https://github.com/simonc44/aura-1b/blob/main/aura/raisonneur.py"
-click node_logic "https://github.com/simonc44/aura-1b/blob/main/aura/logique.py"
-click node_potcode "https://github.com/simonc44/aura-1b/blob/main/aura/potcode.py"
-click node_agents "https://github.com/simonc44/aura-1b/blob/main/aura/agents.py"
-click node_webmemory "https://github.com/simonc44/aura-1b/blob/main/aura/memoire_web.py"
-click node_factgraph "https://github.com/simonc44/aura-1b/blob/main/aura/graphe_faits.py"
-click node_llm "https://github.com/simonc44/aura-1b/blob/main/aura/llama_cerveau.py"
-click node_adapters "https://github.com/simonc44/aura-1b/blob/main/aura/adaptateurs.py"
-click node_loraserver "https://github.com/simonc44/aura-1b/blob/main/aura/serveur_lora.py"
-click node_kernel "https://github.com/simonc44/aura-1b/blob/main/aura/kernel.py"
+click node_cli "https://github.com/simonc44/rontogpt/blob/main/aura/__main__.py"
+click node_orchestrator "https://github.com/simonc44/rontogpt/blob/main/aura/orchestrateur.py"
+click node_fast "https://github.com/simonc44/rontogpt/blob/main/aura/filtre_instantane.py"
+click node_router "https://github.com/simonc44/rontogpt/blob/main/aura/routeur.py"
+click node_pal "https://github.com/simonc44/rontogpt/blob/main/aura/pal.py"
+click node_symbolic "https://github.com/simonc44/rontogpt/blob/main/aura/expert_symbolique.py"
+click node_pot "https://github.com/simonc44/rontogpt/blob/main/aura/raisonneur.py"
+click node_logic "https://github.com/simonc44/rontogpt/blob/main/aura/logique.py"
+click node_potcode "https://github.com/simonc44/rontogpt/blob/main/aura/potcode.py"
+click node_agents "https://github.com/simonc44/rontogpt/blob/main/aura/agents.py"
+click node_webmemory "https://github.com/simonc44/rontogpt/blob/main/aura/memoire_web.py"
+click node_factgraph "https://github.com/simonc44/rontogpt/blob/main/aura/graphe_faits.py"
+click node_llm "https://github.com/simonc44/rontogpt/blob/main/aura/llama_cerveau.py"
+click node_adapters "https://github.com/simonc44/rontogpt/blob/main/aura/adaptateurs.py"
+click node_loraserver "https://github.com/simonc44/rontogpt/blob/main/aura/serveur_lora.py"
+click node_kernel "https://github.com/simonc44/rontogpt/blob/main/aura/kernel.py"
 classDef toneNeutral fill:#f8fafc,stroke:#334155,stroke-width:1.5px,color:#0f172a
 classDef toneBlue fill:#dbeafe,stroke:#2563eb,stroke-width:1.5px,color:#172554
 classDef toneAmber fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#78350f
