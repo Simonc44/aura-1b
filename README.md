@@ -22,21 +22,42 @@ everything (and hallucinate when it can't).</p>
 
 ---
 
-## Download and run
-
-**Recommended — clone and run with `uv` (Python 3.11+):**
+## Get started in 60 seconds
 
 ```bash
 git clone https://github.com/Simonc44/rontogpt.git
 cd rontogpt
 uv sync
-uv run python scripts/telecharger_llama.py  # downloads the ~807 MB brain once
+uv run python scripts/telecharger_llama.py   # one-time download, ~807 MB
 uv run rontogpt --chat
 ```
 
-**Windows installer:** [download the source ZIP](https://github.com/Simonc44/rontogpt/archive/refs/heads/main.zip), extract it, then run `scripts/installer.ps1` from the extracted folder.
+That's it. Start talking to RontoGPT.
 
-<p align="center"><a href="https://github.com/Simonc44/rontogpt/stargazers"><strong>⭐ Star RontoGPT on GitHub</strong></a></p>
+> **Requirements:** Python 3.11+ and [`uv`](https://docs.astral.sh/uv/).
+
+<details>
+<summary><strong>🪟 Windows installer</strong></summary>
+
+<br>
+
+1. [Download the source ZIP](https://github.com/Simonc44/rontogpt/archive/refs/heads/main.zip) and extract it.
+2. Open PowerShell in the extracted folder.
+3. Run:
+
+```powershell
+.\scripts\installer.ps1
+```
+
+---
+
+<p align="center">
+  <a href="https://github.com/Simonc44/rontogpt/stargazers">
+    <img src="https://img.shields.io/github/stars/Simonc44/rontogpt?style=for-the-badge&logo=github&color=5bc0de" alt="Star RontoGPT on GitHub">
+  </a>
+</p>
+
+<p align="center"><sub>If RontoGPT is useful to you, a ⭐ helps others find it.</sub></p>
 
 <details>
 <summary>Technical details, architecture, and benchmarks</summary>
