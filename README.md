@@ -49,6 +49,8 @@ That's it. Start talking to RontoGPT.
 .\scripts\installer.ps1
 ```
 
+</details>
+
 ---
 
 <p align="center">
