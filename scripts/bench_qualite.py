@@ -1,4 +1,4 @@
-"""Banc de non-regression QUALITE d'Aura — 14 questions, un score global.
+"""Banc de non-regression QUALITE d'RontoGPT — 14 questions, un score global.
 
 Pourquoi : on ameliorait le projet « a l'oeil ». Chaque changement de
 prompt, de modele, de budget ou de routage se verifie ici en 1 commande,
@@ -82,7 +82,11 @@ def _defauts_riche(reponse: str) -> list[str]:
         defauts.append("copie")
     if _REFUS_TETE.search(reponse):
         defauts.append("refus")
-    if len(reponse) <= 300:
+    # _PROMPT_SECTION demande 3 parties de 60 a 110 mots (~1100-2000 car).
+    # Un seuil a 300 laissait passer une dissertation TRONQUEE : le banc
+    # validait riche-puissance a 517 car alors que la reponse etait coupee
+    # par un budget de 120 tokens (mesure).
+    if len(reponse) <= 900:
         defauts.append("court")
     return defauts
 
@@ -111,7 +115,7 @@ QUESTIONS: list[tuple[str, str, str, object]] = [
 
     # ── identite : constante, zero generation ──
     ("identite-nom", "identite", "Qui es-tu ?",
-     lambda r, m: (m["cerveau"] == "constante" and "Aura" in r,
+     lambda r, m: (m["cerveau"] == "constante" and "RontoGPT" in r,
                    m["cerveau"])),
     ("identite-createur", "identite", "Qui t'a cree ?",
      lambda r, m: (m["cerveau"] == "constante" and "Simon" in r, m["cerveau"])),
@@ -184,9 +188,9 @@ def main(argv=None) -> int:
 
     from aura import config
     config.appliquer()
-    from aura.orchestrateur import Aura1B
+    from aura.orchestrateur import RontoGPT
 
-    ia = Aura1B()
+    ia = RontoGPT()
     resultats = []
     print(f"{'id':20s} {'categorie':10s} {'ok':>3s}  mesure")
     print("-" * 74)

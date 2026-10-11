@@ -1,0 +1,1333 @@
+{
+  "score": "98/100",
+  "score_verifiable": "85/85",
+  "score_forme": "13/15",
+  "provenance": {
+    "niveau0-instantane": "31/31",
+    "calcul-verbal": "16/16",
+    "gemma3-1b": "9/11",
+    "rag-binaire": "9/9",
+    "calcul-achat": "6/6",
+    "calcul-taux": "5/5",
+    "constante": "5/5",
+    "chaines-numeriques": "4/4",
+    "tri-transitif": "4/4",
+    "micro-faits": "4/4",
+    "problemes-arithmetiques": "3/3",
+    "constante-capacite": "2/2"
+  },
+  "duree_s": 216.8,
+  "resultats": [
+    {
+      "id": "exact-01",
+      "categorie": "exact",
+      "question": "Combien font 17 x 23 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-02",
+      "categorie": "exact",
+      "question": "Quel est le carre de 13 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-03",
+      "categorie": "exact",
+      "question": "Combien font 144 divise par 12 ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-04",
+      "categorie": "exact",
+      "question": "Quel est 2 puissance 10 ?",
+      "ok": true,
+      "mesure": "0.0s, 5 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-05",
+      "categorie": "exact",
+      "question": "Combien font 7 x 8 ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-06",
+      "categorie": "exact",
+      "question": "Combien font 99 + 47 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-07",
+      "categorie": "exact",
+      "question": "Combien font 1000 - 378 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-08",
+      "categorie": "exact",
+      "question": "Quel est le cube de 3 ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-09",
+      "categorie": "exact",
+      "question": "Combien font 6 x 9 ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-10",
+      "categorie": "exact",
+      "question": "Combien font 45 x 6 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-11",
+      "categorie": "exact",
+      "question": "Combien font 81 divise par 9 ?",
+      "ok": true,
+      "mesure": "0.0s, 1 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-12",
+      "categorie": "exact",
+      "question": "Combien font 15 pour cent de 240 ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-13",
+      "categorie": "exact",
+      "question": "Quel est le carre de 12 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-14",
+      "categorie": "exact",
+      "question": "Combien font 250 + 375 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-15",
+      "categorie": "exact",
+      "question": "Combien font 19 x 21 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-16",
+      "categorie": "exact",
+      "question": "Combien font 1000 divise par 8 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-17",
+      "categorie": "exact",
+      "question": "Quel est le cube de 7 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-18",
+      "categorie": "exact",
+      "question": "Combien font 68 - 29 ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-19",
+      "categorie": "exact",
+      "question": "Combien font 16 x 16 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-20",
+      "categorie": "exact",
+      "question": "Quel est 2 puissance 7 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-21",
+      "categorie": "exact",
+      "question": "Combien font 360 divise par 12 ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-22",
+      "categorie": "exact",
+      "question": "Combien font 25 pour cent de 80 ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-23",
+      "categorie": "exact",
+      "question": "Combien font 11 x 11 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-24",
+      "categorie": "exact",
+      "question": "Combien font 900 - 457 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-25",
+      "categorie": "exact",
+      "question": "Combien font 14 x 17 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-26",
+      "categorie": "exact",
+      "question": "Quel est le cube de 8 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-27",
+      "categorie": "exact",
+      "question": "Combien font 27 + 58 + 15 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-28",
+      "categorie": "exact",
+      "question": "Combien font 128 + 256 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-29",
+      "categorie": "exact",
+      "question": "Combien font 222 x 3 ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "exact-30",
+      "categorie": "exact",
+      "question": "Combien font 5 x 9 ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "verbal-01",
+      "categorie": "verbal",
+      "question": "J'ai 12 bonbons, j'en donne 5, combien m'en reste-t-il ?",
+      "ok": true,
+      "mesure": "0.7s, 1 car",
+      "verifiable": true,
+      "latence": 0.68,
+      "cerveau": "calcul-verbal",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "verbal-02",
+      "categorie": "verbal",
+      "question": "J'ai 10 euros et je depense 4 euros, combien me reste-t-il ?",
+      "ok": true,
+      "mesure": "0.0s, 1 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "calcul-verbal",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "verbal-03",
+      "categorie": "verbal",
+      "question": "Il y a 8 pommes dans un panier, on en ajoute 7, combien y en a-t-il ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "calcul-verbal",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "verbal-04",
+      "categorie": "verbal",
+      "question": "Un stylo coute 3 euros, j'en achete 5, combien je paie ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "calcul-achat",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "verbal-05",
+      "categorie": "verbal",
+      "question": "J'avais 20 billes, j'en perds 8, combien m'en reste-t-il ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "calcul-verbal",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "verbal-06",
+      "categorie": "verbal",
+      "question": "Marie a 14 ans et son frere a 9 ans, quel est l'ecart d'age ?",
+      "ok": true,
+      "mesure": "0.0s, 1 car",
+      "verifiable": true,
+      "latence": 0.02,
+      "cerveau": "calcul-verbal",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "verbal-07",
+      "categorie": "verbal",
+      "question": "Il y a 6 rangees de 7 chaises, combien de chaises ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.02,
+      "cerveau": "calcul-verbal",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "verbal-08",
+      "categorie": "verbal",
+      "question": "Un paquet contient 24 biscuits, j'en mange 9, combien en reste-t-il ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.02,
+      "cerveau": "calcul-verbal",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "verbal-09",
+      "categorie": "verbal",
+      "question": "J'ai 15 euros et j'achete un livre a 7 euros, combien me reste-t-il ?",
+      "ok": true,
+      "mesure": "0.0s, 1 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "calcul-achat",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "verbal-10",
+      "categorie": "verbal",
+      "question": "Une boite contient 30 crayons, on en retire 12, combien reste-t-il ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.03,
+      "cerveau": "calcul-verbal",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "verbal-11",
+      "categorie": "verbal",
+      "question": "Paul a 3 fois 8 billes, combien en a-t-il ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.02,
+      "cerveau": "calcul-verbal",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "verbal-12",
+      "categorie": "verbal",
+      "question": "Il y a 9 eleves et chacun a 4 cahiers, combien de cahiers ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.03,
+      "cerveau": "calcul-verbal",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "verbal-13",
+      "categorie": "verbal",
+      "question": "J'ai 50 cartes, j'en distribue 23, combien m'en reste-t-il ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "calcul-verbal",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "verbal-14",
+      "categorie": "verbal",
+      "question": "Un gateau a 12 parts, on en coupe 5, combien reste-t-il ?",
+      "ok": true,
+      "mesure": "0.0s, 1 car",
+      "verifiable": true,
+      "latence": 0.03,
+      "cerveau": "calcul-verbal",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "verbal-15",
+      "categorie": "verbal",
+      "question": "Un cycliste roule 18 km puis 9 km, combien en tout ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.03,
+      "cerveau": "calcul-verbal",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "raison-01",
+      "categorie": "raisonnement",
+      "question": "Un cahier coute 3 euros. J'en achete 4 et je paie avec un billet de 20 euros. Combien me rend-on ?",
+      "ok": true,
+      "mesure": "0.0s, 1 car",
+      "verifiable": true,
+      "latence": 0.02,
+      "cerveau": "calcul-achat",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "raison-02",
+      "categorie": "raisonnement",
+      "question": "Un train roule a 80 km/h pendant 3 heures. Quelle distance parcourt-il ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.02,
+      "cerveau": "calcul-taux",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "raison-03",
+      "categorie": "raisonnement",
+      "question": "J'achete 3 stylos a 2 euros et 2 cahiers a 5 euros. Combien je paie en tout ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.02,
+      "cerveau": "calcul-achat",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "raison-04",
+      "categorie": "raisonnement",
+      "question": "Alice a 12 bonbons, elle en donne la moitie a Bob puis 2 a Clara. Combien lui en reste-t-il ?",
+      "ok": true,
+      "mesure": "0.0s, 1 car",
+      "verifiable": true,
+      "latence": 0.02,
+      "cerveau": "calcul-verbal",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "raison-05",
+      "categorie": "raisonnement",
+      "question": "Un magasin vend des pommes a 2 euros le kilo. J'en achete 3 kilos et je paie avec 10 euros. Combien me rend-on ?",
+      "ok": true,
+      "mesure": "0.0s, 1 car",
+      "verifiable": true,
+      "latence": 0.02,
+      "cerveau": "calcul-achat",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "raison-06",
+      "categorie": "raisonnement",
+      "question": "Une voiture parcourt 150 km en 3 heures. Quelle est sa vitesse moyenne en km/h ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.03,
+      "cerveau": "calcul-taux",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "raison-07",
+      "categorie": "raisonnement",
+      "question": "Il y a 5 boites de 12 oeufs. J'en casse 7. Combien d'oeufs entiers reste-t-il ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.02,
+      "cerveau": "calcul-verbal",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "raison-08",
+      "categorie": "raisonnement",
+      "question": "Un ouvrier gagne 15 euros de l'heure. Il travaille 8 heures. Combien gagne-t-il ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.04,
+      "cerveau": "calcul-taux",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "raison-09",
+      "categorie": "raisonnement",
+      "question": "Un rectangle mesure 7 cm de long et 4 cm de large. Quel est son perimetre en cm ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.03,
+      "cerveau": "problemes-arithmetiques",
+      "experts": [
+        "problemes"
+      ]
+    },
+    {
+      "id": "raison-10",
+      "categorie": "raisonnement",
+      "question": "Un rectangle mesure 7 cm de long et 4 cm de large. Quelle est son aire en cm carres ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.02,
+      "cerveau": "problemes-arithmetiques",
+      "experts": [
+        "problemes"
+      ]
+    },
+    {
+      "id": "raison-11",
+      "categorie": "raisonnement",
+      "question": "J'ai 100 euros. J'achete 3 livres a 18 euros chacun. Combien me reste-t-il ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "calcul-achat",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "raison-12",
+      "categorie": "raisonnement",
+      "question": "Un reservoir de 60 litres est rempli aux deux tiers. Combien de litres contient-il ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.02,
+      "cerveau": "problemes-arithmetiques",
+      "experts": [
+        "problemes"
+      ]
+    },
+    {
+      "id": "raison-13",
+      "categorie": "raisonnement",
+      "question": "Une pizza de 8 parts est partagee entre 4 personnes. Combien de parts chacune ?",
+      "ok": true,
+      "mesure": "0.0s, 1 car",
+      "verifiable": true,
+      "latence": 0.04,
+      "cerveau": "calcul-taux",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "raison-14",
+      "categorie": "raisonnement",
+      "question": "Un bus contient 45 passagers. 17 descendent et 9 montent. Combien de passagers reste-t-il ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.04,
+      "cerveau": "calcul-verbal",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "raison-15",
+      "categorie": "raisonnement",
+      "question": "Un robinet remplit 12 litres par minute. Combien de litres en 5 minutes ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "calcul-taux",
+      "experts": [
+        "calcul"
+      ]
+    },
+    {
+      "id": "logique-01",
+      "categorie": "logique",
+      "question": "Alice a 3 ans de plus que Bob. Bob a 2 ans de plus que Clara. Clara a 4 ans. Quel age a Alice ?",
+      "ok": true,
+      "mesure": "0.0s, 1 car",
+      "verifiable": true,
+      "latence": 0.04,
+      "cerveau": "chaines-numeriques",
+      "experts": [
+        "chaines"
+      ]
+    },
+    {
+      "id": "logique-02",
+      "categorie": "logique",
+      "question": "Paul est plus grand que Marc, et Marc est plus grand que Lea. Qui est le plus grand ?",
+      "ok": true,
+      "mesure": "0.0s, 4 car",
+      "verifiable": true,
+      "latence": 0.03,
+      "cerveau": "tri-transitif",
+      "experts": [
+        "tri"
+      ]
+    },
+    {
+      "id": "logique-03",
+      "categorie": "logique",
+      "question": "Trois amis ont des ages differents : Ana 25 ans, Ben 31 ans, Chloe 28 ans. Qui est le plus jeune ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.03,
+      "cerveau": "chaines-numeriques",
+      "experts": [
+        "chaines"
+      ]
+    },
+    {
+      "id": "logique-04",
+      "categorie": "logique",
+      "question": "Le chien est plus lourd que le chat, et le chat est plus lourd que la souris. Quel animal est le plus lourd ?",
+      "ok": true,
+      "mesure": "0.0s, 5 car",
+      "verifiable": true,
+      "latence": 0.02,
+      "cerveau": "tri-transitif",
+      "experts": [
+        "tri"
+      ]
+    },
+    {
+      "id": "logique-05",
+      "categorie": "logique",
+      "question": "Lea a 2 ans de moins que Tom. Tom a 5 ans de plus que Zoe. Zoe a 8 ans. Quel age a Lea ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "chaines-numeriques",
+      "experts": [
+        "chaines"
+      ]
+    },
+    {
+      "id": "logique-06",
+      "categorie": "logique",
+      "question": "Un livre coute plus cher qu'un stylo, et un stylo coute plus cher qu'une gomme. Quel objet coute le moins cher ?",
+      "ok": true,
+      "mesure": "0.0s, 5 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "tri-transitif",
+      "experts": [
+        "tri"
+      ]
+    },
+    {
+      "id": "logique-07",
+      "categorie": "logique",
+      "question": "Marc a 4 ans de plus que Julie. Julie a 3 ans de moins que Sam. Sam a 10 ans. Quel age a Marc ?",
+      "ok": true,
+      "mesure": "0.0s, 2 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "chaines-numeriques",
+      "experts": [
+        "chaines"
+      ]
+    },
+    {
+      "id": "logique-08",
+      "categorie": "logique",
+      "question": "Dans une course, A arrive avant B et B arrive avant C. Qui arrive en dernier ?",
+      "ok": true,
+      "mesure": "0.0s, 1 car",
+      "verifiable": true,
+      "latence": 0.03,
+      "cerveau": "tri-transitif",
+      "experts": [
+        "tri"
+      ]
+    },
+    {
+      "id": "factuel-01",
+      "categorie": "factuel",
+      "question": "Quelle est la capitale de la France ?",
+      "ok": true,
+      "mesure": "0.0s, 5 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "rag-binaire",
+      "experts": [
+        "rag",
+        "web"
+      ]
+    },
+    {
+      "id": "factuel-02",
+      "categorie": "factuel",
+      "question": "Quelle est la capitale de l'Australie ?",
+      "ok": true,
+      "mesure": "0.0s, 24 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "rag-binaire",
+      "experts": [
+        "rag",
+        "web"
+      ]
+    },
+    {
+      "id": "factuel-03",
+      "categorie": "factuel",
+      "question": "Quelle est la capitale de l'Italie ?",
+      "ok": true,
+      "mesure": "0.0s, 4 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "rag-binaire",
+      "experts": [
+        "rag",
+        "web"
+      ]
+    },
+    {
+      "id": "factuel-04",
+      "categorie": "factuel",
+      "question": "Quelle est la capitale de l'Espagne ?",
+      "ok": true,
+      "mesure": "0.0s, 6 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "rag-binaire",
+      "experts": [
+        "rag",
+        "web"
+      ]
+    },
+    {
+      "id": "factuel-05",
+      "categorie": "factuel",
+      "question": "Quelle est la capitale du Japon ?",
+      "ok": true,
+      "mesure": "0.0s, 5 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "rag-binaire",
+      "experts": [
+        "rag",
+        "web"
+      ]
+    },
+    {
+      "id": "factuel-06",
+      "categorie": "factuel",
+      "question": "Quel est le plus grand ocean du monde ?",
+      "ok": true,
+      "mesure": "0.0s, 17 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "rag-binaire",
+      "experts": [
+        "rag",
+        "web"
+      ]
+    },
+    {
+      "id": "factuel-07",
+      "categorie": "factuel",
+      "question": "Quelle est la planete la plus proche du Soleil ?",
+      "ok": true,
+      "mesure": "0.0s, 7 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "rag-binaire",
+      "experts": [
+        "rag",
+        "web"
+      ]
+    },
+    {
+      "id": "factuel-08",
+      "categorie": "factuel",
+      "question": "Combien de jours compte une annee bissextile ?",
+      "ok": true,
+      "mesure": "0.0s, 38 car",
+      "verifiable": true,
+      "latence": 0.02,
+      "cerveau": "micro-faits",
+      "experts": [
+        "micro"
+      ]
+    },
+    {
+      "id": "factuel-09",
+      "categorie": "factuel",
+      "question": "Combien y a-t-il de continents sur Terre ?",
+      "ok": true,
+      "mesure": "0.0s, 41 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "rag-binaire",
+      "experts": [
+        "general",
+        "rag"
+      ]
+    },
+    {
+      "id": "factuel-10",
+      "categorie": "factuel",
+      "question": "Quel est le symbole chimique de l'eau ?",
+      "ok": true,
+      "mesure": "0.0s, 3 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "rag-binaire",
+      "experts": [
+        "general",
+        "rag"
+      ]
+    },
+    {
+      "id": "factuel-11",
+      "categorie": "factuel",
+      "question": "Combien de cotes a un hexagone ?",
+      "ok": true,
+      "mesure": "0.0s, 22 car",
+      "verifiable": true,
+      "latence": 0.01,
+      "cerveau": "micro-faits",
+      "experts": [
+        "micro"
+      ]
+    },
+    {
+      "id": "factuel-12",
+      "categorie": "factuel",
+      "question": "De quoi les plantes ont-elles besoin pour la photosynthese ?",
+      "ok": true,
+      "mesure": "0.0s, 132 car",
+      "verifiable": true,
+      "latence": 0.02,
+      "cerveau": "micro-faits",
+      "experts": [
+        "micro"
+      ]
+    },
+    {
+      "id": "meta-nom",
+      "categorie": "meta",
+      "question": "Qui es-tu ?",
+      "ok": true,
+      "mesure": "constante",
+      "verifiable": false,
+      "latence": 0.01,
+      "cerveau": "constante",
+      "experts": [
+        "identite"
+      ]
+    },
+    {
+      "id": "meta-createur",
+      "categorie": "meta",
+      "question": "Qui t'a cree ?",
+      "ok": true,
+      "mesure": "constante",
+      "verifiable": false,
+      "latence": 0.01,
+      "cerveau": "constante",
+      "experts": [
+        "identite"
+      ]
+    },
+    {
+      "id": "meta-nom2",
+      "categorie": "meta",
+      "question": "Quel est ton nom ?",
+      "ok": true,
+      "mesure": "constante",
+      "verifiable": false,
+      "latence": 0.01,
+      "cerveau": "constante",
+      "experts": [
+        "identite"
+      ]
+    },
+    {
+      "id": "meta-8b",
+      "categorie": "meta",
+      "question": "Tu es plus fort que ChatGPT ?",
+      "ok": true,
+      "mesure": "0.0s, 591 car",
+      "verifiable": false,
+      "latence": 0.01,
+      "cerveau": "constante-capacite",
+      "experts": [
+        "identite"
+      ]
+    },
+    {
+      "id": "meta-8b2",
+      "categorie": "meta",
+      "question": "es tu une ia aussi puissante qu'un 8B ou plus ?",
+      "ok": true,
+      "mesure": "0.0s, 591 car",
+      "verifiable": false,
+      "latence": 0.01,
+      "cerveau": "constante-capacite",
+      "experts": [
+        "identite"
+      ]
+    },
+    {
+      "id": "format-mot",
+      "categorie": "format",
+      "question": "Ecris exactement le mot BANANE.",
+      "ok": true,
+      "mesure": "0.0s, 6 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "constante",
+      "experts": [
+        "recopie"
+      ]
+    },
+    {
+      "id": "format-couleurs",
+      "categorie": "format",
+      "question": "Donne trois couleurs primaires separees par des virgules.",
+      "ok": true,
+      "mesure": "0.0s",
+      "verifiable": true,
+      "latence": 0.03,
+      "cerveau": "micro-faits",
+      "experts": [
+        "micro"
+      ]
+    },
+    {
+      "id": "format-calcul",
+      "categorie": "format",
+      "question": "Combien font 4 + 4 ? Reponds en un seul chiffre.",
+      "ok": true,
+      "mesure": "6.2s, 31 car",
+      "verifiable": true,
+      "latence": 6.15,
+      "cerveau": "gemma3-1b",
+      "experts": [
+        "web"
+      ]
+    },
+    {
+      "id": "format-phrase",
+      "categorie": "format",
+      "question": "Ecris la phrase : je teste RontoGPT.",
+      "ok": true,
+      "mesure": "0.0s, 13 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "constante",
+      "experts": [
+        "recopie"
+      ]
+    },
+    {
+      "id": "format-soustraction",
+      "categorie": "format",
+      "question": "Donne le resultat de 10 - 3.",
+      "ok": true,
+      "mesure": "0.0s, 1 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "riche-01",
+      "categorie": "riche",
+      "question": "Redige une analyse comparee du solaire et de l'eolien en France, avec les avantages et les limites de chaque filiere",
+      "ok": false,
+      "mesure": "15s, 709 car  KO:court",
+      "verifiable": false,
+      "latence": 15.46,
+      "cerveau": "gemma3-1b",
+      "experts": [
+        "general"
+      ],
+      "reponse": "Une analyse comparee : Le Solaire et L'Eolien en France. **Avantages :**\n*   Ressources renouvelables (lumière du soleil). *   Pas d'émissions de gaz à effet de serre (en général). *   Peut être intégré à l'environnement existant (facilement adaptable). *   Peut créer des emplois. **Inconvénients :**\n*   Variabilité de production (solaire). *   Dépendance du temps (solaire). *   Coût d'installation et d'entretien (électrique). *   Peut nécessiter de grandes surfaces (éolien). **Conclusion :** En France, l'énergie solaire est une source renouvelable fiable et adaptable. L'énergie éolienne peut être un complément à la production solaire, mais elle nécessite des investissements initiaux plus importants."
+    },
+    {
+      "id": "riche-02",
+      "categorie": "riche",
+      "question": "La puissance de la technologie est-elle une menace pour l'homme moderne ? Redige une dissertation structuree.",
+      "ok": true,
+      "mesure": "25s, 1276 car",
+      "verifiable": false,
+      "latence": 24.91,
+      "cerveau": "gemma3-1b",
+      "experts": [
+        "general"
+      ]
+    },
+    {
+      "id": "riche-03",
+      "categorie": "riche",
+      "question": "Explique pourquoi la lecture est importante pour la liberte de penser, en trois parties",
+      "ok": false,
+      "mesure": "14s, 527 car  KO:court",
+      "verifiable": false,
+      "latence": 13.6,
+      "cerveau": "gemma3-1b",
+      "experts": [
+        "web"
+      ],
+      "reponse": "L’importance de la lecture pour la liberté de penser :\n\n*   **L’initie et nourrit :** La lecture initie le lecteur à l'esprit, l'alimente avec des idées nouvelles, ce qui permet au lecteur de s'appuyer sur ses propres connaissances. *   **Structure et force :** Elle structure le temps du lecteur, ce qui lui donne la force de penser plus vite et de résoudre les problèmes plus efficacement. *   **L’autonomie intellectuelle :** Elle permet d’acquérir des compétences et des connaissances pour devenir autonome dans son esprit."
+    },
+    {
+      "id": "riche-04",
+      "categorie": "riche",
+      "question": "Analyse les avantages et les inconvenients du teletravail pour les entreprises et les salaries",
+      "ok": true,
+      "mesure": "24s, 1254 car",
+      "verifiable": false,
+      "latence": 24.07,
+      "cerveau": "gemma3-1b",
+      "experts": [
+        "general"
+      ]
+    },
+    {
+      "id": "riche-05",
+      "categorie": "riche",
+      "question": "Compare la democratie athenienne et la democratie moderne",
+      "ok": true,
+      "mesure": "26s, 1065 car",
+      "verifiable": false,
+      "latence": 26.38,
+      "cerveau": "gemma3-1b",
+      "experts": [
+        "general"
+      ]
+    },
+    {
+      "id": "riche-06",
+      "categorie": "riche",
+      "question": "La liberte peut-elle exister sans contrainte ? Redige une dissertation",
+      "ok": true,
+      "mesure": "27s, 1279 car",
+      "verifiable": false,
+      "latence": 27.42,
+      "cerveau": "gemma3-1b",
+      "experts": [
+        "general"
+      ]
+    },
+    {
+      "id": "riche-07",
+      "categorie": "riche",
+      "question": "Analyse le role de l'art dans la societe contemporaine",
+      "ok": true,
+      "mesure": "29s, 1336 car",
+      "verifiable": false,
+      "latence": 28.83,
+      "cerveau": "gemma3-1b",
+      "experts": [
+        "general"
+      ]
+    },
+    {
+      "id": "riche-08",
+      "categorie": "riche",
+      "question": "Compare l'intelligence artificielle et l'intelligence humaine sur le plan de la creativite",
+      "ok": true,
+      "mesure": "18s, 1253 car",
+      "verifiable": false,
+      "latence": 17.79,
+      "cerveau": "gemma3-1b",
+      "experts": [
+        "general"
+      ]
+    },
+    {
+      "id": "riche-09",
+      "categorie": "riche",
+      "question": "Explique pourquoi les oceans sont essentiels a l'equilibre climatique",
+      "ok": true,
+      "mesure": "19s, 1282 car",
+      "verifiable": false,
+      "latence": 18.54,
+      "cerveau": "gemma3-1b",
+      "experts": [
+        "web"
+      ]
+    },
+    {
+      "id": "riche-10",
+      "categorie": "riche",
+      "question": "Redige une dissertation structuree sur l'utilite du doute dans la demarche scientifique",
+      "ok": true,
+      "mesure": "12s, 1297 car",
+      "verifiable": false,
+      "latence": 11.89,
+      "cerveau": "gemma3-1b",
+      "experts": [
+        "general"
+      ]
+    }
+  ]
+}

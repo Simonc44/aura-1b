@@ -96,8 +96,8 @@ class TestEtatEvenementiel:
 
     def test_bloc_systeme_injecte_etat(self, memoire):
         memoire.ajouter("user", "Je m'appelle Pierre")
-        bloc = memoire.bloc_systeme("Tu es Aura.")
-        assert "Tu es Aura." in bloc               # ancre preservee
+        bloc = memoire.bloc_systeme("Tu es RontoGPT.")
+        assert "Tu es RontoGPT." in bloc               # ancre preservee
         assert "Pierre" in bloc                    # etat ajoute
         assert "historique" in bloc                # outil annonce
 

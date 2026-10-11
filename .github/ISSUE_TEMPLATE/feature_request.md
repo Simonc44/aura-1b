@@ -1,13 +1,13 @@
 ---
 name: ✨ Feature request
-about: Suggest an idea for Aura-1B
+about: Suggest an idea for RontoGPT
 title: "[feature] "
 labels: enhancement
 assignees: ""
 ---
 
 **Problem to solve**
-What are you trying to do that Aura can't (or can't do well)? Describe the
+What are you trying to do that RontoGPT can't (or can't do well)? Describe the
 *problem*, not only the solution you have in mind.
 
 **Proposed solution**
@@ -24,7 +24,7 @@ here.
 - [ ] Docs / benchmarks / other
 
 **Does it fit the golden rule?**
-Aura's design rule: *the small model proposes, the program proves* — anything
+RontoGPT's design rule: *the small model proposes, the program proves* — anything
 unproven is verified or refused. Does your feature:
 - [ ] add something **verifiable** (great fit)
 - [ ] improve **routing / speed** (great fit)

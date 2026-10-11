@@ -1,4 +1,4 @@
-"""Aura.exe — point d'entree du paquet (winmain.py en exe).
+"""RontoGPT.exe — point d'entree du paquet (winmain.py en exe).
 
 Trois modes :
   1. sans argument  : lance la CLI python -m aura (mode demo/chat)
@@ -91,13 +91,13 @@ if sysm is None:
     from aura.__main__ import main as cli_main
     sys.exit(cli_main([]))
 
-ia = sysm["module"].Aura1B()
+ia = sysm["module"].RontoGPT()
 if reste:
     t0 = time.time()
     print(ia.executer(" ".join(reste)))
     print("[%0.1fs]" % (time.time() - t0))
 else:
-    print('Aura online. "exit" pour quitter, "reset" pour oublier.')
+    print('RontoGPT online. "exit" pour quitter, "reset" pour oublier.')
     while True:
         try:
             q = input("toi> ").strip()
@@ -127,10 +127,10 @@ def main() -> int:
 
     # 1. pas d'argument -> CLI interactive complete (chat, demo, questions)
     if not args or args[0] in ("-h", "--help"):
-        print("Aura-1B — usage :")
-        print("  Aura.exe <fichier.aef> [question]   boot + reponse")
-        print("  Aura.exe --cache [question]         cache deja rempli (instantane)")
-        print("  Aura.exe                            interface interactive")
+        print("RontoGPT — usage :")
+        print("  RontoGPT.exe <fichier.aef> [question]   boot + reponse")
+        print("  RontoGPT.exe --cache [question]         cache deja rempli (instantane)")
+        print("  RontoGPT.exe                            interface interactive")
         if getattr(sys, "frozen", False):
             # le paquet aura n'est pas embarque dans l'exe leger -> CLI locale
             py = _python_local()
@@ -163,7 +163,7 @@ def main() -> int:
         else:
             sysm = mod_kernel.boot(args[0])
             reste = args[1:]
-        ia = sysm["module"].Aura1B()
+        ia = sysm["module"].RontoGPT()
     except ImportError:
         # exe leger : delegation au python local (uv) qui a les dependances
         py = _python_local()
@@ -180,7 +180,7 @@ def main() -> int:
         print(f"[{time.time() - t0:.1f}s]")
         return 0
 
-    print('Aura online. "exit" pour quitter, "reset" pour oublier.')
+    print('RontoGPT online. "exit" pour quitter, "reset" pour oublier.')
     while True:
         try:
             q = input("toi> ").strip()

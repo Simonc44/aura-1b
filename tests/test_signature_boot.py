@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from aura import kernel, signature
+from aura import kernel, profil_materiel, signature
 
 
 @pytest.fixture(scope="module")
@@ -147,7 +147,8 @@ class TestSignatureIntegree:
         sig = aef_forge.with_suffix(".aef.sig")
         sig.write_bytes(bloc)
         cfg = kernel.ouvrir_et_verifier(aef_forge)      # ne doit PAS lever
-        assert cfg["n_ctx"] == 3072
+        # meme source de verite que la forge : l'auto-tuning de la machine.
+        assert cfg["n_ctx"] == profil_materiel.reglages_optimaux()["n_ctx"]
         sig.unlink()
 
     def test_sig_falsifie_refuse(self, aef_forge, monkeypatch, tmp_path):

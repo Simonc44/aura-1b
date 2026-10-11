@@ -164,7 +164,9 @@ def _unites(q: str) -> str | None:
     if m_src and m_src.group(2) in _TEMPERATURES:
         m_dst = re.search(
             rf"\b(?:en|vers|to|in|combien\s+de)\s+({'|'.join(temps_tries)})\b", q)
-        if m_dst:
+        if m_dst and m_dst.group(1) != m_src.group(2):
+            # meme unite source et cible -> identite, ce n'est pas une
+            # conversion (cf. le cas generique plus bas).
             valeur = float(m_src.group(1).replace(",", "."))
             r = _convertir_temperature(valeur, _TEMPERATURES[m_src.group(2)],
                                        _TEMPERATURES[m_dst.group(1)])
@@ -188,6 +190,14 @@ def _unites(q: str) -> str | None:
     dim_src, fac_src = _UNITES[unite_src]
     dim_dst, fac_dst = _UNITES[unite_dst]
     if dim_src != dim_dst:
+        return None
+    if fac_src == fac_dst:
+        # CONVERSION IDENTIQUE : « 12 litres en litres », « 7 cm en cm »,
+        # « 150 km ... en km/h ». « en <unite> » est alors du TEXTE COURANT
+        # (« combien de litres en 5 minutes ? »), pas une demande de
+        # conversion — et servir « 12 litres = 12 litres » AU LIEU de
+        # calculer est une vraie regression : 5 questions sur 15 perdues au
+        # banc_100 (perimetre, aire, vitesse, deux tiers, debit).
         return None
     r = valeur * fac_src / fac_dst
     return f"{_f0._fmt(valeur)} {unite_src} = {_f0._fmt(r)} {unite_dst}"

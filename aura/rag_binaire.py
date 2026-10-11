@@ -44,6 +44,30 @@ _STOPWORDS = frozenset(
     "aussi alors alors voila voici ici dis moi dites peux tu peux-tu stp "
     "svp merci faire fais fait etre".split()
 )
+
+#: Mots de CONSIGNE (comment on pose la question), pas de CONTENU. Ils
+#: gonflent le Jaccard : « explique en deux phrases pourquoi le ciel est
+#: bleu » et « ... ce qu'est un trou noir » partagent {explique, deux,
+#: phrases} sans parler du meme sujet. Un appariement doit donc reposer
+#: sur AU MOINS un mot hors de cet ensemble (bug reel, 10 oct. 2026 :
+#: « trou noir » a recu la reponse sur le ciel bleu, Jaccard 0,38).
+_GENERIQUES = frozenset(
+    "explique expliquer expliquez explication phrases phrase"
+    " brievement bref brieve simplement rapidement developpe"
+    " resume resumer decris decrire decrit detail detaille"
+    " precise preciser definir definition presente presentation"
+    " donne donner dis dire aimerais savoir voudrais pourrais"
+    " deux trois quatre cinq plusieurs quelques".split())
+# Aliases etroits pour les paraphrases. Le tokenizer principal reste stable
+# afin de garder compatibles les signatures deja compilees dans rag.bin.
+_ALIAS_MOTS = {
+    "francaise": "france", "francais": "france",
+    "italienne": "italie", "italien": "italie",
+    "espagnole": "espagne", "espagnol": "espagne",
+    "grande": "grand", "grandes": "grand", "grands": "grand",
+    "vaste": "grand", "etoiles": "etoile", "planetes": "planete",
+    "oceans": "ocean", "designe": "symbole", "lettres": "symbole",
+}
 _MOTS = None  # compile paresseusement
 
 
@@ -60,6 +84,32 @@ def tokeniser(texte: str) -> frozenset[str]:
     t = "".join(c for c in t if not unicodedata.combining(c))
     return frozenset(m for m in _regex_mots().findall(t)
                      if m not in _STOPWORDS and len(m) >= 2)
+
+
+def _tokens_semantiques(texte: str) -> frozenset[str]:
+    """Equivalences lexicales bornees pour comparer les documents."""
+    mots = {_ALIAS_MOTS.get(m, m) for m in tokeniser(texte)}
+    if "superficie" in mots and "ocean" in mots:
+        mots.add("grand")
+    if "orbitent" in mots and "soleil" in mots and "planete" in mots:
+        mots.update(("systeme", "solaire"))
+    if "molecule" in mots and "eau" in mots:
+        mots.update(("formule", "chimique"))
+    if "squelette" in mots and "os" in mots:
+        mots.update(("corps", "humain"))
+    if "symbole" in mots and "or" in mots:
+        mots.update(("symbole", "chimique"))
+    return frozenset(mots)
+
+
+def _type_entite(texte: str) -> str | None:
+    import re
+    t = unicodedata.normalize("NFKD", texte.lower())
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    # Le premier type nomme est generalement le sujet de la question : dans
+    # « quelle etoile est proche de notre planete », c'est etoile.
+    m = re.search(r"\b(etoile|planete)\b", t)
+    return m.group(1) if m else None
 
 
 def _h64(donnees: bytes, graine: int) -> int:
@@ -158,21 +208,38 @@ class IndexRAG:
         if not self._charge or not self._docs:
             return None
         debut = time.perf_counter()
-        sig_q = signature_minhash(tokeniser(question))
+        tokens_bruts = tokeniser(question)
+        tokens_sem = _tokens_semantiques(question)
+        signatures_q = {signature_minhash(tokens_bruts),
+                        signature_minhash(tokens_sem)}
         # votes LSH : les docs qui partagent au moins un bandeau
         candidats: set[int] = set()
-        for b in range(NB_BANDS):
-            candidats.update(self._lsh.get(sig_q[b * 4:b * 4 + 4], ()))
+        for sig_q in signatures_q:
+            for b in range(NB_BANDS):
+                candidats.update(self._lsh.get(sig_q[b * 4:b * 4 + 4], ()))
         if not candidats:
             LOG.info("[rag] miss LSH (%.1f ms)",
                      (time.perf_counter() - debut) * 1000)
             return None
         # score reel sur les candidats seulement (Jaccard approxime)
-        toks_q = tokeniser(question)
+        toks_q = tokens_sem
+        import re
+        annees_q = set(re.findall(r"\b(?:19|20)\d{2}\b", question))
+        type_q = _type_entite(question)
         meilleur, meilleur_score = None, 0.0
         for i in candidats:
-            toks_d = tokeniser(self._docs[i].get("q", ""))
+            question_doc = self._docs[i].get("q", "")
+            annees_d = set(re.findall(r"\b(?:19|20)\d{2}\b", question_doc))
+            if annees_q and annees_d and not (annees_q & annees_d):
+                continue
+            type_d = _type_entite(question_doc)
+            if type_q and type_d and type_q != type_d:
+                continue
+            toks_d = _tokens_semantiques(question_doc)
             if not toks_d or not toks_q:
+                continue
+            # CONTENU obligatoire : la formulation seule ne suffit pas.
+            if not (toks_q & toks_d) - _GENERIQUES:
                 continue
             inter = len(toks_q & toks_d)
             union = len(toks_q | toks_d)

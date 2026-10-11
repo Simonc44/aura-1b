@@ -234,8 +234,8 @@ class TestOrchestrateur:
     @staticmethod
     def _ia(tmp_path):
         from aura.memoire_conversation import MemoireConversation
-        from aura.orchestrateur import Aura1B
-        ia = Aura1B()
+        from aura.orchestrateur import RontoGPT
+        ia = RontoGPT()
         ia._historique = MemoireConversation(chemin=tmp_path / "c.jsonl")
         return ia
 
@@ -249,19 +249,17 @@ class TestOrchestrateur:
         from aura import (agents, calcul_verbal, fast_lang,
                           filtre_instantane, llama_cerveau, memoire_web,
                           rag_binaire)
-        from aura.orchestrateur import Aura1B
+        from aura.orchestrateur import RontoGPT
         monkeypatch.setattr(filtre_instantane, "repondre", lambda q: None)
         monkeypatch.setattr(filtre_instantane, "enregistrer", lambda q, r: None)
         monkeypatch.setattr(rag_binaire, "chercher", lambda q: None)
         monkeypatch.setattr(fast_lang.moteur, "repondre", lambda q: None)
         monkeypatch.setattr(calcul_verbal, "resoudre", lambda q: None)
         monkeypatch.setattr(memoire_web, "chercher", lambda q, **k: "")
-        monkeypatch.setattr(memoire_web, "chercher_enrichi",
-                            lambda q, **k: "")
         monkeypatch.setattr(agents, "planifier", lambda q, **k: None)
-        monkeypatch.setattr(Aura1B, "_expert_special",
+        monkeypatch.setattr(RontoGPT, "_expert_special",
                             staticmethod(lambda *a, **k: None))
-        monkeypatch.setattr(Aura1B, "_a_besoin_verification",
+        monkeypatch.setattr(RontoGPT, "_a_besoin_verification",
                             staticmethod(lambda *a, **k: False))
 
     # ── fan-out : la tache API part en parallele et est mise de cote ────
@@ -270,23 +268,23 @@ class TestOrchestrateur:
         from aura import apis_publiques as ap
         monkeypatch.setattr(ap, "detecte", lambda q: True)
         monkeypatch.setattr(ap, "chercher", lambda q: "METEO API")
-        from aura.orchestrateur import Aura1B
-        ia = Aura1B()
+        from aura.orchestrateur import RontoGPT
+        ia = RontoGPT()
         ctx, formule = ia._executer_experts(
-            set(), "Quel temps fait-il à Paris ?", None, None, False)
+            set(), "Quel temps fait-il à Paris ?", None, None)
         assert (ctx, formule) == ("", "")         # web absent
         assert ia._contexte_api == "METEO API"     # mais stashee
 
     def test_api_se_merge_au_web(self, monkeypatch):
         from aura import apis_publiques as ap, memoire_web
-        from aura.orchestrateur import Aura1B
+        from aura.orchestrateur import RontoGPT
         monkeypatch.setattr(ap, "detecte", lambda q: True)
         monkeypatch.setattr(ap, "chercher", lambda q: "METEO API")
         monkeypatch.setattr(memoire_web, "chercher",
                             lambda q, **k: "FAIT WEB")
-        ia = Aura1B()
+        ia = RontoGPT()
         ctx, formule = ia._executer_experts(
-            {"web"}, "meteo Paris", None, None, False)
+            {"web"}, "meteo Paris", None, None)
         assert "FAIT WEB" in ctx                   # web rendu tel quel
         assert "METEO API" not in ctx              # API NON compressee ici
         assert ia._contexte_api == "METEO API"
@@ -294,11 +292,11 @@ class TestOrchestrateur:
 
     def test_detecte_fausse_sans_tache(self, monkeypatch):
         from aura import apis_publiques as ap
-        from aura.orchestrateur import Aura1B
+        from aura.orchestrateur import RontoGPT
         monkeypatch.setattr(ap, "detecte", lambda q: False)
-        ia = Aura1B()
+        ia = RontoGPT()
         ctx, formule = ia._executer_experts(
-            set(), "nimporte quoi", None, None, False)
+            set(), "nimporte quoi", None, None)
         assert (ctx, formule) == ("", "")         # chemin rapide inchange
         assert ia._contexte_api == ""
 
@@ -313,7 +311,7 @@ class TestOrchestrateur:
         dans le contexte.
         """
         from aura import apis_publiques, filtre_instantane, llama_cerveau
-        from aura.orchestrateur import Aura1B
+        from aura.orchestrateur import RontoGPT
         self._isole_pipeline(monkeypatch)
         monkeypatch.setattr(apis_publiques, "detecte", lambda q: True)
         donnee = "Météo à Paris, France (14:00) : 14,7 °C, ciel dégagé."
@@ -325,7 +323,7 @@ class TestOrchestrateur:
         def _boom(*args, **kwargs):
             raise AssertionError("generation inattendue")
 
-        monkeypatch.setattr(Aura1B, "_generer", _boom)
+        monkeypatch.setattr(RontoGPT, "_generer", _boom)
         monkeypatch.setattr(llama_cerveau, "generer", _boom)
 
         det = self._ia(tmp_path).executer_detaille(
@@ -337,24 +335,24 @@ class TestOrchestrateur:
     def test_pipeline_api_survit_au_compresseur(self, monkeypatch, tmp_path):
         """API + web long : la ligne de donnees passe APRES le top-3."""
         from aura import agents, llama_cerveau
-        from aura.orchestrateur import Aura1B
+        from aura.orchestrateur import RontoGPT
         self._isole_pipeline(monkeypatch)
         captures: list = []
 
-        def _faux_experts(self, experts, question, X, y, riche):
+        def _faux_experts(self, experts, question, X, y):
             self._contexte_api = "API LIGNE DE DONNEES."
             phrases = " ".join(
                 f"Phrase numero {i} avec des mots utiles et un chiffre 7."
                 for i in range(1, 8))            # ~380 car. > seuil 320
             return phrases, ""
 
-        monkeypatch.setattr(Aura1B, "_executer_experts", _faux_experts)
+        monkeypatch.setattr(RontoGPT, "_executer_experts", _faux_experts)
 
         def _faux_generer(self, *args, **kwargs):
             captures.append(args)
             return "REPONSE FINALE"
 
-        monkeypatch.setattr(Aura1B, "_generer", _faux_generer)
+        monkeypatch.setattr(RontoGPT, "_generer", _faux_generer)
         monkeypatch.setattr(llama_cerveau, "generer",
                             lambda *a, **k: (_ for _ in ()).throw(
                                 AssertionError("generation inattendue")))

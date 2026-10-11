@@ -171,6 +171,23 @@ class FastLangEngine:
             return "l'"          # h muet par défaut (hérisson, honte...)
         return None
 
+    @staticmethod
+    def _sujet(pronom: str, forme: str) -> str:
+        """Accorde le pronom sujet : « je » s'elide devant une voyelle.
+
+        Defaut reel corrige le 6 oct. 2026 : le rendu ecrivait `f"je {forme}"`
+        sans elision, donc « conjugue avoir au futur » repondait « je aurai,
+        tu auras, ... ». La TABLE etait juste (elle contient bien 'aurai') :
+        c'est le RENDU qui etait faux — et rien ne le testait, parce que le
+        banc ne pose aucune question de conjugaison.
+
+        Seul « je » s'elide ici : « il aura » et « elle aura » sont corrects.
+        """
+        f = (forme or "").strip()
+        if pronom == "je" and f and _RE_VOYELLE.match(f.lower()):
+            return f"j'{f}"
+        return f"{pronom} {f}"
+
     def disponible(self) -> bool:
         return self._chemin.exists()
 
@@ -206,9 +223,9 @@ class FastLangEngine:
                         return None
                     etiq = temps.replace("_", " ")
                     return (f"Au {etiq}, le verbe « {verbe} » se conjugue : "
-                            f"je {table['je']}, tu {table['tu']}, "
-                            f"il/elle {table['il']}, nous {table['nous']}, "
-                            f"vous {table['vous']}, "
+                            f"{self._sujet('je', table['je'])}, "
+                            f"tu {table['tu']}, il/elle {table['il']}, "
+                            f"nous {table['nous']}, vous {table['vous']}, "
                             f"ils/elles {table['ils']}.")
             return None
         m = _RE_DEF_MOT.search(question)

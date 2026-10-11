@@ -72,6 +72,61 @@ class TestConfig:
         assert os.environ["AURA_SERVEUR_SPEC"] == "0"
         assert "AURA_SPEC" not in os.environ
 
+    def test_un_budget_pinne_dans_le_fichier_ecrase_le_profil(self, tmp_path, monkeypatch):
+        """Le cas reel du 8 oct. 2026, rendu visible.
+
+        `aura.toml` epingle `budget_s = 45` ; le profil `qualite` veut 180 s
+        pour rendre les dissertations completes. Le fichier gagne (c'est
+        voulu) — mais le silence, lui, ne l'etait pas : c'est ce que
+        `conflits_profil` rend visible.
+        """
+        monkeypatch.delenv("AURA_PROFIL", raising=False)
+        chemin = tmp_path / "aura.toml"
+        chemin.write_text("[profil]\nnom = \"qualite\"\n\n[qualite]\nbudget_s = 45\n",
+                          encoding="utf-8")
+        assert config.conflits_profil(chemin=chemin) == {"AURA_BUDGET_S": ("45", "180")}
+
+    def test_l_argument_profil_gagne_sur_le_fichier(self, tmp_path, monkeypatch):
+        """Priorite documentee : argument > fichier.
+
+        Regression mesuree le 8 oct. 2026 : le fichier reecrivait AURA_PROFIL
+        a l'etape « valeurs explicites », donc `--profil qualite` etait annule
+        en silence par `[profil] nom = "equilibre"`.
+        """
+        monkeypatch.delenv("AURA_PROFIL", raising=False)
+        monkeypatch.delenv("AURA_BUDGET_S", raising=False)
+        chemin = tmp_path / "aura.toml"
+        chemin.write_text("[profil]\nnom = \"equilibre\"\n", encoding="utf-8")
+        pose = config.appliquer(chemin=chemin, profil="qualite")
+        assert pose["AURA_PROFIL"] == "qualite"
+        assert os.environ["AURA_PROFIL"] == "qualite"
+        # Sans argument, le fichier choisit toujours : comportement conserve.
+        monkeypatch.delenv("AURA_PROFIL", raising=False)
+        assert config.appliquer(chemin=chemin)["AURA_PROFIL"] == "equilibre"
+
+    def test_le_conflit_est_journalise(self, tmp_path, monkeypatch, caplog):
+        """Un avertissement sans le remede ne sert a rien : on exige les deux."""
+        import logging
+        monkeypatch.delenv("AURA_PROFIL", raising=False)
+        monkeypatch.delenv("AURA_BUDGET_S", raising=False)
+        chemin = tmp_path / "aura.toml"
+        chemin.write_text("[profil]\nnom = \"qualite\"\n\n[qualite]\nbudget_s = 45\n",
+                          encoding="utf-8")
+        with caplog.at_level(logging.WARNING, logger="aura.config"):
+            config.appliquer(chemin=chemin)
+        assert "ecrase le profil qualite" in caplog.text
+        assert "retire" in caplog.text
+
+    def test_aucun_conflit_quand_le_fichier_suit_le_profil(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("AURA_PROFIL", raising=False)
+        chemin = tmp_path / "aura.toml"
+        chemin.write_text("[profil]\nnom = \"qualite\"\n\n[qualite]\nbudget_s = 180\n",
+                          encoding="utf-8")
+        assert config.conflits_profil(chemin=chemin) == {}
+        # Un profil sans valeur pour la cle n'est pas un conflit non plus.
+        chemin.write_text("[serveur]\nactif = true\n", encoding="utf-8")
+        assert config.conflits_profil(chemin=chemin, profil="equilibre") == {}
+
     def test_version_lue_dans_pyproject(self):
         assert config.version().count(".") >= 1
         assert config.version() != "0.0.0"

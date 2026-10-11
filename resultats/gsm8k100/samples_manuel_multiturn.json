@@ -1,0 +1,47 @@
+[
+ {
+  "i": 0,
+  "gold": "18",
+  "strict": "18",
+  "pred": "18",
+  "ok": true,
+  "has_hash": true,
+  "out": "Janet has 16 eggs per day. She eats 3 eggs for breakfast, so she eats 16 - 3 = 13 eggs. She bakes muffins for her friends every day with 4 eggs, so she bakes 4 eggs. She sells the remainder at the farmers' market for $2 per fresh duck egg.\nSo she makes 13 eggs - 4 eggs = 9 eggs.\nShe sells 9 eggs for $2 per egg, so she makes 9*2 = 18.\nSo she makes 18 dollars every day.\n#### 18"
+ },
+ {
+  "i": 1,
+  "gold": "3",
+  "strict": "8",
+  "pred": "8",
+  "ok": false,
+  "has_hash": true,
+  "out": "It takes 2 bolts of blue fiber and half that much white fiber.\n2 bolts of blue fiber = 2*2=4 bolts\n2 bolts of white fiber = 2*2=4 bolts\nTotal = 4+4=8 bolts.\n#### 8"
+ },
+ {
+  "i": 2,
+  "gold": "70000",
+  "strict": "40,000",
+  "pred": "40000",
+  "ok": false,
+  "has_hash": true,
+  "out": "The house value increased by 150%, so the new value is 80,000 * 1.50 = 120,000.\nThe profit is 120,000 - 80,000 = 40,000.\n#### 40,000"
+ },
+ {
+  "i": 3,
+  "gold": "540",
+  "strict": "180",
+  "pred": "180",
+  "ok": false,
+  "has_hash": true,
+  "out": "He runs 3 sprints 3 times a week.\nEach sprint is 60 meters.\nSo he runs 3*60=<<3*60=180>>180 meters a week.\n#### 180"
+ },
+ {
+  "i": 4,
+  "gold": "20",
+  "strict": "40",
+  "pred": "40",
+  "ok": false,
+  "has_hash": true,
+  "out": "Wendi has 20 chickens.\nShe feeds her flock 15 cups in the morning.\nShe feeds her flock another 25 cups in the afternoon.\nTotal cups of feed she needs for the final meal is 15 + 25 = <<15+25=40>>40 cups.\nShe feeds her flock 40 cups in the final meal.\nSo she needs to give her flock 40 cups.\n#### 40"
+ }
+]

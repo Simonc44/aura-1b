@@ -23,12 +23,12 @@ _BIN = _RACINE / "serveur" / "llama-server.exe"
 _LORA = sorted((_RACINE / "serveur").glob("aura-*-T.gguf"))
 
 CAS = {
-    "systeme_court": ([{"role": "system", "content": "Tu es Aura."},
+    "systeme_court": ([{"role": "system", "content": "Tu es RontoGPT."},
                        {"role": "user", "content": "Repete 3 fois : bonjour monde"}], 80, False),
-    "court+stop": ([{"role": "system", "content": "Tu es Aura."},
+    "court+stop": ([{"role": "system", "content": "Tu es RontoGPT."},
                     {"role": "user", "content": "Repete 3 fois : bonjour monde"}], 80, True),
     "user_court": ([{"role": "user", "content": "Repete 3 fois : bonjour monde"}], 80, False),
-    "systeme_long": ([{"role": "system", "content": "Tu es Aura."},
+    "systeme_long": ([{"role": "system", "content": "Tu es RontoGPT."},
                       {"role": "user", "content": "Explique le cycle de l'eau "
                        "en 5 phrases detaillees avec des exemples concrets."}], 80, False),
 }
@@ -104,7 +104,7 @@ def main() -> int:
             print(f"[diag] {nom:16s} -> boot KO ({s._indispo})")
             continue
         try:
-            r = s.chat([{"role": "system", "content": "Tu es Aura."},
+            r = s.chat([{"role": "system", "content": "Tu es RontoGPT."},
                         {"role": "user", "content": "Repete 3 fois : bonjour monde"}],
                        max_tokens=80)
             print(f"[diag] {nom:16s} -> {'OK  ' + str(len(r)) + ' car.' if r else 'CRASH/VIDE'}")

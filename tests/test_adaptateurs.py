@@ -15,7 +15,7 @@ import ctypes
 import pytest
 
 from aura import adaptateurs
-from aura.orchestrateur import Aura1B
+from aura.orchestrateur import RontoGPT
 
 
 class _FakeLib:
@@ -169,7 +169,7 @@ class TestIntegration:
                             lambda *a, **k: "ok")
         # un modele DEJA charge (le hot-swap ne charge jamais lui-meme)
         monkeypatch.setattr(llama_cerveau, "_llm", _llm())
-        ia = Aura1B()
+        ia = RontoGPT()
         ia.analyser = lambda q: {"experts": {"web"},
                                  "scores": {"web": 0.9},
                                  "methodes": ["t"]}
@@ -190,7 +190,7 @@ class TestIntegration:
             raise RuntimeError("C-API en panique")
 
         monkeypatch.setattr(adaptateurs, "appliquer", boom)
-        ia = Aura1B()
+        ia = RontoGPT()
         ia.analyser = lambda q: {"experts": {"math"},
                                  "scores": {"math": 0.9},
                                  "methodes": ["t"]}
@@ -200,7 +200,7 @@ class TestIntegration:
         from aura import llama_cerveau
         monkeypatch.setattr(llama_cerveau, "generer",
                             lambda *a, **k: "ok")
-        ia = Aura1B()
+        ia = RontoGPT()
         ia.analyser = lambda q: {"experts": {"web"},
                                  "scores": {"web": 0.9},
                                  "methodes": ["t"]}

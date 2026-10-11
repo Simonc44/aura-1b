@@ -4,7 +4,7 @@ import struct
 import pytest
 
 from scripts.forger_aef import HEADER_FORMAT, HEADER_TAILLE, MAGIC
-from aura import kernel
+from aura import kernel, profil_materiel
 
 
 class TestFormat:
@@ -26,7 +26,9 @@ class TestBoot:
         # du paquet (le re-import de boot() polluerait sys.modules en tests)
         monkeypatch.setattr(kernel, "CACHE", tmp_path / "cache")
         cfg = kernel.ouvrir_et_verifier(aef_forge)
-        assert cfg["n_ctx"] == 3072
+        # La forge ecrit l'auto-tuning de LA machine (profil_materiel) : le boot
+        # doit rendre exactement cette valeur, pas une constante figee.
+        assert cfg["n_ctx"] == profil_materiel.reglages_optimaux()["n_ctx"]
         assert (tmp_path / "cache" / "cerveau.gguf").exists()
         assert (tmp_path / "cache" / "config.json").exists()
         # 2e appel : le cache est reutilise (pas de re-extraction)

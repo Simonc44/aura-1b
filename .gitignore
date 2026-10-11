@@ -31,6 +31,22 @@ cle_privee.pem
 cle_publique.pub
 Aura.spec
 aura_system.aef.enc
+# sauvegardes d'artefacts .aef (rollback local, jamais dans git)
+aura_system.aef*.bak*
 aura/.conversation.jsonl
 eval_*.json
 hf*.log
+
+# Sorties de benchmarks / diagnostics (regenerables, a la racine)
+banc_100_*.json
+banc_100_cache*.jsonl
+bench_*.json
+bench_*.jsonl
+*.flag
+mic_levels.txt
+captures_gui/
+.mypy_cache/
+
+# Donnees locales / privees de l'utilisateur (jamais dans git)
+aura/.conversation.etat.json
+aura/.graphe_faits.jsonl

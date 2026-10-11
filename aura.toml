@@ -1,4 +1,4 @@
-# Configuration Aura — copie ce fichier a la racine du projet et modifie-le.
+# Configuration RontoGPT — copie ce fichier a la racine du projet et modifie-le.
 # Priorite : variable d'environnement > ce fichier > profil > defauts du code.
 # Affichage : python -m aura.config
 
@@ -6,10 +6,15 @@
 # rapide    : pas d'agents (plan/double passe), verification web coupee, budget 15 s
 # equilibre : comportement par defaut
 # qualite   : tout active, budget 180 s (dissertations, analyses longues)
-nom = "equilibre"
+# "qualite" (8 oct. 2026) : les dissertations etaient coupees par le budget
+# ci-dessous — le contrat riche demande ~517 tokens (~40 s a 13 tok/s, ~62 s
+# avec la double passe), donc 45 s livrait une reponse COURTE. Choix assume :
+# une dissertation entiere vaut mieux qu'une rapide, meme si elle prend
+# 1 a 2 minutes.
+nom = "qualite"
 
 [llama]
-gguf = "Q4_K_M"            # Q4_K_M | Q6_K | MINICPM | MINICPM_Q8
+gguf = "GEMMA"              # Gemma-3-1B Q4_K_M : rapide, < 1 Go, choix code par defaut
 chemin = ""                # chemin libre (sinon modeles/ — chaîne vide = defaut)
 gpu = true                 # build GPU utilise si present (AURA_GPU=0 force le CPU)
 
@@ -21,7 +26,11 @@ adresse = "127.0.0.1:8757"
 spec = true                # speculative decoding n-gram (x2 sur texte repetitif)
 
 [qualite]
-budget_s = 45              # etapes facultatives coupees au-dela (AURA_BUDGET_S)
+# budget_s N'EST PAS epingle ici : c'est le profil qui le regle (180 s en
+# "qualite"). Une valeur explicite battrait le profil — en silence jusqu'au
+# 8 oct. 2026, date a laquelle `conflits_profil()` a rendu ce piege visible
+# (python -m aura.config). Pour un budget sur mesure, decommente et ajuste.
+# budget_s = 45            # etapes facultatives coupees au-dela (AURA_BUDGET_S)
 verif_web = true           # preuve web avant livraison (AURA_VERIF_WEB)
 agents = true              # plan / double passe / compresseurs (AURA_AGENTS)
 seuil_confiance = 0.50     # seuil du routeur (AURA_SEUIL_CONFIANCE)

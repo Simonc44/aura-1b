@@ -1,8 +1,9 @@
-"""Tests Aura-1B : cerveau Llama 3.2 1B + experts symboliques."""
+"""Tests RontoGPT : cerveau Llama 3.2 1B + experts symboliques."""
 import numpy as np
 
 from aura import expert_symbolique, memoire_web, routeur, autoamelioration
-from aura.orchestrateur import Aura1B
+from aura.orchestrateur import RontoGPT
+from aura import llama_cerveau
 
 
 class TestExpertSymbolique:
@@ -66,7 +67,12 @@ class TestLlamaCerveau:
         assert "Paris" in r
 
     def test_repli_sans_gguf(self, monkeypatch, tmp_path):
-        from aura import llama_cerveau
+        from aura import llama_cerveau, serveur_lora
+        # Le cerveau peut aussi venir du serveur llama.cpp local : sur une
+        # machine ou il tourne (RontoGPT prechauffe le serveur Vulkan), generer()
+        # repondrait pour de vrai. Ce test vise le cas "aucun cerveau du tout",
+        # on neutralise donc AUSSI le serveur.
+        monkeypatch.setattr(serveur_lora, "_actifs", lambda: False)
         monkeypatch.setattr(llama_cerveau, "_CHEMIN_GGUF",
                             str(tmp_path / "inexistant.gguf"))
         monkeypatch.setattr(llama_cerveau, "_llm", None)
@@ -76,7 +82,7 @@ class TestLlamaCerveau:
 
 class TestOrchestrateur:
     def test_analyse_question(self):
-        r = Aura1B().analyser("calcule 3 puissance 4")
+        r = RontoGPT().analyser("calcule 3 puissance 4")
         assert "math" in r["experts"]
 
     def test_cerveau_est_llama(self, monkeypatch):
@@ -84,16 +90,16 @@ class TestOrchestrateur:
         from aura import filtre_instantane, rag_binaire
         monkeypatch.setattr(filtre_instantane, "repondre", lambda q: None)
         monkeypatch.setattr(rag_binaire, "chercher", lambda q: None)
-        r = Aura1B().executer_detaille("bonjour")
-        assert r["cerveau_choisi"] == "llama-3.2-1b"
+        r = RontoGPT().executer_detaille("bonjour")
+        assert r["cerveau_choisi"] == f"{llama_cerveau.famille()}-1b"
 
     def test_prompt_inclut_corrections(self, monkeypatch, tmp_path):
         f = str(tmp_path / "c.jsonl")
         monkeypatch.setattr(autoamelioration, "_FICHIER", f)
         autoamelioration.enregistrer_correction("test", "mauvaise", "bonne")
-        p = Aura1B._construire_prompt("test", "", "")
+        p = RontoGPT._construire_prompt("test", "", "")
         assert "CORRECTIONS" in p and "bonne" in p
 
     def test_prompt_inclut_web_et_formule(self):
-        p = Aura1B._construire_prompt("q", "fait web", "mul(X0,X0)")
+        p = RontoGPT._construire_prompt("q", "fait web", "mul(X0,X0)")
         assert "WEB" in p and "FORMULE" in p

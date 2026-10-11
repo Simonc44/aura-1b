@@ -1,0 +1,902 @@
+[
+ {
+  "id": "exact-01",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "391"
+ },
+ {
+  "id": "exact-02",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "169"
+ },
+ {
+  "id": "exact-03",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "12"
+ },
+ {
+  "id": "exact-04",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 5 car",
+  "reponse": "1 024"
+ },
+ {
+  "id": "exact-05",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "56"
+ },
+ {
+  "id": "exact-06",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "146"
+ },
+ {
+  "id": "exact-07",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "622"
+ },
+ {
+  "id": "exact-08",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "27"
+ },
+ {
+  "id": "exact-09",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "54"
+ },
+ {
+  "id": "exact-10",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "270"
+ },
+ {
+  "id": "exact-11",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 1 car",
+  "reponse": "9"
+ },
+ {
+  "id": "exact-12",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "36"
+ },
+ {
+  "id": "exact-13",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "144"
+ },
+ {
+  "id": "exact-14",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "625"
+ },
+ {
+  "id": "exact-15",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "399"
+ },
+ {
+  "id": "exact-16",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "125"
+ },
+ {
+  "id": "exact-17",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "343"
+ },
+ {
+  "id": "exact-18",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "39"
+ },
+ {
+  "id": "exact-19",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "256"
+ },
+ {
+  "id": "exact-20",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "128"
+ },
+ {
+  "id": "exact-21",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "30"
+ },
+ {
+  "id": "exact-22",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "20"
+ },
+ {
+  "id": "exact-23",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "121"
+ },
+ {
+  "id": "exact-24",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "443"
+ },
+ {
+  "id": "exact-25",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "238"
+ },
+ {
+  "id": "exact-26",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "512"
+ },
+ {
+  "id": "exact-27",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "100"
+ },
+ {
+  "id": "exact-28",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "384"
+ },
+ {
+  "id": "exact-29",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "666"
+ },
+ {
+  "id": "exact-30",
+  "categorie": "exact",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "45"
+ },
+ {
+  "id": "verbal-01",
+  "categorie": "verbal",
+  "cerveau": "calcul-verbal",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.6s, 1 car",
+  "reponse": "7"
+ },
+ {
+  "id": "verbal-02",
+  "categorie": "verbal",
+  "cerveau": "calcul-verbal",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 1 car",
+  "reponse": "6"
+ },
+ {
+  "id": "verbal-03",
+  "categorie": "verbal",
+  "cerveau": "calcul-verbal",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "15"
+ },
+ {
+  "id": "verbal-04",
+  "categorie": "verbal",
+  "cerveau": "calcul-achat",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "15"
+ },
+ {
+  "id": "verbal-05",
+  "categorie": "verbal",
+  "cerveau": "calcul-verbal",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "12"
+ },
+ {
+  "id": "verbal-06",
+  "categorie": "verbal",
+  "cerveau": "calcul-verbal",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 1 car",
+  "reponse": "5"
+ },
+ {
+  "id": "verbal-07",
+  "categorie": "verbal",
+  "cerveau": "calcul-verbal",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "42"
+ },
+ {
+  "id": "verbal-08",
+  "categorie": "verbal",
+  "cerveau": "calcul-verbal",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "15"
+ },
+ {
+  "id": "verbal-09",
+  "categorie": "verbal",
+  "cerveau": "calcul-achat",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 1 car",
+  "reponse": "8"
+ },
+ {
+  "id": "verbal-10",
+  "categorie": "verbal",
+  "cerveau": "calcul-verbal",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "18"
+ },
+ {
+  "id": "verbal-11",
+  "categorie": "verbal",
+  "cerveau": "calcul-verbal",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "24"
+ },
+ {
+  "id": "verbal-12",
+  "categorie": "verbal",
+  "cerveau": "calcul-verbal",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "36"
+ },
+ {
+  "id": "verbal-13",
+  "categorie": "verbal",
+  "cerveau": "calcul-verbal",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "27"
+ },
+ {
+  "id": "verbal-14",
+  "categorie": "verbal",
+  "cerveau": "calcul-verbal",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 1 car",
+  "reponse": "7"
+ },
+ {
+  "id": "verbal-15",
+  "categorie": "verbal",
+  "cerveau": "calcul-verbal",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "27"
+ },
+ {
+  "id": "raison-01",
+  "categorie": "raisonnement",
+  "cerveau": "calcul-achat",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 1 car",
+  "reponse": "8"
+ },
+ {
+  "id": "raison-02",
+  "categorie": "raisonnement",
+  "cerveau": "calcul-taux",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "240"
+ },
+ {
+  "id": "raison-03",
+  "categorie": "raisonnement",
+  "cerveau": "calcul-achat",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "16"
+ },
+ {
+  "id": "raison-04",
+  "categorie": "raisonnement",
+  "cerveau": "calcul-verbal",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 1 car",
+  "reponse": "4"
+ },
+ {
+  "id": "raison-05",
+  "categorie": "raisonnement",
+  "cerveau": "calcul-achat",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 1 car",
+  "reponse": "4"
+ },
+ {
+  "id": "raison-06",
+  "categorie": "raisonnement",
+  "cerveau": "calcul-taux",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "50"
+ },
+ {
+  "id": "raison-07",
+  "categorie": "raisonnement",
+  "cerveau": "calcul-verbal",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "53"
+ },
+ {
+  "id": "raison-08",
+  "categorie": "raisonnement",
+  "cerveau": "calcul-taux",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "120"
+ },
+ {
+  "id": "raison-09",
+  "categorie": "raisonnement",
+  "cerveau": "problemes-arithmetiques",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "22"
+ },
+ {
+  "id": "raison-10",
+  "categorie": "raisonnement",
+  "cerveau": "problemes-arithmetiques",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "28"
+ },
+ {
+  "id": "raison-11",
+  "categorie": "raisonnement",
+  "cerveau": "calcul-achat",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "46"
+ },
+ {
+  "id": "raison-12",
+  "categorie": "raisonnement",
+  "cerveau": "problemes-arithmetiques",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "40"
+ },
+ {
+  "id": "raison-13",
+  "categorie": "raisonnement",
+  "cerveau": "calcul-taux",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 1 car",
+  "reponse": "2"
+ },
+ {
+  "id": "raison-14",
+  "categorie": "raisonnement",
+  "cerveau": "calcul-verbal",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "37"
+ },
+ {
+  "id": "raison-15",
+  "categorie": "raisonnement",
+  "cerveau": "calcul-taux",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "60"
+ },
+ {
+  "id": "logique-01",
+  "categorie": "logique",
+  "cerveau": "chaines-numeriques",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 1 car",
+  "reponse": "9"
+ },
+ {
+  "id": "logique-02",
+  "categorie": "logique",
+  "cerveau": "tri-transitif",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 4 car",
+  "reponse": "Paul"
+ },
+ {
+  "id": "logique-03",
+  "categorie": "logique",
+  "cerveau": "chaines-numeriques",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "Ana"
+ },
+ {
+  "id": "logique-04",
+  "categorie": "logique",
+  "cerveau": "tri-transitif",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 5 car",
+  "reponse": "chien"
+ },
+ {
+  "id": "logique-05",
+  "categorie": "logique",
+  "cerveau": "chaines-numeriques",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "11"
+ },
+ {
+  "id": "logique-06",
+  "categorie": "logique",
+  "cerveau": "tri-transitif",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 5 car",
+  "reponse": "gomme"
+ },
+ {
+  "id": "logique-07",
+  "categorie": "logique",
+  "cerveau": "chaines-numeriques",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 2 car",
+  "reponse": "11"
+ },
+ {
+  "id": "logique-08",
+  "categorie": "logique",
+  "cerveau": "tri-transitif",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 1 car",
+  "reponse": "C"
+ },
+ {
+  "id": "factuel-01",
+  "categorie": "factuel",
+  "cerveau": "rag-binaire",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 5 car",
+  "reponse": "Paris"
+ },
+ {
+  "id": "factuel-02",
+  "categorie": "factuel",
+  "cerveau": "rag-binaire",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 24 car",
+  "reponse": "Canberra (et non Sydney)"
+ },
+ {
+  "id": "factuel-03",
+  "categorie": "factuel",
+  "cerveau": "rag-binaire",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 4 car",
+  "reponse": "Rome"
+ },
+ {
+  "id": "factuel-04",
+  "categorie": "factuel",
+  "cerveau": "rag-binaire",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 6 car",
+  "reponse": "Madrid"
+ },
+ {
+  "id": "factuel-05",
+  "categorie": "factuel",
+  "cerveau": "rag-binaire",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 5 car",
+  "reponse": "Tokyo"
+ },
+ {
+  "id": "factuel-06",
+  "categorie": "factuel",
+  "cerveau": "rag-binaire",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 17 car",
+  "reponse": "L'océan Pacifique"
+ },
+ {
+  "id": "factuel-07",
+  "categorie": "factuel",
+  "cerveau": "rag-binaire",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 7 car",
+  "reponse": "Mercure"
+ },
+ {
+  "id": "factuel-08",
+  "categorie": "factuel",
+  "cerveau": "llama-3.2-1b",
+  "couvert": false,
+  "ok": false,
+  "mesure": "0.8s, 8 car  KO:absent=366",
+  "reponse": "[GENERE]"
+ },
+ {
+  "id": "factuel-09",
+  "categorie": "factuel",
+  "cerveau": "rag-binaire",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 41 car",
+  "reponse": "7 continents (ou 5 selon les conventions)"
+ },
+ {
+  "id": "factuel-10",
+  "categorie": "factuel",
+  "cerveau": "rag-binaire",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 3 car",
+  "reponse": "H2O"
+ },
+ {
+  "id": "factuel-11",
+  "categorie": "factuel",
+  "cerveau": "llama-3.2-1b",
+  "couvert": false,
+  "ok": false,
+  "mesure": "0.0s, 8 car  KO:absent=6",
+  "reponse": "[GENERE]"
+ },
+ {
+  "id": "factuel-12",
+  "categorie": "factuel",
+  "cerveau": "llama-3.2-1b",
+  "couvert": false,
+  "ok": false,
+  "mesure": "0.0s, 8 car  KO:aucun de lumiere|soleil|chlorophylle",
+  "reponse": "[GENERE]"
+ },
+ {
+  "id": "meta-nom",
+  "categorie": "meta",
+  "cerveau": "constante",
+  "couvert": true,
+  "ok": true,
+  "mesure": "constante",
+  "reponse": "RontoGPT, l'assistant local 100% offline de Simon. J'assemble un cerveau 1B, des maths exactes, des faits verifies web et 7 agents cognitifs. Mon createur est Simon"
+ },
+ {
+  "id": "meta-createur",
+  "categorie": "meta",
+  "cerveau": "constante",
+  "couvert": true,
+  "ok": true,
+  "mesure": "constante",
+  "reponse": "RontoGPT, l'assistant local 100% offline de Simon. J'assemble un cerveau 1B, des maths exactes, des faits verifies web et 7 agents cognitifs. Mon createur est Simon"
+ },
+ {
+  "id": "meta-nom2",
+  "categorie": "meta",
+  "cerveau": "constante",
+  "couvert": true,
+  "ok": true,
+  "mesure": "constante",
+  "reponse": "RontoGPT, l'assistant local 100% offline de Simon. J'assemble un cerveau 1B, des maths exactes, des faits verifies web et 7 agents cognitifs. Mon createur est Simon"
+ },
+ {
+  "id": "meta-8b",
+  "categorie": "meta",
+  "cerveau": "constante-capacite",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 591 car",
+  "reponse": "Non : je ne suis pas un modele 8B. Je suis Llama 3.2 1B — un milliard de parametres — et je tourne EN LOCAL sur le CPU de ce PC, sans internet ni carte graphiqu"
+ },
+ {
+  "id": "meta-8b2",
+  "categorie": "meta",
+  "cerveau": "constante-capacite",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 591 car",
+  "reponse": "Non : je ne suis pas un modele 8B. Je suis Llama 3.2 1B — un milliard de parametres — et je tourne EN LOCAL sur le CPU de ce PC, sans internet ni carte graphiqu"
+ },
+ {
+  "id": "format-mot",
+  "categorie": "format",
+  "cerveau": "constante",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 6 car",
+  "reponse": "BANANE"
+ },
+ {
+  "id": "format-couleurs",
+  "categorie": "format",
+  "cerveau": "llama-3.2-1b",
+  "couvert": false,
+  "ok": false,
+  "mesure": "0.0s",
+  "reponse": "[GENERE]"
+ },
+ {
+  "id": "format-calcul",
+  "categorie": "format",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 1 car",
+  "reponse": "8"
+ },
+ {
+  "id": "format-phrase",
+  "categorie": "format",
+  "cerveau": "constante",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 13 car",
+  "reponse": "je teste RontoGPT"
+ },
+ {
+  "id": "format-soustraction",
+  "categorie": "format",
+  "cerveau": "niveau0-instantane",
+  "couvert": true,
+  "ok": true,
+  "mesure": "0.0s, 1 car",
+  "reponse": "7"
+ },
+ {
+  "id": "riche-01",
+  "categorie": "riche",
+  "cerveau": "llama-3.2-1b",
+  "couvert": false,
+  "ok": false,
+  "mesure": "0s, 8 car  KO:court",
+  "reponse": "[GENERE]"
+ },
+ {
+  "id": "riche-02",
+  "categorie": "riche",
+  "cerveau": "llama-3.2-1b",
+  "couvert": false,
+  "ok": false,
+  "mesure": "0s, 8 car  KO:court",
+  "reponse": "[GENERE]"
+ },
+ {
+  "id": "riche-03",
+  "categorie": "riche",
+  "cerveau": "llama-3.2-1b",
+  "couvert": false,
+  "ok": false,
+  "mesure": "0s, 8 car  KO:court",
+  "reponse": "[GENERE]"
+ },
+ {
+  "id": "riche-04",
+  "categorie": "riche",
+  "cerveau": "llama-3.2-1b",
+  "couvert": false,
+  "ok": false,
+  "mesure": "0s, 8 car  KO:court",
+  "reponse": "[GENERE]"
+ },
+ {
+  "id": "riche-05",
+  "categorie": "riche",
+  "cerveau": "llama-3.2-1b",
+  "couvert": false,
+  "ok": false,
+  "mesure": "0s, 8 car  KO:court",
+  "reponse": "[GENERE]"
+ },
+ {
+  "id": "riche-06",
+  "categorie": "riche",
+  "cerveau": "llama-3.2-1b",
+  "couvert": false,
+  "ok": false,
+  "mesure": "0s, 8 car  KO:court",
+  "reponse": "[GENERE]"
+ },
+ {
+  "id": "riche-07",
+  "categorie": "riche",
+  "cerveau": "llama-3.2-1b",
+  "couvert": false,
+  "ok": false,
+  "mesure": "0s, 8 car  KO:court",
+  "reponse": "[GENERE]"
+ },
+ {
+  "id": "riche-08",
+  "categorie": "riche",
+  "cerveau": "llama-3.2-1b",
+  "couvert": false,
+  "ok": false,
+  "mesure": "0s, 8 car  KO:court",
+  "reponse": "[GENERE]"
+ },
+ {
+  "id": "riche-09",
+  "categorie": "riche",
+  "cerveau": "llama-3.2-1b",
+  "couvert": false,
+  "ok": false,
+  "mesure": "0s, 8 car  KO:court",
+  "reponse": "[GENERE]"
+ },
+ {
+  "id": "riche-10",
+  "categorie": "riche",
+  "cerveau": "llama-3.2-1b",
+  "couvert": false,
+  "ok": false,
+  "mesure": "0s, 8 car  KO:court",
+  "reponse": "[GENERE]"
+ }
+]

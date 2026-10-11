@@ -19,10 +19,10 @@ Usage :
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import statistics
 import sys
-import tempfile
 import time
 from pathlib import Path
 
@@ -62,12 +62,14 @@ def main() -> int:
 
     from aura import filtre_instantane, rag_binaire
     from aura.memoire_conversation import MemoireConversation
-    from aura.orchestrateur import Aura1B
+    from aura.orchestrateur import RontoGPT
 
     # le cache semantique persistant n'est pas pollue par le benchmark :
     # sauvegarde au demarrage, restaure a la fin (meme en cas d'erreur)
     cache = Path(filtre_instantane.__file__).parent / ".cache_reponses.jsonl"
     sauvegarde = None
+    cache_absent_initial = not cache.exists()
+    chemin_memoire = RACINE / f".latence_memoire_{os.getpid()}.jsonl"
     if cache.exists():
         sauvegarde = cache.with_suffix(".jsonl.bench-bak")
         shutil.copy2(cache, sauvegarde)
@@ -81,32 +83,31 @@ def main() -> int:
             f"calcule {13 + i} plus {27 + i}"), args.n)
         # cache semantique : meme question a chaque iteration (hit des la 2e)
         q_cache = "combien font 7 fois 8"
-        filtre_instantane.repondre(q_cache)          # amorce le cache
-        _mesurer("niveau0-cache", lambda i: filtre_instantane.repondre(q_cache),
-                 args.n)
+        filtre_instantane.repondre_tout(q_cache)     # amorce le cache
+        _mesurer("niveau0-cache",
+                 lambda i: filtre_instantane.repondre_cache(q_cache), args.n)
         _mesurer("rag-binaire", lambda i: rag_binaire.chercher(
             "qu'est-ce que la photosynthese"), args.n)
         # identite : pipeline complet, reponse constante (0 ms de LLM).
         # L'orchestrateur est construit HORS mesure (le 1er appel entraine
         # le routeur ~4 s : cout d'init, pas de reponse).
         print("  (construction de l'orchestrateur...)")
-        aura = Aura1B()
+        aura = RontoGPT()
         _mesurer("identite-pipeline", lambda i: aura.executer("qui t'a cree"),
                  max(args.n // 5, 1))
 
         # memoire : instance isolee (jamais la vraie .conversation.jsonl)
-        with tempfile.TemporaryDirectory() as tmp:
-            memoire = MemoireConversation(chemin=Path(tmp) / "bench.jsonl")
-            compteur = 0
+        memoire = MemoireConversation(chemin=chemin_memoire)
+        compteur = 0
 
-            def _tour_memoire(_i: int) -> None:
-                nonlocal compteur
-                compteur += 1
-                memoire.ajouter("user", f"je m'appelle Pierre numero {compteur}")
-                memoire.etat_json()
-                memoire.rechercher("Pierre")
+        def _tour_memoire(_i: int) -> None:
+            nonlocal compteur
+            compteur += 1
+            memoire.ajouter("user", f"je m'appelle Pierre numero {compteur}")
+            memoire.etat_json()
+            memoire.rechercher("Pierre")
 
-            _mesurer("memoire-1-tour", _tour_memoire, args.n)
+        _mesurer("memoire-1-tour", _tour_memoire, args.n)
 
         if args.llm:
             from aura import memoire_web
@@ -118,8 +119,18 @@ def main() -> int:
             _mesurer("riche-redaction", lambda i: llama_generer(
                 "Explique pourquoi le ciel est bleu", max_tokens=200), 2)
     finally:
+        for chemin in (chemin_memoire, chemin_memoire.with_suffix(".etat.json")):
+            try:
+                chemin.unlink()
+            except FileNotFoundError:
+                pass
         if sauvegarde is not None:
             shutil.move(sauvegarde, cache)
+        elif cache_absent_initial:
+            try:
+                cache.unlink()
+            except FileNotFoundError:
+                pass
 
     print("\nReproduire : uv run python scripts/benchmark_latence.py"
           + (" --llm" if args.llm else ""))

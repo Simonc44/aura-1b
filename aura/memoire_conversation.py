@@ -69,10 +69,37 @@ class MemoireConversation:
         # a chaque extraction. Le nom de l'utilisateur survit aux sessions.
         self._chemin_etat = self._chemin.with_suffix(".etat.json")
         self._etat: dict[str, str] = self._charger_etat()
-        # tours bruts de la session courante (pour la fenetre)
-        self._tours: list[dict[str, str]] = []
+        # Recharge seulement la petite fenetre recente. L'historique complet
+        # reste sur disque pour l'outil RLM; le prompt ne grossit pas sans borne.
+        self._tours: list[dict[str, str]] = self._charger_fenetre()
         # outil RLM declare pour le prompt systeme
         self.outil_disponible = True
+
+    def _charger_fenetre(self) -> list[dict[str, str]]:
+        """Restaure au demarrage les derniers tours valides du fichier RLM."""
+        tours: list[dict[str, str]] = []
+        try:
+            with self._chemin.open("rb") as f:
+                f.seek(0, 2)
+                position = f.tell()
+                debut = max(0, position - _TAMPON * self._fenetre * 2 * 4)
+                f.seek(debut)
+                bloc = f.read().decode("utf-8", errors="ignore")
+            lignes = bloc.splitlines()
+            if debut:
+                lignes = lignes[1:]
+            for ligne in lignes:
+                try:
+                    tour = json.loads(ligne)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+                role = tour.get("role")
+                contenu = tour.get("content")
+                if role in ("user", "assistant") and isinstance(contenu, str):
+                    tours.append({"role": role, "content": contenu})
+        except OSError:
+            return []
+        return tours[-self._fenetre * 2:]
 
     # -- RLM : le fichier externe ------------------------------------------
 

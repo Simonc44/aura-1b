@@ -141,6 +141,10 @@ def session(nb_defis: int | None = None, niveau: int = 1) -> dict:
     """
     nb_defis = nb_defis or int(os.environ.get("AURA_SELFPLAY", "0") or 0) or 10
     from . import llama_cerveau, graphe_faits
+    # HORS REQUETE : cet entrainement n'a pas d'echeance utilisateur. Sans
+    # ce reset, une echeance posee par une question precedente sur le meme
+    # fil fausserait tous les defis (budget reduit au plancher).
+    llama_cerveau.poser_echeance(None)
 
     _SORTIE.parent.mkdir(parents=True, exist_ok=True)
     succes = echecs = 0

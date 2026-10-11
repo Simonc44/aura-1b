@@ -1,4 +1,4 @@
-"""CLI Aura-1B : cerveau Llama 3.2 1B (Q4_K_M) + experts symboliques.
+"""CLI RontoGPT : cerveau Llama 3.2 1B (Q4_K_M) + experts symboliques.
 
 Usage :
   python -m aura "question"
@@ -15,16 +15,16 @@ import time
 from . import config as _config
 _config.appliquer()
 
-from .orchestrateur import Aura1B
+from .orchestrateur import RontoGPT
 
 
-def _demo(ia: Aura1B) -> int:
+def _demo(ia: RontoGPT) -> int:
     X = [[0.0], [0.25], [0.5], [0.75], [1.0]]
     y = [0.0, 0.015625, 0.125, 0.421875, 1.0]
     r = ia.executer_detaille(
         "Dernieres decouvertes en physique et resous X cube", X, y)
     print("=" * 60)
-    print(" AURA-1B — Llama 3.2 1B + PGS + Web (autonome)")
+    print(" RontoGPT — Llama 3.2 1B + PGS + Web (autonome)")
     print("=" * 60)
     print(f"Experts actives : {r['experts']}")
     print(f"Cerveau         : {r['cerveau_choisi']}")
@@ -35,9 +35,9 @@ def _demo(ia: Aura1B) -> int:
     return 0
 
 
-def _chat(ia: Aura1B) -> int:
+def _chat(ia: RontoGPT) -> int:
     """Mode conversationnel multi-tours (le modele se souvient)."""
-    print('Aura chat — "exit" pour quitter, "reset" pour oublier la conversation.')
+    print('RontoGPT chat — "exit" pour quitter, "reset" pour oublier la conversation.')
     while True:
         try:
             q = input("toi> ").strip()
@@ -57,12 +57,15 @@ def _chat(ia: Aura1B) -> int:
 
 
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(prog="aura")
+    p = argparse.ArgumentParser(prog="rontogpt")
     p.add_argument("question", nargs="?", default="")
     p.add_argument("--x", help="liste JSON de vecteurs, ex. '[[1],[2],[3]]'")
     p.add_argument("--y", help="liste JSON de valeurs, ex. '[1,8,27]'")
     p.add_argument("--chat", action="store_true", help="mode conversationnel multi-tours")
     p.add_argument("--demo", action="store_true")
+    p.add_argument("--notify", action="store_true",
+                   help="pousse le resultat vers l'ile Coucou (Mochi), "
+                        "si elle tourne (pont local, Windows)")
     p.add_argument("--selfplay", type=int, metavar="N", default=0,
                    help="self-play : N defis auto-generes, valides exactement, "
                         "succes reintegres (MLT + dataset)")
@@ -78,7 +81,7 @@ def main(argv=None) -> int:
                          ensure_ascii=False, indent=2))
         return 0
 
-    ia = Aura1B()
+    ia = RontoGPT()
     if args.chat:
         return _chat(ia)
     if args.demo or (not args.question and not (args.x and args.y)):
@@ -86,7 +89,12 @@ def main(argv=None) -> int:
 
     X = json.loads(args.x) if args.x else None
     y = json.loads(args.y) if args.y else None
-    print(ia.executer(args.question, X, y))
+    reponse = ia.executer(args.question, X, y)
+    print(reponse)
+    if args.notify:
+        from . import coucou
+        resultat = coucou.termine(reponse)
+        print(f"[ile Coucou] {resultat.get('raison', '?')}", file=sys.stderr)
     return 0
 
 

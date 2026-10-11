@@ -18,6 +18,17 @@ generer. Deux detecteurs, du plus rapide au plus cher :
    la reponse enregistree : le systeme « apprend » ses reponses.
 
 Si rien ne matche → None → le routeur et le Llama prennent la main.
+
+TROIS FONCTIONS, ET L'ORDRE COMPTE
+----------------------------------
+`repondre`        etages 1 et 1bis, EXACTS, < 1 ms
+`repondre_cache`  etage 2, APPROXIMATIF, ~1 ms
+`repondre_tout`   exact puis flou — pour les bancs, PAS pour la cascade
+
+La cascade (`orchestrateur`) appelle les deux etages SEPAREMENT : elle
+place tous les solveurs exacts (calcul_achat, calcul_verbal, calcul_taux,
+tri-transitif, SAT, potcode) ENTRE les deux. Un seul appel combine ferait
+repasser le cache — approximation a seuil — devant des solveurs exacts.
 """
 import ast
 import json
@@ -52,6 +63,31 @@ _MOTS_CONTEXTUELS = ("mon ", "ma ", "mes ", "je ", "j'", "moi", "tu ", "ton ",
                      "ta ", "tes ", "nous ", "votre ", "vos ", "prenom",
                      "mon nom", "mon age")
 
+# Une reponse redigee depend fortement de la consigne exacte. La similarite
+# vectorielle suffit pour retrouver un fait court, pas pour reutiliser une
+# dissertation ou une explication sur une autre question.
+_RE_QUESTION_OUVERTE = re.compile(
+    r"\b(expliquez?|pourquoi|comment|analysez?|comparez?|redigez?|"
+    r"dissertation|developpez?|argumentez?|discutez?|decrivez?|"
+    r"presentez?|quels? sont les avantages|quelles? sont les limites)\b",
+    re.IGNORECASE,
+)
+_REPONSE_CACHE_MAX = 700
+
+
+def _cache_reutilisable(question: str, reponse: str) -> bool:
+    """Garde uniquement les reponses courtes a des demandes fermees."""
+    q = (question or "").strip()
+    r = (reponse or "").strip()
+    if not q or not r or len(r) > _REPONSE_CACHE_MAX:
+        return False
+    q_normalisee = unicodedata.normalize("NFKD", q.lower())
+    q_normalisee = "".join(c for c in q_normalisee
+                           if not unicodedata.combining(c))
+    if _RE_QUESTION_OUVERTE.search(q_normalisee):
+        return False
+    return True
+
 # -- eval arithmetique securise (AST, jamais eval()) ------------------------
 
 _OPS = {
@@ -78,7 +114,7 @@ _MOTS_OPERATEURS = (
 _OP_FORTE = re.compile(
     r"\b(divis\w*\s+par|multipli\w*\s+par|fois|puissance|au\s+carre|au\s+cube)\b")
 _DEMANDE_MATH = re.compile(
-    r"\b(combien fait|combien vaut|calcule|resultat de|resous)\b")
+    r"\b(combien fait|combien font|combien vaut|calcule|resultat de|resous)\b")
 _RESIDUS = re.compile(r"[\d.+\-*/()\s]+")
 _NOMBRE = re.compile(r"\d+(?:\.\d+)?")
 
@@ -121,6 +157,11 @@ def _calcul_direct(question: str) -> str | None:
     """Resout les maths directes par regex + AST. Aucun LLM, aucune erreur."""
     q = unicodedata.normalize("NFKD", question.lower())
     q = "".join(c for c in q if not unicodedata.combining(c))
+    # Une consigne de format apres la question (« ? Reponds en un seul
+    # chiffre ») ne fait pas partie de l'expression. Sans cette coupure,
+    # le 1 de « un » est ramasse comme un operande et fait echouer l'AST.
+    q = re.sub(r"\?\s*(?:reponds?|repondre|donne|ecris|affiche)\b.*$",
+               "?", q)
     q = q.replace(",", ".").replace("x", "*").replace("×", "*") \
          .replace("÷", "/").replace("^", "**")
 
@@ -141,6 +182,15 @@ def _calcul_direct(question: str) -> str | None:
         n = float(m.group(1))
         return _fmt(n * n)
 
+    # « cube de 3 » / « cubé de 3 » — meme famille que « carre de », mais
+    # le motif manquait : au banc 100, les 3 questions « Quel est le cube
+    # de N ? » partaient au LLM (~40 s) alors que « le carre de N » voisin
+    # etait deja exact. Un mot de vocabulaire separe 5 ms de 40 s.
+    m = re.search(r"\bcube de \(?(-?\d+(?:\.\d+)?)\)?", q)
+    if m:
+        n = float(m.group(1))
+        return _fmt(n * n * n)
+
     # « racine carree de 144 »
     m = re.search(r"racine carree de \(?(\d+(?:\.\d+)?)\)?", q)
     if m:
@@ -156,9 +206,17 @@ def _calcul_direct(question: str) -> str | None:
     if m:
         return _fmt(float(m.group(1)) / 100 * float(m.group(2)))
 
-    # expression arithmetique brute : « calcule 45*12+3 »
+    # expression arithmetique brute : « calcule 45*12+3 », ou juste « 2+2 ».
+    # GARDE (10 oct. 2026) : ce motif cherchait n'importe ou dans la phrase,
+    # donc il attrapait « 3/4 » dans « 3/4 of the building is occupied » et
+    # rendait 0,75 — une reponse a une AUTRE question, servie en 0,02 s avec
+    # l'aplomb d'un resultat prouve. Mesure au banc GSM8K : 7 cas sur 100,
+    # tous faux (cf. ARCHITECTURE.md § 3sexies). Une expression nue ne vaut
+    # que si la question EST l'expression : il ne doit rester aucune lettre
+    # une fois l'expression retiree. Les formes dictees (« combien fait »,
+    # « calcule », « 3 fois 7 ») partent plus haut et ne dependent pas d'ici.
     m = re.search(r"(-?\d+(?:\.\d+)?(?:\s*[\+\-\*/%]\s*\(?-?\d+(?:\.\d+)?\)?)+)", q)
-    if m:
+    if m and not re.search(r"[a-z]", q[:m.start()] + q[m.end():]):
         try:
             arbre = ast.parse(m.group(1), mode="eval")
             return _fmt(_evaluer(arbre))
@@ -299,6 +357,35 @@ _STOP_MOTS = frozenset((
 ))
 
 
+# Nombres en toutes lettres -> chiffres, pour comparer « cube de sept » et
+# « cube de 7 » comme la MEME question.
+_NOMBRES_MOTS = {
+    "zero": "0", "un": "1", "une": "1", "deux": "2", "trois": "3",
+    "quatre": "4", "cinq": "5", "six": "6", "sept": "7", "huit": "8",
+    "neuf": "9", "dix": "10", "onze": "11", "douze": "12",
+    "treize": "13", "quatorze": "14", "quinze": "15", "seize": "16",
+    "vingt": "20", "trente": "30", "quarante": "40", "cinquante": "50",
+    "soixante": "60", "cent": "100", "mille": "1000",
+}
+
+
+def _nombres(texte: str) -> list[str]:
+    """Nombres d'une question, normalises en chiffres.
+
+    Les nombres sont les jetons les PLUS decideants d'une question de
+    calcul : « le cube de 7 » et « le cube de 3 » ne different QUE par lui.
+    Or _hit_douteux ne regardait que les mots de plus de 3 lettres, donc le
+    nombre etait ignore et le cache servait « 3^3 = 27 » pour « le cube de
+    7 » (bug reel trouve par scripts/banc_100.py : 2 questions sur 30).
+    """
+    n = unicodedata.normalize("NFKD", texte.lower())
+    n = "".join(c for c in n if not unicodedata.combining(c))
+    trouves = re.findall(r"\d+(?:[.,]\d+)?", n)
+    trouves += [_NOMBRES_MOTS[m] for m in re.findall(r"[a-z]+", n)
+                if m in _NOMBRES_MOTS]
+    return sorted(trouves)
+
+
 def _hit_douteux(question: str, entree: dict) -> bool:
     """Garde-fou anti-contamination du cache semantique : refuse un hit
     dont la structure ressemble mais dont des mots porteurs de sens
@@ -312,6 +399,18 @@ def _hit_douteux(question: str, entree: dict) -> bool:
         n = "".join(c for c in n if not unicodedata.combining(c))
         return set(re.findall(r"[a-z0-9]+", n))
 
+    # Les reponses longues/ouvertes sont trop dependantes de la consigne pour
+    # etre reutilisees par similarite, y compris dans un cache deja existant.
+    if not _cache_reutilisable(question, str(entree.get("r", ""))) \
+            or not _cache_reutilisable(str(entree.get("q", "")),
+                                       str(entree.get("r", ""))):
+        return True
+
+    # NOMBRES DECISIFS : deux questions qui ne different que par un nombre
+    # sont deux questions DIFFERENTES. On exige donc la MEME liste de
+    # nombres (comparee en multiset, donc insensible a l'ordre).
+    if _nombres(question) != _nombres(str(entree.get("q", ""))):
+        return True
     q_jetons = jetons(question)
     cache_jetons = jetons(str(entree.get("q", "")) + " " +
                           str(entree.get("r", "")))
@@ -322,7 +421,17 @@ def _hit_douteux(question: str, entree: dict) -> bool:
 
 
 def repondre(question: str) -> str | None:
-    """Tente une reponse instantanee. None = laisser le LLM prendre la main."""
+    """Etage DETERMINISTE du niveau 0 (< 1 ms) : calcul direct puis PAL.
+
+    N'inclut PAS le cache semantique, et c'est une propriete d'ARCHITECTURE,
+    pas un detail : le cache est approximatif (cosinus MiniLM >= 0,70 sur
+    384 dimensions) alors que ces deux etages sont exacts. Un flou ne doit
+    jamais passer devant un exact, sinon on ne peut plus savoir ce que le
+    systeme sait calculer (observe : le cache a servi 240 a une question de
+    taux avant que `calcul_taux` ne la calcule).
+
+    L'autre etage est `repondre_cache`, a consulter APRES les solveurs.
+    """
     t0 = time.time()
 
     # 1. calcul direct (< 1 ms)
@@ -338,9 +447,16 @@ def repondre(question: str) -> str | None:
     if r is not None:
         LOG.info("[niveau0] PAL en %.1f ms", (time.time() - t0) * 1000)
         return r
+    return None
 
-    # 2. cache semantique (~1 ms) — JAMAIS pour une question contextuelle :
-    # sa reponse depend de la conversation en cours, pas du texte seul.
+
+def repondre_cache(question: str) -> str | None:
+    """Cache semantique SEUL (~1 ms). A consulter APRES tout solveur exact.
+
+    JAMAIS pour une question contextuelle : sa reponse depend de la
+    conversation en cours, pas du texte seul.
+    """
+    t0 = time.time()
     if any(m in question.lower() for m in _MOTS_CONTEXTUELS):
         return None
     _charger_cache()
@@ -357,13 +473,26 @@ def repondre(question: str) -> str | None:
     return None
 
 
+def repondre_tout(question: str) -> str | None:
+    """Exact PUIS flou.
+
+    Reserve aux outils qui veulent « le niveau 0 complet » d'un seul appel
+    (bancs, mesures de latence). La CASCADE, elle, ne doit PAS utiliser
+    cette fonction : elle appelle les deux etages SEPAREMENT, pour placer
+    tous les solveurs exacts entre les deux.
+    """
+    r = repondre(question)
+    return r if r is not None else repondre_cache(question)
+
+
 def enregistrer(question: str, reponse: str):
     """Memorise une reponse (apres generation LLM) pour les futures questions.
 
     Les questions contextuelles (mon prenom, mon age...) sont exclues : leur
     reponse depend de la conversation, pas du texte de la question.
     """
-    if not question or not reponse or reponse.startswith("[Aura]"):
+    if (not question or not reponse or reponse.startswith("[RontoGPT]")
+            or not _cache_reutilisable(question, reponse)):
         return
     q = question.lower().strip()
     if any(m in q for m in _MOTS_CONTEXTUELS):
@@ -410,7 +539,7 @@ def mettre_a_jour(question: str, reponse: str) -> bool:
     Renvoie True si une entree a ete remplacee.
     """
     global _vectoriseur, _matrice
-    if not question or not reponse or reponse.startswith("[Aura]"):
+    if not question or not reponse or reponse.startswith("[RontoGPT]"):
         return False
     _charger_cache()
     if _vectoriseur is None or _matrice is None:
@@ -419,6 +548,18 @@ def mettre_a_jour(question: str, reponse: str) -> bool:
         return False
     i = _similar(question.lower().strip())
     if i is None:
+        return False
+    # GARDE-FOU : ne JAMAIS reecrire la reponse d'une AUTRE question. Sans
+    # ce test, la reconsolidation ecrasait l'entree d'une question voisine :
+    # « cube de 8 » (meme vecteur que « cube de 3 ») reecrivait l'entree de
+    # « cube de 3 », et le cache servait ensuite « 8^3 = 512 » a la question
+    # « le cube de 3 ? » — le garde-fou de repondre() etait donc contourne
+    # par l'ECRITURE (bug reel trouve par scripts/banc_100.py).
+    # Aucune perte : la reponse verifiee est enregistree juste apres par
+    # enregistrer(), qui cree l'entree manquante au lieu d'en ecraser une.
+    if _hit_douteux(question, _entrees[i]):
+        LOG.info("[niveau0] reconsolidation REFUSEE (question "
+                 "differente) : %s", question[:50])
         return False
     _entrees[i]["r"] = reponse
     _vectoriseur, _matrice = None, None      # recalcule au prochain acces

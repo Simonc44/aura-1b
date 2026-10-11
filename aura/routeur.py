@@ -22,10 +22,18 @@ LOG = logging.getLogger("aura.routeur")
 def _probas(classifieur, X) -> dict:
     """Probabilites par classe, quel que soit le classifieur lineaire.
 
-    LogisticRegression : predict_proba natif (bien calibre). LinearSVC :
-    pas de predict_proba — on applique une softmax sur les scores de
-    decision (distance a la marge) : suffisant pour ponderer le mix
-    multi-LoRA, qui n'a pas besoin d'une calibration parfaite.
+    Les DEUX regimes rendent des probabilites CALIBREES : LogisticRegression
+    nativement, LinearSVC par echelle de Platt (cf. _entrainer_classifieur).
+
+    C'est une contrainte de fond, pas un detail : ces valeurs servent de
+    POIDS au mix multi-LoRA ({"math": 0,7, "web": 0,3}). Avant, le regime
+    SVC rendait une softmax sur ses MARGES — une quantite d'une autre nature
+    et d'une autre echelle. La MEME question ne produisait donc pas les memes
+    poids selon le nombre d'exemples d'entrainement, de part et d'autre du
+    seuil : deux comportements pour un seul systeme.
+
+    Repli softmax conserve pour tout classifieur sans predict_proba (un
+    modele charge d'une version anterieure au cache, par exemple).
     """
     import numpy as _np
     if hasattr(classifieur, "predict_proba"):
@@ -35,9 +43,12 @@ def _probas(classifieur, X) -> dict:
     e = _np.exp(scores - scores.max())          # softmax numeriquement stable
     return dict(zip(classifieur.classes_, e / e.sum()))
 
-# Au-dela de ce nombre d'exemples, LinearSVC remplace LogisticRegression :
-# la hinge loss donne des marges plus larges (plus robuste au bruit des
-# questions reelles) quand il y a assez de donnees pour la soutenir.
+# Au-dela de ce nombre d'exemples, le classifieur passe de LogisticRegression
+# a LinearSVC : la hinge loss donne des marges plus larges (plus robuste au
+# bruit des questions reelles) quand il y a assez de donnees pour la
+# soutenir. Le SVC est ENVELOPPE dans une calibration de Platt, sinon le
+# seul fait de franchir ce seuil changeait la NATURE des poids du mix
+# multi-LoRA (softmax de marges au lieu de probabilites).
 _SEUIL_SVM = 300
 
 # Type de defi self-play -> categorie du routeur (les defis valides par le
@@ -256,7 +267,7 @@ def exemples_entrainement() -> tuple[list[str], list[str]]:
 
 
 def _probas_flou(question: str) -> dict | None:
-    """2e avis (MiniLM + LinearSVC) — None si coupe/indisponible.
+    """2e avis (MiniLM + classifieur calibre) — None si coupe/indisponible.
 
     Import paresse : classificateur_flou importe ce module (cycle).
     """
@@ -283,12 +294,15 @@ class RouteurIntelligent:
         """Enregistre le TF-IDF + classifieur lineaire.
 
     Le modele est choisi par taille de donnees :
-    - < _SEUIL_SVM exemples : LogisticRegression (bien calibree en petit
-      volume, probabilites fiables pour le mix multi-LoRA) ;
-    - >= _SEUIL_SVM : LinearSVC (hinge loss = marges plus larges, plus
-      robuste aux frontiers bruitees quand les exemples abondent — les
-      milliers de defis du self-play). Cache relu a chaque demarrage :
-      le nouveau savoir est integralement appris.
+    - < _SEUIL_SVM exemples : LogisticRegression (probabilites natives) ;
+    - >= _SEUIL_SVM : LinearSVC ENVELOPPE dans une calibration de Platt
+      (hinge loss = marges plus larges, plus robuste aux frontieres
+      bruitees quand les exemples abondent — les milliers de defis du
+      self-play). L'enveloppe n'est pas cosmetique : sans elle, franchir le
+      seuil changeait la nature des poids du mix multi-LoRA (softmax de
+      marges au lieu de probabilites), donc le comportement du modele pour
+      la MEME question. Cache relu a chaque demarrage : le nouveau savoir
+      est integralement appris.
     """
         from sklearn.feature_extraction.text import TfidfVectorizer
         from sklearn.linear_model import LogisticRegression
@@ -301,9 +315,11 @@ class RouteurIntelligent:
             analyzer="char", ngram_range=(2, 4), max_features=2000)
         X = self._vectoriseur.fit_transform(questions)
         if len(questions) >= _SEUIL_SVM:
+            from sklearn.calibration import CalibratedClassifierCV
             from sklearn.svm import LinearSVC
-            self._classifieur = LinearSVC(C=1.0)
-            LOG.info("[routeur] classifieur : LinearSVC (%d exemples)",
+            self._classifieur = CalibratedClassifierCV(
+                LinearSVC(C=1.0), method="sigmoid", cv=3)
+            LOG.info("[routeur] classifieur : LinearSVC + Platt (%d exemples)",
                      len(questions))
         else:
             self._classifieur = LogisticRegression(max_iter=200, C=1.0)
@@ -406,10 +422,10 @@ class RouteurIntelligent:
         pred = self._classifieur.predict(X)[0]
         probas = _probas(self._classifieur, X)
 
-        # FUSION FLOU : 2e avis sur le SENS (vecteurs MiniLM + SVM), fonde
-        # 50/50 avec l'avis TF-IDF sur les formules — paraphrases mieux
-        # vues, confiance plus juste pour l'aiguillage (experts, mix LoRA,
-        # garde-fous de confiance). Sans MiniLM : inchange.
+        # FUSION FLOU : 2e avis sur le SENS (vecteurs MiniLM + petit MLP),
+        # fonde 50/50 avec l'avis TF-IDF sur les formules — paraphrases
+        # mieux vues, confiance plus juste pour l'aiguillage (experts, mix
+        # LoRA, garde-fous de confiance). Sans MiniLM : inchange.
         methodes = ["LogReg", "cosinus"]
         flou = _probas_flou(q)
         if flou:
@@ -419,7 +435,7 @@ class RouteurIntelligent:
             total = sum(fondus.values()) or 1.0
             probas = {k: v / total for k, v in fondus.items()}
             pred = max(probas, key=probas.get)
-            methodes.append("MiniLM-SVM")
+            methodes.append("MiniLM-MLP")
 
         # methode 2 : similarité cosinus avec prototypes
         self._charger_protos()

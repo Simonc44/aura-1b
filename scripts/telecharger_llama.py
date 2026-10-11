@@ -1,4 +1,4 @@
-"""Telecharge le cerveau d'Aura dans modeles/.
+"""Telecharge le cerveau d'RontoGPT dans modeles/.
 
 Par defaut : Llama 3.2 1B Instruct Q4_K_M (bench officiel : 6/7 a 3 s/reponse).
 MiniCPM5-1B (OpenBMB, cerveau « thinking ») reste disponible :

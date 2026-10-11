@@ -31,7 +31,7 @@ from pathlib import Path
 MAGIC_SIGNATURE = b"AUSG"
 VERSION_SIGNATURE = 1
 
-# Cle de confiance : la cle publique d'Aura (Simonc44). Toute signature
+# Cle de confiance : la cle publique d'RontoGPT (Simonc44). Toute signature
 # hors de cette cle est REFUSEE au boot. Pour la remplacer, colle la cle
 # publique (hex) dans AURA_TRUST_KEY ou ici.
 _CLE_CONFIANCE_DEFAUT = "b18db698206a32b05c743f71f33994af664227d948863a99b85e8b93fc03032e"
@@ -135,7 +135,7 @@ def lire_bytes(brut: bytes) -> dict:
     """Parse un bloc de signature depuis des octets.
     Renvoie {identite, cle_publique, signature}."""
     if brut[:4] != MAGIC_SIGNATURE or len(brut) < 6:
-        raise ValueError("pas un bloc de signature Aura (.sig)")
+        raise ValueError("pas un bloc de signature RontoGPT (.sig)")
     version, t_id = struct.unpack("<BB", brut[4:6])
     off = 6
     identite = brut[off:off + t_id].decode("utf-8", "replace"); off += t_id

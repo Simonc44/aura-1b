@@ -1,0 +1,194 @@
+{
+  "index_documents": 259,
+  "faits_corrects": "19/19",
+  "faits_couverts": "19/19",
+  "abstentions_correctes": "4/4",
+  "latence_p50_ms": 0.5511999988812022,
+  "latence_p95_ms": 1.2169000001449604,
+  "resultats": [
+    {
+      "question": "Quelle ville est la capitale française ?",
+      "attendu": "Paris",
+      "categorie": "capitales",
+      "reponse": "Paris",
+      "ok": true,
+      "latence_ms": 5.199
+    },
+    {
+      "question": "Quelle est la capitale italienne ?",
+      "attendu": "Rome",
+      "categorie": "capitales",
+      "reponse": "Rome",
+      "ok": true,
+      "latence_ms": 1.209
+    },
+    {
+      "question": "Quelle ville est le siège de la capitale espagnole ?",
+      "attendu": "Madrid",
+      "categorie": "capitales",
+      "reponse": "Madrid",
+      "ok": true,
+      "latence_ms": 0.826
+    },
+    {
+      "question": "Quelle ville gouverne le Japon comme capitale ?",
+      "attendu": "Tokyo",
+      "categorie": "capitales",
+      "reponse": "Tokyo",
+      "ok": true,
+      "latence_ms": 0.808
+    },
+    {
+      "question": "Quelle est la capitale du Canada ?",
+      "attendu": "Ottawa",
+      "categorie": "capitales",
+      "reponse": "Ottawa (et non Toronto)",
+      "ok": true,
+      "latence_ms": 1.217
+    },
+    {
+      "question": "Quel sommet est le plus haut sur Terre ?",
+      "attendu": "Everest",
+      "categorie": "géographie",
+      "reponse": "L'Everest, 8 849 mètres",
+      "ok": true,
+      "latence_ms": 0.303
+    },
+    {
+      "question": "Quel océan couvre la plus grande superficie ?",
+      "attendu": "Pacifique",
+      "categorie": "géographie",
+      "reponse": "L'océan Pacifique",
+      "ok": true,
+      "latence_ms": 0.503
+    },
+    {
+      "question": "Quel est le plus vaste désert chaud du globe ?",
+      "attendu": "Sahara",
+      "categorie": "géographie",
+      "reponse": "Le Sahara",
+      "ok": true,
+      "latence_ms": 0.412
+    },
+    {
+      "question": "Quelle planète a la plus grande taille du système solaire ?",
+      "attendu": "Jupiter",
+      "categorie": "sciences",
+      "reponse": "Jupiter",
+      "ok": true,
+      "latence_ms": 0.574
+    },
+    {
+      "question": "Quelle planète surnomme-t-on la rouge ?",
+      "attendu": "Mars",
+      "categorie": "sciences",
+      "reponse": "Mars",
+      "ok": true,
+      "latence_ms": 0.307
+    },
+    {
+      "question": "Combien de planètes orbitent autour du Soleil ?",
+      "attendu": "8",
+      "categorie": "sciences",
+      "reponse": "8 planètes",
+      "ok": true,
+      "latence_ms": 0.478
+    },
+    {
+      "question": "Quelle étoile est la plus proche de notre planète ?",
+      "attendu": "Soleil",
+      "categorie": "sciences",
+      "reponse": "Le Soleil",
+      "ok": true,
+      "latence_ms": 0.385
+    },
+    {
+      "question": "Quel est le plus grand pays en superficie ?",
+      "attendu": "Russie",
+      "categorie": "géographie",
+      "reponse": "La Russie",
+      "ok": true,
+      "latence_ms": 0.366
+    },
+    {
+      "question": "Quelle molécule constitue l'eau ?",
+      "attendu": "H2O",
+      "categorie": "chimie",
+      "reponse": "H2O",
+      "ok": true,
+      "latence_ms": 0.421
+    },
+    {
+      "question": "Par quelles lettres désigne-t-on l'or en chimie ?",
+      "attendu": "Au",
+      "categorie": "chimie",
+      "reponse": "Au",
+      "ok": true,
+      "latence_ms": 0.46
+    },
+    {
+      "question": "À température normale, l'eau bout à combien de degrés Celsius ?",
+      "attendu": "100",
+      "categorie": "sciences",
+      "reponse": "100 °C (à pression normale)",
+      "ok": true,
+      "latence_ms": 0.551
+    },
+    {
+      "question": "Combien d'os y a-t-il dans le squelette adulte ?",
+      "attendu": "206",
+      "categorie": "sciences",
+      "reponse": "206 os",
+      "ok": true,
+      "latence_ms": 0.564
+    },
+    {
+      "question": "En quelle année a débuté la Première Guerre mondiale ?",
+      "attendu": "1914",
+      "categorie": "histoire",
+      "reponse": "1914 (fin en 1918)",
+      "ok": true,
+      "latence_ms": 1.191
+    },
+    {
+      "question": "En quelle année commence la Seconde Guerre mondiale ?",
+      "attendu": "1939",
+      "categorie": "histoire",
+      "reponse": "1939 (fin en 1945)",
+      "ok": true,
+      "latence_ms": 0.492
+    },
+    {
+      "question": "Quelle est la capitale du pays imaginaire de Narnia ?",
+      "attendu": null,
+      "categorie": "abstention",
+      "reponse": null,
+      "ok": true,
+      "latence_ms": 0.829
+    },
+    {
+      "question": "Combien font 4 plus 4 ?",
+      "attendu": null,
+      "categorie": "abstention",
+      "reponse": null,
+      "ok": true,
+      "latence_ms": 0.323
+    },
+    {
+      "question": "Quel est le prix de l'essence aujourd'hui en France ?",
+      "attendu": null,
+      "categorie": "abstention",
+      "reponse": null,
+      "ok": true,
+      "latence_ms": 1.033
+    },
+    {
+      "question": "Qui a gagné la Coupe du monde de football 2026 ?",
+      "attendu": null,
+      "categorie": "abstention",
+      "reponse": null,
+      "ok": true,
+      "latence_ms": 1.048
+    }
+  ]
+}

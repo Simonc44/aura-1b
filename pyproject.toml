@@ -2,7 +2,7 @@
 name = "aura-1b"
 version = "0.1.0"
 description = "IA hybride neuro-symbolique : orchestrateur LLM + expert symbolique (PGS) + memoire web (RAG)"
-requires-python = ">=3.10"
+requires-python = ">=3.11"  # tomllib (aura/config.py) n'existe qu'a partir de 3.11
 dependencies = [
     "numpy>=1.26",
     "scikit-learn>=1.4",
@@ -10,13 +10,22 @@ dependencies = [
     "gplearn>=0.4.2",
     "ddgs>=9.0",
     "requests>=2.31",
-    "llama-cpp-python==0.3.2",  # wheel MSVC officielle (index abetlen) : 0.3.35 a un bug CPU_REPACK qui casse le chargement LoRA
+    # 0.3.2 ne sait PAS lire l'architecture `gemma3` (le cerveau par defaut) :
+    # `llama_model_load_from_file` echoue et tout le chemin in-process devient
+    # inutilisable. 0.3.36 est la premiere version de la serie a embarquer un
+    # llama.cpp assez recent pour gemma3 ; la wheel win_amd64 est prebuild
+    # (index abetlen), donc aucun compilateur n'est requis.
+    "llama-cpp-python==0.3.36",
     "huggingface-hub>=0.25",
     "cryptography>=50.0.1",
     "pywebview>=6.0",  # GUI web (aura/gui_web.py) : fenetre frameless + pont JS <-> Python
     "onnxruntime>=1.24.3",
     "tokenizers>=0.23.2",
 ]
+
+[project.scripts]
+rontogpt = "aura.__main__:main"
+aura = "aura.__main__:main"  # alias historique
 
 [project.optional-dependencies]
 mamba = ["torch>=2.2", "transformers>=4.46"]
@@ -56,3 +65,14 @@ module = [
     "chiffrement", "signature", "kernel",
 ]
 ignore_missing_imports = true
+
+# `datasets` (HF) merite son PROPRE bloc : pas de py.typed, et
+# `load_dataset` n'est pas dans __all__ (reexport dynamique), donc mypy croit
+# qu'il n'existe pas. `ignore_missing_imports` ne suffit pas pour un paquet
+# dont la SOURCE est presente — mypy l'analyse. `follow_imports = "skip"` le
+# rend opaque. Bloc separe VOLONTAIREMENT : mis dans le bloc ci-dessus, le
+# `skip` relacherait aussi sklearn/scipy, ou mypy voit pourtant du vrai code.
+# Utilise par scripts/mesure_gsm8k_aura.py.
+[[tool.mypy.overrides]]
+module = ["datasets", "datasets.*"]
+follow_imports = "skip"

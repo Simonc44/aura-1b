@@ -1,5 +1,5 @@
 # =====================================================================
-#  Aura — backend GPU (Vulkan) pour llama-server
+#  RontoGPT — backend GPU (Vulkan) pour llama-server
 #  Telecharge le build officiel win-vulkan-x64 de llama.cpp et le place
 #  dans serveur/vulkan/ : serveur_lora le detecte alors tout seul et
 #  passe en -ngl 99.
@@ -11,7 +11,7 @@
 #  Usage :
 #    powershell -ExecutionPolicy Bypass -File scripts\installer_vulkan.ps1
 #    powershell -File scripts\installer_vulkan.ps1 -Build b11111   # forcer
-#    AURA_GPU=0  -> Aura ignore le build GPU (retour CPU garanti)
+#    AURA_GPU=0  -> RontoGPT ignore le build GPU (retour CPU garanti)
 # =====================================================================
 param(
     [string]$Build = "b11111",
@@ -29,7 +29,7 @@ $Nom = "llama-$Tag-bin-win-vulkan-x64.zip"
 $Url = "https://github.com/ggml-org/llama.cpp/releases/download/$Tag/$Nom"
 $Zip = Join-Path $env:TEMP $Nom
 
-Write-Host "=== Backend GPU Vulkan pour Aura ===" -ForegroundColor Cyan
+Write-Host "=== Backend GPU Vulkan pour RontoGPT ===" -ForegroundColor Cyan
 Write-Host "Release : $Tag"
 Write-Host "Dest.   : $Destination"
 
@@ -55,7 +55,7 @@ Remove-Item $Zip -Force
 $Exe = Join-Path $Destination "llama-server.exe"
 if ((Test-Path $Exe) -and (Test-Path (Join-Path $Destination "ggml-vulkan.dll"))) {
     Write-Host "[OK] Backend GPU installe : $Exe" -ForegroundColor Green
-    Write-Host "     Aura le choisit automatiquement (AURA_GPU=0 pour revenir au CPU)."
+    Write-Host "     RontoGPT le choisit automatiquement (AURA_GPU=0 pour revenir au CPU)."
     # verification rapide du chargement du backend
     & $Exe --version 2>$null | Out-Null
     exit 0

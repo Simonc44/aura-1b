@@ -52,6 +52,8 @@
 {"question": "Peux-tu m'expliquer : quel est le plus grand mammifere du monde ?", "reponse": "La baleine bleue", "contexte": "La baleine bleue"}
 {"question": "Dis-moi : quel est l'animal terrestre le plus rapide ?", "reponse": "Le guépard (jusqu'à ~110 km/h)", "contexte": "Le guépard (jusqu'à ~110 km/h)"}
 {"question": "Peux-tu m'expliquer : quelle est la formule chimique de l'eau ?", "reponse": "H2O", "contexte": "H2O"}
+{"question": "Peux-tu m'expliquer : quel est le symbole chimique de l'eau ?", "reponse": "H2O", "contexte": "H2O"}
+{"question": "quel est le symbole chimique de l'eau ?", "reponse": "H2O", "contexte": "H2O"}
 {"question": "Peux-tu m'expliquer : quel est le symbole chimique de l'or ?", "reponse": "Au", "contexte": "Au"}
 {"question": "Dis-moi : quel est le symbole chimique du fer ?", "reponse": "Fe", "contexte": "Fe"}
 {"question": "Peux-tu m'expliquer : quel gaz l'homme respire-t-il ?", "reponse": "L'oxygène (O2)", "contexte": "L'oxygène (O2)"}

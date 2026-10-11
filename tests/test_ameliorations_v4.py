@@ -18,7 +18,7 @@ import numpy as np
 import pytest
 
 from aura import concepts, embeddings, orchestrateur as orch
-from aura.orchestrateur import Aura1B
+from aura.orchestrateur import RontoGPT
 
 
 # ── 1. Auto-think ───────────────────────────────────────────────────────
@@ -27,25 +27,36 @@ class TestAutoThink:
     PILE = "Paul a 3 ans de plus que Marie qui a le double de Leo (4 ans). Quel age a Paul ?"
 
     def test_puzzle_active_think(self):
-        assert Aura1B._auto_think(self.PILE) is True
+        assert RontoGPT._auto_think(self.PILE) is True
 
     def test_enigme_logique_active_think(self):
-        assert Aura1B._auto_think(
+        assert RontoGPT._auto_think(
             "Deux chevaliers et un menteur sont devant toi, qui dit la verite ?"
         ) is True
 
+    def test_probleme_de_taux_active_think(self):
+        """Escargot/poteau, robinet : le 1B y pose une equation fausse."""
+        assert RontoGPT._auto_think(
+            "Un escargot grimpe un poteau de 10 m : le jour il monte de "
+            "3 m, la nuit il glisse de 2 m. Combien de jours ?") is True
+        assert RontoGPT._auto_think(
+            "Un robinet se remplit en 3 heures, l autre se vide en 5.") is True
+
     @pytest.mark.parametrize("q", [
+        # SUJET seul, SANS phrase de mouvement : pas de reflexion.
+        "raconte moi une histoire de train",
+        "comment fabriquer une fontaine en pierre",
         "bonjour comment vas tu",
         "quelle est la capitale de l australie",
         "raconte moi une blague sur les poissons",
     ])
     def test_question_neutre_sans_think(self, q):
-        assert Aura1B._auto_think(q) is False
+        assert RontoGPT._auto_think(q) is False
 
     @staticmethod
     def _ia_capture(tmp_path):
         from aura.memoire_conversation import MemoireConversation
-        ia = Aura1B()
+        ia = RontoGPT()
         ia._historique = MemoireConversation(chemin=tmp_path / "conv.jsonl")
         captures = []
         ia._llama = lambda q, *a, **k: captures.append(k) or "ok"
@@ -71,9 +82,9 @@ class TestAutoThink:
         monkeypatch.setattr(filtre_instantane, "enregistrer", lambda q, r: None)
         monkeypatch.setattr(rag_binaire, "chercher", lambda q: None)
         monkeypatch.setattr(llama_cerveau, "generer", lambda *a, **k: "n importe")
-        monkeypatch.setattr(Aura1B, "_executer_experts",
+        monkeypatch.setattr(RontoGPT, "_executer_experts",
                             lambda *a, **k: ("", ""))
-        monkeypatch.setattr(Aura1B, "_a_besoin_verification",
+        monkeypatch.setattr(RontoGPT, "_a_besoin_verification",
                             staticmethod(lambda *a, **k: False))
         captures = []
 
@@ -81,10 +92,10 @@ class TestAutoThink:
             captures.append(kwargs)
             return "reponse de test"
 
-        monkeypatch.setattr(Aura1B, "_generer", faux_generer)
+        monkeypatch.setattr(RontoGPT, "_generer", faux_generer)
 
         def _ia():
-            ia = Aura1B()
+            ia = RontoGPT()
             ia._historique = MemoireConversation(chemin=tmp_path / "c.jsonl")
             return ia
 
@@ -96,6 +107,69 @@ class TestAutoThink:
         assert r2["reponse"] == "reponse de test"
         assert not captures[-1].get("think")
 
+    def test_repli_sans_reflexion_si_interrompue(self, monkeypatch, tmp_path):
+        """Une reflexion non terminee ne doit pas devenir la reponse.
+
+        Mesure du 9 oct. 2026 : sur l'enigme de l'escargot, 2/2 le 1B epuise
+        son budget dans  thinking sans le fermer -> le cerveau renvoie le
+        message d'interruption. Sur ce terrain le chemin DIRECT repond (mal
+        mais utilisable) : rendre le message serait une regression. On
+        retente donc UNE fois sans reflexion.
+        """
+        from aura import filtre_instantane, llama_cerveau, rag_binaire
+        from aura.memoire_conversation import MemoireConversation
+        monkeypatch.setattr(filtre_instantane, "repondre", lambda q: None)
+        monkeypatch.setattr(filtre_instantane, "enregistrer", lambda q, r: None)
+        monkeypatch.setattr(rag_binaire, "chercher", lambda q: None)
+        monkeypatch.setattr(llama_cerveau, "generer", lambda *a, **k: "x")
+        monkeypatch.setattr(RontoGPT, "_executer_experts",
+                            lambda *a, **k: ("", ""))
+        monkeypatch.setattr(RontoGPT, "_a_besoin_verification",
+                            staticmethod(lambda *a, **k: False))
+        appels = []
+
+        def faux_generer(self, *args, **kwargs):
+            appels.append(kwargs.get("think"))
+            if kwargs.get("think"):
+                return "[RontoGPT] Reflexion interrompue avant la reponse. ..."
+            return "Le chemin direct repond."
+
+        monkeypatch.setattr(RontoGPT, "_generer", faux_generer)
+        ia = RontoGPT()
+        ia._historique = MemoireConversation(chemin=tmp_path / "c.jsonl")
+        r = ia.executer_detaille(
+            "Un escargot grimpe un poteau : le jour il monte de 3 m, la "
+            "nuit il glisse de 2 m. Combien de jours ?")
+        assert r["reponse"] == "Le chemin direct repond."
+        assert appels[0] is True and appels[-1] is False
+
+    def test_pas_de_repli_quand_la_reflexion_aboutit(self, monkeypatch, tmp_path):
+        """Le repli ne doit PAS doubler une generation qui a abouti."""
+        from aura import filtre_instantane, llama_cerveau, rag_binaire
+        from aura.memoire_conversation import MemoireConversation
+        monkeypatch.setattr(filtre_instantane, "repondre", lambda q: None)
+        monkeypatch.setattr(filtre_instantane, "enregistrer", lambda q, r: None)
+        monkeypatch.setattr(rag_binaire, "chercher", lambda q: None)
+        monkeypatch.setattr(llama_cerveau, "generer", lambda *a, **k: "x")
+        monkeypatch.setattr(RontoGPT, "_executer_experts",
+                            lambda *a, **k: ("", ""))
+        monkeypatch.setattr(RontoGPT, "_a_besoin_verification",
+                            staticmethod(lambda *a, **k: False))
+        appels = []
+
+        def faux_generer(self, *args, **kwargs):
+            appels.append(kwargs.get("think"))
+            return "Reponse issue de la reflexion."
+
+        monkeypatch.setattr(RontoGPT, "_generer", faux_generer)
+        ia = RontoGPT()
+        ia._historique = MemoireConversation(chemin=tmp_path / "c.jsonl")
+        r = ia.executer_detaille(
+            "Un escargot grimpe un poteau : le jour il monte de 3 m, la "
+            "nuit il glisse de 2 m. Combien de jours ?")
+        assert r["reponse"] == "Reponse issue de la reflexion."
+        assert appels == [True]           # une seule generation
+
 
 class TestThinkCerveau:
     """llama_cerveau.generer : think ouvre la reflexion masquee."""
@@ -105,7 +179,10 @@ class TestThinkCerveau:
         from aura import serveur_lora
         capture = {}
 
-        def faux_chat(messages, max_tokens=256):
+        # `**_k` : la signature reelle du serveur a grandi (publier /
+        # interrompre pour le flux typé) ; un faux client doit suivre la
+        # signature qu'il remplace, pas une version figee de celle-ci.
+        def faux_chat(messages, max_tokens=256, **_k):
             capture["messages"] = messages
             capture["budget"] = max_tokens
             return "La reponse."
@@ -118,12 +195,30 @@ class TestThinkCerveau:
     def test_think_pose_l_instruction_meme_avec_systeme(self, monkeypatch):
         from aura import llama_cerveau, serveur_lora
         capture = self._serveur(monkeypatch)
+        monkeypatch.setenv("AURA_THINK_CAP_S", "0")   # budget double, hors plafond
         r = llama_cerveau.generer("quel age a Paul ?", systeme="SYS",
                                   think=True)
         assert r == "La reponse."
         textes = " ".join(m["content"] for m in capture["messages"])
         assert "<thinking>" in textes
         assert capture["budget"] >= 400          # budget double
+
+    def test_plafond_de_reflexion_borne_le_budget(self, monkeypatch):
+        """Le plafond borne la REFLEXION (latence), pas la reponse.
+
+        AURA_THINK_CAP_S=0 : ancien comportement (budget double) — la
+        pensee peut consommer tout le budget et repousser la reponse
+        d'une generation entiere. Plafond court : le brouillon est borne.
+        """
+        from aura import llama_cerveau
+        monkeypatch.setenv("AURA_THINK_CAP_S", "0")
+        sans = self._serveur(monkeypatch)
+        llama_cerveau.generer("quel age a Paul ?", systeme="SYS", think=True)
+        monkeypatch.setenv("AURA_THINK_CAP_S", "1")
+        avec = self._serveur(monkeypatch)
+        llama_cerveau.generer("quel age a Paul ?", systeme="SYS", think=True)
+        assert sans["budget"] >= 400
+        assert avec["budget"] < sans["budget"]
 
     def test_sans_think_aucune_instruction_avec_systeme(self, monkeypatch):
         from aura import llama_cerveau
@@ -174,6 +269,53 @@ class TestThinkCerveau:
         assert not any("<thinking>" in m["content"] for m in messages)
 
 
+# ── 1bis. La reflexion tronquee ne fuit JAMAIS comme reponse ───────────
+#
+# Bug mesure en direct : sur l'enigme de l'escargot, le modele ouvre
+#  thinking mais ne le ferme jamais (budget epuise). La regex de
+# `separer_reflexion` exige la fermeture, ne capturait donc rien, et le
+# chemin SERVEUR faisait `return propre or reponse` : le bloc  thinking brut
+# partait comme reponse. Le chemin in-process, lui, etait deja correct.
+OUV_PENSEE = "<" "think>"
+FER_PENSEE = "<" "/think>"
+
+
+class TestReflexionTronqueeServeur:
+    @staticmethod
+    def _serveur(monkeypatch, sortie):
+        from aura import serveur_lora
+
+        def faux_chat(messages, max_tokens=256, **_k):
+            return sortie
+
+        monkeypatch.setattr(serveur_lora, "_actifs", lambda: True)
+        monkeypatch.setattr(serveur_lora, "_actif", (("general", 1.0),))
+        monkeypatch.setattr(serveur_lora, "chat", faux_chat)
+
+    def test_bloc_non_ferme_ne_sort_pas_comme_reponse(self, monkeypatch):
+        from aura import llama_cerveau, serveur_lora
+        self._serveur(monkeypatch, f"{OUV_PENSEE}Je calcule... 3+3=6")
+        r = llama_cerveau.generer("combien font 3+3 ?", think=True)
+        assert OUV_PENSEE not in r
+        assert "Je calcule" not in r
+        assert "Reflexion interrompue" in r
+
+    def test_reflexion_non_fermee_est_detournee(self, monkeypatch):
+        from aura import llama_cerveau, serveur_lora
+        self._serveur(monkeypatch, f"{OUV_PENSEE}raisonnement coupe")
+        llama_cerveau.generer("q", think=True)
+        # detournee, pas jetee : elle part dans la memoire du tour
+        assert "raisonnement coupe" in llama_cerveau.reflexion_du_tour()
+
+    def test_bloc_ferme_livre_la_reponse_propre(self, monkeypatch):
+        from aura import llama_cerveau
+        self._serveur(monkeypatch,
+                      f"{OUV_PENSEE}doute interne{FER_PENSEE}La reponse.")
+        r = llama_cerveau.generer("q", think=True)
+        assert r == "La reponse."
+        assert OUV_PENSEE not in r
+
+
 # ── 2. Majorite d'experts + arbre (PoT) ─────────────────────────────────
 
 class TestMajoritePot:
@@ -196,7 +338,7 @@ class TestMajoritePot:
 
         from aura import llama_cerveau
         monkeypatch.setattr(llama_cerveau, "generer", faux)
-        ia = Aura1B()
+        ia = RontoGPT()
         return ia, captures
 
     def test_vote_majoritaire_et_arbre(self, monkeypatch):
@@ -311,7 +453,7 @@ class TestMajoriteLogique:
 
         from aura import llama_cerveau
         monkeypatch.setattr(llama_cerveau, "generer", faux)
-        return Aura1B(), captures
+        return RontoGPT(), captures
 
     def test_vote_deux_sur_trois(self, monkeypatch):
         # 2 formalisations vers Anna=rouge, 1 vers Anna=vert -> gagnant ROUGE

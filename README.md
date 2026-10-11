@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/aura.png" alt="Aura-1B" width="420"/>
+<img src="assets/aura.png" alt="RontoGPT" width="420"/>
 
 **The fastest answer is the one you never generate.**
 
@@ -8,8 +8,9 @@ A 100% local, CPU-native AI system that splits language, exact math and factual
 memory into specialized modules — instead of asking one small model to do
 everything (and hallucinate when it can't).
 
-Seven cognitive agents, exact symbolic experts and self-play turn a 1B brain
-into a system that behaves like a **7-8B where it counts** — at 1B speed.
+Symbolic experts, persistent memory, and sourced web search complement a local
+1B brain. These tools can improve specific tasks; they do not turn the model
+into a 3B, 8B, or equivalent-quality model.
 
 [![Tests](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml/badge.svg?style=flat-square)](https://github.com/Simonc44/aura-1b/actions/workflows/tests.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-5bc0de.svg)](LICENSE)
@@ -38,10 +39,10 @@ into a system that behaves like a **7-8B where it counts** — at 1B speed.
 
 ---
 
-## 💡 Why Aura-1B?
+## 💡 Why RontoGPT?
 
 On a machine without GPU, a 1B LLM is slow (~14 tok/s) and hallucinates.
-Aura turns that weakness into a system design rule:
+RontoGPT turns that weakness into a system design rule:
 
 > **The small model proposes. The program proves.**
 > Anything unproven is verified against a source or refused — never invented.
@@ -49,28 +50,29 @@ Aura turns that weakness into a system design rule:
 The result: instant answers (0–5 ms) on 60–70 % of everyday questions, exact
 math and dates, real-time facts, and a 1B brain used only where it matters.
 
-| | Aura-1B | Typical 8B on the same PC |
+| Recorded local measurement | Result | Scope |
 |---|---|---|
-| Everyday question | **0.0–2.3 s** | 30–60 s |
-| Math / dates / units | **exact, verifiable** | hallucinates off-stats |
-| Facts | **live web + proof check** | frozen at training cutoff |
-| RAM footprint | **~1 GB** | ~4.5 GB |
-| Long-tail knowledge & deep analysis | ⚠️ system's limit | better — see [honest limits](#-honest-limits) |
+| Gemma-3-1B Q4_K_M weights | **806 MB** | The `.aef` file, its extracted cache, and dependencies add to total storage. |
+| Generation throughput | **13.6–15.9 tok/s observed** | Measured on this machine and build; not a general guarantee. |
+| Recent run peak memory | **~1,166 MiB RSS** | One run; varies with context, server, and backend. |
+| Comparison to an 8B | **Not measured** | No relative speed, RAM, or quality claim is made here. |
 
-### The equivalence, measured by capability
+### What the measurements support
 
-| Capability | Aura-1B system | Raw 1B brain |
+| Measure / capability | Current RontoGPT | Interpretation |
 |---|---|---|
-| Logic & math | **beyond class** — exact, proven | hallucinates |
-| Facts (graph + web) | **~7-8B anchored**, 0 hallucination | ~1B, frozen |
-| Code (sandbox-verified) | **~8B** on testable code | worse |
-| Style & writing | **~7-8B perceived** — few-shot mimicry + double-pass editing | 1B tics |
-| Deep unanchored analysis | honest limit — weights stay 1B | 1B |
+| 100-question in-house benchmark | **94/100** on the latest saved run | Mixed tasks: 85 points mainly come from deterministic/RAG components; not a general model score |
+| GSM8K, standalone brain | **16–20% flexible** in the documented 100-question run | The local model remains limited on multi-step mathematical reasoning |
+| Memory | Recent turns reload on restart; full history remains searchable | Improves continuity, not model weights |
+| Web search | DDGS by default; optional Google Search Grounding; links retained | Helps with current facts, subject to source quality |
+| 1B / 1.5B / 3B / 8B comparison | **No complete shared benchmark available** | No defensible ranking against 3B or 8B is established |
 
-The mechanism is the one that makes a 70B *feel* smarter than its parameter
-count: organization, verification and style — not raw size. On verifiable
-tasks Aura no longer plays in the 3B league: it behaves like a **7-8B** while
-keeping 1B speed and footprint.
+Tools can make RontoGPT more exact at calculations, more current on the web, or
+more continuous across conversations. They do not make its local LLM as
+capable as a larger model on open-ended tasks. To compare RontoGPT with 1B, 1.5B,
+3B, and 8B models, they must run on the same independent set with cold caches
+and matched time/context limits, reporting quality, latency, and RAM separately.
+Current results are insufficient for that claim.
 
 ## 🚀 Quickstart
 
@@ -83,24 +85,28 @@ powershell -ExecutionPolicy Bypass -File scripts/installer.ps1
 Then, in a **new** PowerShell window:
 
 ```powershell
-aura "quel est le carre de 7"     # -> 49
-aura                              # interactive chat
+rontogpt "quel est le carre de 7" # -> 49
+rontogpt                          # interactive chat
 ```
 
-The installer copies the package to `%LOCALAPPDATA%\Aura`, creates the venv,
-downloads the brain (807 MB, once) and registers the `aura` command.
+The installer copies the package to `%LOCALAPPDATA%\RontoGPT`, creates the venv,
+downloads the brain (807 MB, once) and registers the `rontogpt` command
+(the historical `aura` alias remains available).
 
 ### Development install
 
 ```bash
 uv sync                                        # deps (llama.cpp included)
 python scripts/telecharger_llama.py            # 807 MB GGUF, once
-uv run python -m aura --demo                   # demo: X³ formula + physics news
-uv run python -m aura "quelle est la capitale de la France ?"
-uv run python -m aura --chat                   # chat with memory
+uv run rontogpt --demo                         # demo: X³ formula + physics news
+uv run rontogpt "quelle est la capitale de la France ?"
+uv run rontogpt --chat                         # chat with memory
 ```
 
 ## 🏗 Architecture
+
+See [the system flow guide](docs/FLUX_SYSTEME.md) for the request lifecycle,
+`.aef` boot and cache behavior, and measurement limits.
 
 ```mermaid
 flowchart TD
@@ -192,9 +198,9 @@ class node_llm,node_adapters,node_loraserver,node_kernel,node_web,node_llama,nod
 |---|---|---|
 | **Level 0** | Exact math via safe AST evaluator (never `eval()`) + semantic cache (TF-IDF char n-grams, cosine ≥ 0.85) | **The fastest answer is the one you never generate.** Measured: ×3700 on direct math, ×7500 on repeats. Contextual questions ("my name…") are never cached. |
 | **Router** | TF-IDF + Logistic Regression (150 examples) + cosine prototypes + confidence threshold | Classifies any question (typos included) — no hardcoded if/else. Low-confidence routing refuses to guess. |
-| **Brain** | **Llama 3.2 1B Instruct (Q4_K_M, 807 MB)** via llama.cpp | Good French AND English out of the box. Brain-swappable: `AURA_GGUF=MINICPM` loads MiniCPM5-1B (OpenBMB) — measured **6/7 @ 3.0 s vs 3/7 @ 10.2 s** on the same quiz, so Llama stays the default. |
+| **Brain** | **Gemma-3-1B-it (Q4_K_M, 806 MB)** via llama.cpp — the `…-Heretic-Uncensored-Thinking` GGUF, architecture `gemma3` (26 layers, dim 1152, 4 heads / 1 KV head), **native `<think>` reasoning** | Good French AND English out of the box, and it *reasons* instead of answering blind. Brain-swappable: `AURA_GGUF=LLAMA` loads the previous Llama 3.2 1B Instruct, `AURA_GGUF=MINICPM` MiniCPM5-1B. The prompt format is **not** read from the environment — `famille()` reads the architecture inside the GGUF itself (`gguf_meta.py`) and picks the right end-of-turn tokens, so `AURA_GGUF=LLAMA` really is a one-variable switch. |
 | **Symbolic expert** | Genetic programming (gplearn), protected `pow` | Finds the **exact** law (`mul(mul(X0,X0),X0)` for X³) — zero hallucination, verifiable. |
-| **Web memory** | DuckDuckGo RAG (`ddgs`), no API key | Model parameters stay free for language & logic; facts stay current. |
+| **Web memory** | DDGS by default; optional Gemini Google Search Grounding; titles, snippets, and URLs retained | Recent facts keep their source links; the local model summarizes them and should report weak evidence. |
 
 ### The verified-intelligence layer (why a 1B stops hallucinating)
 
@@ -208,27 +214,44 @@ class node_llm,node_adapters,node_loraserver,node_kernel,node_web,node_llama,nod
 | **PoT-code** (`potcode.py`) | broken code generation | the 1B writes a function + asserts, a sandbox (restricted builtins + instruction budget via `settrace`) executes everything; a failing assert = the code is never delivered |
 | **Cognitive agents** (`agents.py`) | small-model brittleness | 7 lightweight agents orchestrate the 1B: task planner (complex asks split into 2-3 steps before writing), RAG compressor (only the 3 useful web sentences reach the LLM), style cleaner (removes 1B language tics), recursive debugger (failed code is retried with the exact sandbox error, max 3), persona router (system prompt adapted per category), style mimicry (few-shot exemplars calibrate the answer to big-model prose), double-pass editor (the 1B critiques its own draft then rewrites — catching flaws in existing text is statistically easier than writing perfectly first-try) |
 | **LoRA hot-swap** (`adaptateurs.py`) | one brain, one specialty | dynamic adapter swapping via the llama.cpp C-API: the base GGUF loads once, category adapters (~10-40 MB, trained on Colab with PEFT) mount/unmount without reloading. LRU in memory (default 1 adapter = near-zero footprint). `AURA_ADAPTATEURS=1` to enable |
-| **Served multi-LoRA** (`serveur_lora.py`) | one brain, several simultaneous specialties | the official llama-server (CPU build, auto-started by Aura) mounts the Q4_K_M brain + all 4 category adapters at boot; the router's probabilities become simultaneous weights `{"math": 0.7, "web": 0.3}` in one HTTP call — no reload, ~ms hot-swap. In-process fallback never blocks |
-| **Dynamic Compute** | one speed for everything | complex questions trigger a masked `<thinking>` draft (×2 token budget) stripped before display; simple ones stay instant |
+| **Served multi-LoRA** (`serveur_lora.py`) | one brain, several simultaneous specialties | the official llama-server (CPU build, auto-started by RontoGPT) mounts the Q4_K_M brain + all 4 category adapters at boot; the router's probabilities become simultaneous weights `{"math": 0.7, "web": 0.3}` in one HTTP call — no reload, ~ms hot-swap. In-process fallback never blocks |
+| **Dynamic Compute** | one speed for everything | a question that needs reasoning gets a ×2 token budget (floor 400) for its `<think>` block; simple ones stay instant. That reasoning is **not** stripped from the stream — it is shown, in its own phase (`PHASE_PENSEE`) |
 | **Long-term memory** (`graphe_faits.py`) | equal-weight knowledge | every triplet carries a strength; each **verified** use reinforces it, lookup is strength × recency weighted — knowledge organizes its own importance, zero retraining |
 | **Self-play** (`selfplay.py`) | improvement needs a user | a challenge generator builds logic puzzles & drills from the fact graph, a deterministic judge validates, successes reinforce the graph and join the training dataset — AlphaGo-style closed loop. `aura --selfplay 20` |
 | **RLSS** (`rlss.py`) | unvalidated self-training | generated exercises → brain answers → exact validation → successes stored for the next LoRA, failures become injected corrections |
-| **Auto-improvement** | repeated mistakes | wrong answers recorded via `enregistrer_correction()` are injected into future prompts — the same mistake is never made twice |
+| **Durable corrections** | explicit user feedback | corrections recorded via `enregistrer_correction()` or `/v1/learn` can be retrieved for lexically similar questions; this does not modify model weights or prevent every future mistake |
 
-### Rich mode (writing quality)
+To enable Google Search Grounding, set `AURA_GEMINI_API_KEY` in the
+environment before starting RontoGPT. RontoGPT then sends the question to Gemini;
+depending on the plan and usage, the API may be paid. Without this variable,
+RontoGPT uses its existing DDGS path. Set `AURA_GEMINI_MODEL` to override the model
+(default: `gemini-3.8-flash`).
 
-Open questions (≥ 9 words or *explique/analyse/compare…*) trigger a 3-step pipeline:
-1. **Enriched search** — dual query (facts + analysis) + domain **lexicon** injected as keywords.
-2. **Masked Chain-of-Thought** — planning inside `<thinking>` tags, stripped by regex; the user only sees the polished answer.
-3. **Sectioned generation** — each part of the GBNF-constrained plan is written separately, with memory of previous sections (StoryWriter-lite).
-4. **Few-shot mimicry + double pass** — style exemplars calibrate the draft, then a critique pass lists the flaws and the model rewrites: editing existing text is where a 1B statistically matches a much bigger one.
+### Thinking, in the open
 
-Cost: ~2-3× latency — reserved for questions that deserve it. Measured on the
-reference machine: fact 0.3 s, math 0.0 s, rich essay 66 s.
+The default brain **reasons natively** in a `<think>…</think>` block. That block
+is no longer masked: the stream is **typed into two phases**, so the user watches the
+reasoning arrive first and the answer second (`PHASE_PENSEE` then
+`PHASE_REPONSE`, `llama_cerveau.py`). A module that only needs the finished
+result never receives the thinking — `generer()` still returns the answer
+alone, and the reasoning travels on its own channel (`reflexion_du_tour()`,
+the log, the UI).
+
+On top of it, the **Self-Correction Stream** (`auto_correction.py`) reads the
+thinking *while it is being written* and checks every arithmetic equality it
+finds against **exact rationals** — never floats, so a rounding difference can
+never produce a false accusation. A provably wrong step costs exactly one
+relaunch, with the correction injected into the prompt.
+
+**The old rich mode is gone** (`generer_riche`, the plan grammar, `contrats.py`,
+the sectioned pipeline): it was a second generator arguing with the model's own
+reasoning, and it was what made long answers slow. What is left is the reasoner
+plus a bounded correction pass. Cost: the thinking now streams too, so a long
+reflection is visible time rather than hidden time.
 
 ## 🎓 Teaching your AI
 
-Aura improves from feedback with no retraining. Three levers, from easiest to deepest:
+RontoGPT improves from feedback with no retraining. Three levers, from easiest to deepest:
 
 **1. Correct a wrong answer** — stored and injected into future prompts:
 
@@ -265,25 +288,45 @@ The whole system ships as **one sealed binary file**:
 
 ```text
 aura_system.aef (807 MB, monolithic)
-├── HEADER (148 B)  magic "AURA" · version · build · CPU config · 3× SHA-256
-├── CONFIG (LZMA)   auto-tuned settings compiled for the target machine
-├── CODE (ZIP)      the entire aura/ python package (verified by hash)
-└── WEIGHTS (raw)   the GGUF byte-for-byte (loaded directly, zero-copy)
+├── HEADER (148 B)  version, build, settings, sizes and 3 SHA-256 hashes
+├── CONFIG (LZMA)   settings, brain identity/quantization, forge profile
+├── CODE (ZIP)      aura/ package files (no tests or runtime caches)
+└── GGUF (raw)      unchanged weights; they dominate the package size
 ```
 
-**Integrity**: one altered byte anywhere → boot refused (SHA-256 over config,
-code and weights — tested). Optional **Ed25519 signature** of the file.
+Forge selects the brain from `aura.toml` (`[llama].gguf`/`chemin`);
+`AURA_GGUF` or `AURA_GGUF_CHEMIN` overrides it, and a GGUF path passed as the
+first argument takes priority. The `.aef` records the embedded brain identity.
+The kernel extracts code and GGUF into `.cache_aef/`, then `llama.cpp` loads
+the extracted GGUF. The monolithic `.aef` and extracted weights both remain
+on disk, so this format does not save a second copy of the model weights.
+
+**Integrity**: the first full verification hashes config, code and GGUF;
+`--verifier` forces it again. Fast starts reuse verification markers and check
+that the extracted GGUF still matches its cache manifest. Optional **Ed25519
+signature**.
+
+**A 1.5B brain can be embedded**: `R1_DISTILL` (Q4_K_M GGUF in `modeles/`,
+about 1.12 GB) fits the format without a version change. `.aef` does not
+compress weights, so it exceeds a strict 1 GB target. Loading estimates
+`2.2 × GGUF size` and refuses to start when that exceeds 45% of detected RAM.
+This check passes on 16 GB, but rejects R1 Q4 on 4 GB. Current R1 measurement:
+51–66 s per difficult GSM8K problem; the supplied Gemma LoRAs are incompatible.
+See [`NOTE_cerveau_raisonneur_R1.md`](resultats/gsm8k_aura/NOTE_cerveau_raisonneur_R1.md).
+
+The encrypted `.aef.enc` is an additional copy close to the `.aef` size; forge
+does not delete the clear file.
 
 ```bash
-uv run python scripts/construire_exe.py            # -> dist/Aura.exe (~8.6 MB)
+uv run python scripts/construire_exe.py            # -> dist/RontoGPT.exe (~8.6 MB)
 uv run python scripts/forger_aef.py --chiffrer     # -> aura_system.aef.enc (AES-256-GCM)
 ```
 
 On the user machine (secret delivered separately, never in the file):
 
 ```powershell
-Aura.exe aura_system.aef.enc "your question"       # decrypt, verify, answer
-Aura.exe --cache "your question"                    # next runs: instant start
+RontoGPT.exe aura_system.aef.enc "your question"       # decrypt, verify, answer
+RontoGPT.exe --cache "your question"                    # next runs: instant start
 ```
 
 > [!IMPORTANT]
@@ -293,7 +336,7 @@ Aura.exe --cache "your question"                    # next runs: instant start
 
 ## ⚙️ Hardware auto-tuning & GPU
 
-Aura inspects the machine (CPU, cores, RAM, AVX2) and derives optimal settings:
+RontoGPT inspects the machine (CPU, cores, RAM, AVX2) and derives optimal settings:
 
 ```bash
 python -m aura.profil_materiel
@@ -301,7 +344,7 @@ python -m aura.profil_materiel
 
 | Machine | Derived settings |
 |---|---|
-| RAM ≥ 6 GB | ctx 1536, batch 768, threads = all logical cores |
+| RAM ≥ 6 GB | ctx 4096, batch 768, threads = all logical cores |
 | RAM < 6 GB | ctx 1024, batch 512 (guaranteed fit) |
 
 GPU support: CUDA/Vulkan build + discrete GPU → full offload; CPU-only → 0
@@ -311,28 +354,45 @@ GPU support: CUDA/Vulkan build + discrete GPU → full offload; CPU-only → 0
 
 | Brain | Speed | French | Load |
 |---|---|---|---|
-| **Llama 3.2 1B Q4_K_M** (current) | **13.4 tok/s** | ✅ instruction-tuned | 3.4 s |
+| **Gemma-3-1B-it** (`…-Heretic-Uncensored-Thinking`, Q4_K_M) | **13.6-15.9 tok/s** | ✅ instruction-tuned + native thinking | — |
+| Llama 3.2 1B Q4_K_M (previous default, `AURA_GGUF=LLAMA`) | **13.4 tok/s** | ✅ instruction-tuned | 3.4 s |
 | MiniCPM5-1B Q4_K_M (optional, `AURA_GGUF=MINICPM`) | ~11 tok/s + thinking tokens | ✅ | 3.2 s |
 | Qwen 2.5 1.5B (removed) | 12.1 tok/s | ✅ | — |
 | Mamba-790M / RWKV-430M (removed) | 1.5-1.8 tok/s | ❌ base models | 30-400 s |
 
-Same-quiz head-to-head (`scripts/comparer_cerveaux.py`): **Llama 6/7 @ 3.0 s/answer** vs **MiniCPM5 3/7 @ 10.2 s/answer** — MiniCPM5 is a *thinking-first* brain: without its native `<think>` phase it underperforms, with it (`AURA_THINK=1`) it is 3× slower. Aura's orchestration already reasons through experts, so a fast direct-answer brain wins here.
+Same-quiz head-to-head (`scripts/comparer_cerveaux.py`): **Llama 6/7 @ 3.0 s/answer** vs **MiniCPM5 3/7 @ 10.2 s/answer** — MiniCPM5 is a *thinking-first* brain: without its native `<think>` phase it underperforms, with it (`AURA_THINK=1`) it is 3× slower.
 
-System-level quiz vs Qwen 2.5 1.5B: **Aura 5/5 vs 4/5** (exact math, real-time
-facts, memory) — the organization beats the bigger brain on verifiable questions.
+The current brain is thinking-first too, and that is the point of the switch: its reasoning is **shown** (two-phase stream) and **checked** (Self-Correction Stream) instead of being masked away. Honest limit: on a deliberately "think hard" prompt the 1B is verbose — 500 thinking tokens in ~38 s, and it can wander — which is exactly why a turn has a token budget and one bounded correction.
+
+**Latest clean benchmark (11 Oct 2026):** **94/100** (85/85 verifiable, 9/15 form) in **348 s**. The harness isolates conversation memory between questions; the older 98/100 result is not comparable because earlier runs could reuse conversation history. The parser fix brings the format subset to 5/5, and RAG safeguards passed an exploratory 23-question set with no false answers. Long-form writing remains the main weakness (4/10 passed in the latest full run, up to 83 s). See the [detailed baseline](docs/BASELINE_2026-10-11.md).
+
+An exploratory 28-question benchmark is available for RontoGPT, the standalone
+brain, and models served by Ollama. Example for an 8B:
+
+```powershell
+uv run python scripts/benchmark_comparatif.py --bras aura,ollama `
+  --modele-ollama qwen3.5:8b --rapport resultats/comparison_8b.json
+```
+
+Repeat with locally available 1B, 1.5B, and 3B model IDs. This compares the
+complete RontoGPT system to a standalone LLM; it does not establish general model
+size equivalence. Install each model in Ollama before running.
+
+An older exploratory quiz compared the system with Qwen 2.5 1.5B on five
+questions (5/5 versus 4/5). This sample is too small to conclude RontoGPT exceeds
+the 1.5B, and there is no controlled 3B or 8B comparison here.
 
 ### Honest limits
 
 > [!NOTE]
-> On **verifiable** questions (math, facts, dates, format), Aura-1B beats
-> bigger models by construction — they guess, it proves. Logic, code, style
-> and knowledge are now **system-compensated** (perceived level: 7-8B); only
-> **deep unanchored abstract analysis** stays 70B territory — the weights are
-> still 1B, and that honesty is part of the design.
+> Symbolic tools can be more exact than an LLM alone on tasks they are designed
+> to solve. Web search depends on external sources, and the local model keeps
+> the writing and open-analysis limits of a 1B. No 3B/8B equivalence has been
+> measured.
 
 Two more constraints, by design:
 
-- **Context window 1536 tokens** — long-form answers (essays) can be
+- **Context window 4096 tokens** — very long answers (essays) can be
   truncated; the sectioned rich mode writes section by section to fit,
   but a 10-page essay is out of scope.
 - **Conversation history grows with use** — the RLM file is auto-rotated
@@ -349,10 +409,12 @@ Two more constraints, by design:
 - [x] Green CI (4 OS/py matrices + `.aef` chain + installer syntax)
 - [x] Served multi-LoRA (weights mix) + Dynamic Compute + RLSS + self-play + long-term memory
 - [x] Style mimicry (few-shot) + double-pass editing
-- [ ] **LoRA fine-tune** on Colab — reasoning depth, keeps the 807 MB size
-- [ ] **MEMIT fact editing** — fix long-tail facts directly in the weights
+- [ ] **LoRA fine-tune** on Colab — reasoning depth, keeps the 807 MB size. Notebook ready (`scripts/colab_lora_gemma.ipynb`); the runtime now mounts the retrained adapters by reading **their own** architecture, so dropping the new `.gguf` files in `adaptateurs/` is enough — no constant to keep in sync.
+- [ ] **MEMIT fact editing** — *feasibility first.* MEMIT edits FP16 weights and needs gradients plus a covariance estimated over a corpus; the shipped brain is a **Q4_K_M GGUF**, which cannot be edited in place. The only path is a full re-quantisation on Colab (base `unsloth/gemma-3-1b-it`), i.e. a whole new 806 MB brain — not the small delta the LoRA design relies on.
 - [ ] **lm-evaluation-harness** — public, comparable brain scores
-- [x] Hugging Face release (`.aef` + `Aura.exe` + model card)
+- [x] Auto-mount LoRA by measured architecture (adapter family read from its GGUF, never a name or a hard-coded constant)
+- [x] Auto-think on word/rate problems, with a no-think retry when the reflection does not close
+- [x] Hugging Face release (`.aef` + `RontoGPT.exe` + model card)
 
 ## 🧪 Tests & quality
 
@@ -367,4 +429,4 @@ on Linux, and syntax-checks the PowerShell installer.
 
 ## 📄 License
 
-GPLv3 — see [LICENSE](LICENSE). Copyleft: any derivative of Aura's multi-agent architecture must remain open-source under the same terms.
+GPLv3 — see [LICENSE](LICENSE). Copyleft: any derivative of RontoGPT's multi-agent architecture must remain open-source under the same terms.

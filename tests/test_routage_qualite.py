@@ -5,6 +5,9 @@ Defauts mesures puis corriges (scripts/bench_qualite.py) :
     factuel    : « Quel est le prix du carburant ? » aussi (86 s)
     cache      : un refus en DOUBLE etait servi depuis le cache (0,1 s)
     tetes      : « Je suis desole, mais... » en tete d'une vraie reponse
+    bribe      : « ok » -> le 1B ne repondait pas, il CONTINUAIT le format
+                 « Q: ... R: ... » de la brique few-shot et inventait une
+                 question attribuee a l'utilisateur
 """
 from aura import llama_cerveau
 from aura import orchestrateur as orch
@@ -28,24 +31,44 @@ class TestMetaEtReponseCourte:
             "La puissance de la technologie est-elle une menace pour l'homme "
             "moderne ? Redige une dissertation structuree.") is False
 
-    def test_reponse_courte_interdit_la_dissertation(self):
-        # « quel ... » / « combien ... » -> reponse courte, jamais le
-        # multi-pass (75-86 s mesures au banc)
-        for q in ("Quel est le prix du carburant en France aujourd'hui ?",
-                  "Alice a 3 ans de plus que Bob. Bob a 2 ans de plus que "
-                  "Clara. Clara a 4 ans. Quel age a Alice ?",
-                  "Combien de temps dure le voyage ?"):
-            assert orch.Aura1B._est_complexe(q) is False, q
+    def test_reponse_courte_garde_un_budget_court(self):
+        """« quel ... » / « combien ... » : budget court, pas une redaction.
 
-    def test_vraie_redaction_toujours_riche(self):
-        assert orch.Aura1B._est_complexe(
+        Le mode dissertation (multi-pass, 75-86 s mesures au banc) a ete
+        supprime ; ce qui reste de cette garde, c'est le BUDGET : une
+        question factuelle ne doit pas partir en 320 tokens de developpement.
+        """
+        for q in ("Quel est le prix du carburant en France aujourd'hui ?",
+                  "Combien de temps dure le voyage ?"):
+            assert orch.llama_cerveau._max_tokens_adaptatif(q) == 120, q
+
+    def test_enonce_a_etapes_suit_le_cerveau(self):
+        """Un PROBLEME a etapes recoit le budget du CERVEAU, pas un budget fixe.
+
+        Depuis le 11 oct. 2026 le cerveau par defaut est un RAISONNEUR
+        distille (R1) : un enonce a etapes recoit _TOKENS_RAISONNEMENT (768).
+        Avec un cerveau NON raisonneur (AURA_GGUF=GEMMA), la meme question
+        garde 120 : elargir le budget d'un non-raisonneur le fait DERIVER
+        (mesure GSM8K : 0,12 -> 0,03). Le test suit donc le cerveau charge.
+        """
+        q = ("Alice a 3 ans de plus que Bob. Bob a 2 ans de plus que "
+             "Clara. Clara a 4 ans. Quel age a Alice ?")
+        if orch.llama_cerveau._cerveau_raisonneur():
+            attendu = orch.llama_cerveau._TOKENS_RAISONNEMENT
+        else:
+            attendu = 120
+        assert orch.llama_cerveau._max_tokens_adaptatif(q) == attendu
+
+    def test_redaction_demande_recoit_le_budget_developpe(self):
+        """« Redige / Explique » : la reponse est longue, le budget doit l'etre."""
+        assert orch.llama_cerveau._max_tokens_adaptatif(
             "Redige une analyse comparee du solaire et de l'eolien en "
             "France, avec les avantages et les limites de chaque filiere"
-        ) is True
-        assert orch.Aura1B._est_complexe(
+        ) == orch.llama_cerveau._TOKENS_DEVELOPPE
+        assert orch.llama_cerveau._max_tokens_adaptatif(
             "Explique pourquoi la photosynthese est indispensable a la vie "
             "sur Terre en developpant son role dans la chaine alimentaire"
-        ) is True
+        ) == orch.llama_cerveau._TOKENS_DEVELOPPE
 
 
 class TestRefus:
@@ -88,16 +111,16 @@ class TestCachePropre:
         monkeypatch.setattr("aura.filtre_instantane.repondre",
                             lambda q: orch._RE_REFUS.pattern and
                             "Je suis desole, mais je ne peux pas repondre.")
-        monkeypatch.setattr(orch.Aura1B, "analyser",
+        monkeypatch.setattr(orch.RontoGPT, "analyser",
                             lambda self, q: {"methodes": ["test"]})
         # ni RAG ni experts ni LLM : on s'arrete au resultat final
         monkeypatch.setattr("aura.rag_binaire.chercher", lambda q: None)
-        monkeypatch.setattr(orch.Aura1B, "_expert_special", lambda *a, **k: None)
+        monkeypatch.setattr(orch.RontoGPT, "_expert_special", lambda *a, **k: None)
         monkeypatch.setattr("aura.fast_lang.moteur.repondre", lambda q: None)
         monkeypatch.setattr("aura.calcul_verbal.resoudre", lambda q: None)
         monkeypatch.setattr(llama_cerveau, "generer",
                             lambda *a, **k: "Paul est le plus age, 12 ans.")
-        r = orch.Aura1B().executer_detaille(question)
+        r = orch.RontoGPT().executer_detaille(question)
         assert r["cerveau_choisi"] != "niveau0-instantane"
         assert "desole" not in r["reponse"].lower()
 
@@ -140,21 +163,27 @@ class TestLibellesDePlan:
         sale = ("Bonjour. **SECTION A REDIGER : PARTIE 1 : L'AFFIRMATION** "
                 "La these se pose des la premiere phrase, sans ambiguite.")
         monkeypatch.setattr("aura.filtre_instantane.repondre", lambda q: sale)
-        monkeypatch.setattr(orch.Aura1B, "analyser",
+        monkeypatch.setattr(orch.RontoGPT, "analyser",
                             lambda self, q: {"methodes": ["test"]})
         monkeypatch.setattr("aura.rag_binaire.chercher", lambda q: None)
-        monkeypatch.setattr(orch.Aura1B, "_expert_special", lambda *a, **k: None)
+        monkeypatch.setattr(orch.RontoGPT, "_expert_special", lambda *a, **k: None)
         monkeypatch.setattr("aura.fast_lang.moteur.repondre", lambda q: None)
         monkeypatch.setattr("aura.calcul_verbal.resoudre", lambda q: None)
-        r = orch.Aura1B().executer_detaille(
+        r = orch.RontoGPT().executer_detaille(
             "La puissance de la technologie est-elle une menace ?")
         assert "SECTION A REDIGER" not in r["reponse"]
         assert "La these se pose" in r["reponse"]
 
 
 class TestAntiCopieProche:
-    """Copie INTER-sections avec un premier mot different : la comparaison
-    exacte rate (vu au banc), le fragment de 45+ signes la attrape."""
+    """Copie avec un premier mot different : la comparaison exacte rate
+    (vu au banc), le fragment de 45+ signes la attrape.
+
+    La detection inter-sections (`_sans_copies`) est partie avec le mode
+    dissertation, qui etait seul a produire des sections. Ce qui reste —
+    et qui sert a la livraison — c'est `_sans_doublons`, applique a la
+    reponse finale : c'est lui que ces tests couvrent.
+    """
 
     P1 = ("Pourtant, cette question souleve un debat complexe qui "
           "concerne notre societe actuelle et ses choix.")
@@ -164,12 +193,11 @@ class TestAntiCopieProche:
     def test_phrases_exactement_differentes(self):
         assert self.P1 != self.P2                    # le piege
 
-    def test_sans_copies_retire_la_reprise_debut_different(self):
-        propre = llama_cerveau._sans_copies(
-            "Transition utile et necessaire vers la suite. " + self.P2,
-            self.P1)
-        assert "souleve un debat complexe" not in propre
-        assert "Transition utile et necessaire" in propre
+    def test_reprise_a_debut_different_retiree(self):
+        # la SECONDE occurrence doit partir, quel que soit son premier mot
+        propre = llama_cerveau._sans_doublons(self.P2 + " " + self.P1)
+        assert propre.count("souleve un debat complexe") == 1
+        assert "En definitive" in propre           # c'est la 1re qui reste
 
     def test_sans_doublons_retire_la_copie_proche(self):
         propre = llama_cerveau._sans_doublons(
@@ -182,7 +210,6 @@ class TestAntiCopieProche:
              "du reseau. Une comparaison suppose de comparer les couts "
              "marginaux, pas les subventions declarees.")
         assert llama_cerveau._sans_doublons(t) == t
-        assert llama_cerveau._sans_copies(t, "") == t
 
 
 class TestFinitionDePhrase:
@@ -226,7 +253,7 @@ class TestRepliContexte:
     1. _limiter_messages rogne les VIEUX tours avant l'appel (la
        conversation continue avec les tours recents) ;
     2. si meme systeme + question debordent, le repli repart SANS
-       historique au lieu de livrer « [Aura] Erreur ... ».
+       historique au lieu de livrer « [RontoGPT] Erreur ... ».
     """
 
     def test_limite_les_vieux_tours_avant_l_appel(self, monkeypatch):
@@ -366,3 +393,180 @@ class TestMemoirePersistante:
         m = self._memoire(tmp_path)
         r = m.lire_fichier(f"lis le fichier {binaire}")
         assert r is not None and "binaire" in r
+
+
+class TestBribesEtFewShot:
+    """Defauts reels de conversation trouves en prod (2026-10).
+
+    Sur « ok » le 1B ne repondait pas : prive de signal, il CONTINUAIT le
+    format « Q: ... R: ... » de la brique few-shot et fabriquait une
+    question attribuee a l'utilisateur (« Vous avez pose : Pourquoi le
+    ciel est-il bleu ? »). Deux garde-fous : plus de marqueurs de
+    tournure dans la brique, et zero LLM sur un accuse de reception nu.
+
+    La portee du second garde-fou est MESUREE et volontairement etroite :
+    les salutations restent au 1B (il les traite bien), et deux tests
+    existants les utilisent comme question temoin.
+    """
+
+    FABRICATION = ("R: Quel est le taux de change du euro a la date "
+                   "limite precedente ?")
+
+    def test_bribe_ok_ne_touche_pas_le_llm(self, monkeypatch):
+        # le LLM est piege : s'il est appele, il rend la fabrication
+        monkeypatch.setattr(llama_cerveau, "generer",
+                            lambda *a, **k: self.FABRICATION)
+        r = orch.RontoGPT().executer_detaille("ok")
+        assert r["cerveau_choisi"] == "constante"
+        assert r["reponse"] == orch._BRIBE
+        assert "R:" not in r["reponse"]
+
+    def test_bribes_reconnues(self):
+        for q in ("ok", "Ok !", "merci", "Merci beaucoup", "d'accord",
+                  "super", "lol", "oui", "non", "exactement"):
+            assert orch._est_bribe(q) is True, q
+
+    def test_salutations_non_interceptees(self):
+        # Mesure : avec la brique corrigee le 1B repond tres bien a une
+        # salutation (« Bonjour ! Comment puis-je vous aider ? ») — les
+        # intercepter degraderait la reponse. Et « bonjour » sert de
+        # question temoin dans test_aura / test_jev.
+        for q in ("bonjour", "salut", "coucou", "bonjour !", "ca va"):
+            assert orch._est_bribe(q) is False, q
+
+    def test_vraies_demandes_pas_des_bribes(self):
+        for q in ("bonjour, comment vas-tu",
+                  "Explique pourquoi le ciel est bleu",
+                  "ok mais explique moi la photosynthese",
+                  "combien font 17 x 23 ?",
+                  "Quel est le plus grand mammifere du monde ?"):
+            assert orch._est_bribe(q) is False, q
+
+    def test_recopie_exacte_executee_sans_le_modele(self):
+        # le 1B « corrigeait » la consigne : « je teste RontoGPT » -> « Je
+        # tests RontoGPT. » ; une consigne de recopie se rend telle quelle
+        assert orch._recopie("Ecris exactement le mot BANANE.") == "BANANE"
+        assert orch._recopie("Ecris la phrase : je teste RontoGPT.") == \
+            "je teste RontoGPT"
+
+    def test_recopie_refuse_les_formes_libres(self):
+        # pas de faux positif sur une vraie demande de redaction
+        assert orch._recopie("Ecris la phrase correcte en anglais") is None
+        assert orch._recopie("Ecris un poeme sur la mer") is None
+        assert orch._recopie("Redige une analyse du solaire") is None
+
+    def test_brique_fewshot_sans_marqueurs_de_tournure(self):
+        from aura import agents
+        for cle in ("general", "web", "math"):
+            brique = agents.exemple_style("question", categorie=cle)
+            assert brique
+            assert "Q:" not in brique, cle
+            assert "R:" not in brique, cle
+            assert "recopier" in brique, cle
+
+
+class TestRedactionSansContexteCopiable:
+    """Le 1B RECOPIE le prompt au lieu de rediger -> prompt minimal.
+
+    Defaut mesure au banc maison (11 oct. 2026, categorie « riche ») : 6
+    questions sur 10 rendaient un ECHO du prompt systeme, identique d'une
+    question a l'autre (911 car : bloc LEXIQUE, consignes d'outil,
+    « [RontoGPT] Reflexion interrompue ») au lieu d'une redaction. Cause : sur
+    une demande de developpement, le prompt complet — exemples de style +
+    lexique de concepts + annonces d'outil — n'est que du texte A RECOPIER.
+    Meme remede que l'AUTO-THINK des puzzles (cf. _SYSTEME_RAISONNEMENT).
+
+    Contre-mesure mesuree : les 2 memes questions avec un prompt minimal
+    rendent 1 423 et 1 412 car de redaction SUR LE SUJET.
+    """
+
+    #: Les 10 questions « riche » du banc, mot pour mot — si le detecteur
+    #: en rate une, la question repart en echo et le banc reperd un point.
+    RICHES = (
+        "Redige une analyse comparee du solaire et de l'eolien en France, "
+        "avec les avantages et les limites de chaque filiere",
+        "La puissance de la technologie est-elle une menace pour l'homme "
+        "moderne ? Redige une dissertation structuree.",
+        "Explique pourquoi la lecture est importante pour la liberte de "
+        "penser, en trois parties",
+        "Analyse les avantages et les inconvenients du teletravail pour les "
+        "entreprises et les salaries",
+        "Compare la democratie athenienne et la democratie moderne",
+        "La liberte peut-elle exister sans contrainte ? Redige une "
+        "dissertation",
+        "Analyse le role de l'art dans la societe contemporaine",
+        "Compare l'intelligence artificielle et l'intelligence humaine sur "
+        "le plan de la creativite",
+        "Explique pourquoi les oceans sont essentiels a l'equilibre "
+        "climatique",
+        "Redige une dissertation structuree sur l'utilite du doute dans la "
+        "demarche scientifique",
+    )
+
+    def test_les_10_questions_du_banc_sont_des_redactions(self):
+        for q in self.RICHES:
+            assert orch._est_redaction(q), q
+
+    def test_formes_accentuees_reconnues(self):
+        """La GUI ecrit accentue, le banc non : les deux doivent passer."""
+        for q in ("Rédige une dissertation", "Analyse le rôle de l'art",
+                  "Compare la démocratie et la monarchie",
+                  "Explique pourquoi X", "Développe ce point",
+                  "Écris une argumentation structurée"):
+            assert orch._est_redaction(q), q
+
+    def test_pas_de_faux_positif_sur_un_lookup(self):
+        """« explique » SEUL reste un lookup : seuls les LOOKUPS sont cites.
+
+        « Explique la photosynthese » demande un fait developpe mais
+        verifiable : le passer en redaction libre ferait perdre l'ancrage.
+        """
+        for q in ("Qu'est-ce que la photosynthese ?",
+                  "Explique la photosynthese",
+                  "Quel est le carre de 13 ?",
+                  "Combien font 17 x 23 ?",
+                  "Ecris exactement le mot banane",
+                  "Quelle est la capitale de la France ?"):
+            assert not orch._est_redaction(q), q
+
+    def test_redaction_recoit_un_prompt_sans_rien_a_recopier(self, monkeypatch):
+        """Le systeme envoye ne porte NI brique de style, NI consigne d'outil."""
+        from aura import agents, filtre_instantane, memoire_web
+        monkeypatch.setattr(filtre_instantane, "repondre", lambda q: None)
+        monkeypatch.setattr(filtre_instantane, "enregistrer", lambda q, r: None)
+        monkeypatch.setattr(memoire_web, "chercher", lambda q, **k: "")
+        monkeypatch.setattr(agents, "compresser", lambda t, q, **k: t)
+        monkeypatch.setattr(agents, "en_triplets", lambda t, q: t)
+        monkeypatch.setattr(agents, "planifier", lambda q: "")
+        monkeypatch.setattr(agents, "exemple_style",
+                            lambda *a, **k: "EXEMPLE DE STYLE A RECOPIER")
+        vus = []
+
+        def faux_generer(question, contexte_web="", formule="", **k):
+            vus.append(k.get("systeme") or "")
+            return "Redaction de test"
+
+        monkeypatch.setattr(orch.llama_cerveau, "generer", faux_generer)
+        ia = orch.RontoGPT()
+        ia.executer_detaille(self.RICHES[3])
+        assert vus, "une redaction doit passer par le cerveau"
+        systeme = vus[-1]
+        assert "EXEMPLE DE STYLE" not in systeme, systeme[:200]
+        assert "cherche dans l'historique" not in systeme, systeme[:200]
+        assert "lis le fichier" not in systeme, systeme[:200]
+        assert "LEXIQUE" not in systeme, systeme[:200]
+        assert systeme == orch._SYSTEME_REDACTION
+
+    def test_question_ordinaire_garde_le_prompt_complet(self, monkeypatch):
+        """Non-regression : hors redaction, rien ne change.
+
+        Un fait ordinaire garde l'etat utilisateur et les annonces d'outil
+        (c'est ce qui rend « cherche dans l'historique » utilisable).
+        """
+        vus = []
+        monkeypatch.setattr(
+            orch.llama_cerveau, "generer",
+            lambda *a, **k: vus.append(k.get("systeme")) or "ok")
+        ia = orch.RontoGPT()
+        ia._generer("Quelle est la capitale de l'Australie ?", "", "")
+        assert vus and "cherche dans l'historique" in (vus[-1] or "")

@@ -1,6 +1,6 @@
 ---
 name: 🎯 Wrong or unverified answer
-about: Aura answered something incorrect or overconfident — the most valuable report for this project
+about: RontoGPT answered something incorrect or overconfident — the most valuable report for this project
 title: "[wrong answer] "
 labels: bug, wrong-answer
 assignees: ""
@@ -11,7 +11,7 @@ assignees: ""
 # exact question
 ```
 
-**What Aura answered**
+**What RontoGPT answered**
 ```
 # exact answer
 ```
@@ -29,7 +29,7 @@ contestable, explain both sides.
 **Environment**
 - OS / Python:
 - GGUF downloaded: [yes / no]
-- Question asked via: [python -m aura / Aura.exe / .aef kernel / chat]
+- Question asked via: [python -m aura / RontoGPT.exe / .aef kernel / chat]
 
 **Additional context**
 Did you try rephrasing? Did a similar question work? Everything helps.

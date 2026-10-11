@@ -1,13 +1,14 @@
-"""Benchmark comparatif : Aura (hybride) vs LLM seul vs concurrent HF.
+"""Benchmark comparatif : RontoGPT (hybride) vs LLM seul vs concurrent HF.
 
-But : repondre a la question "Aura est-il aussi puissant qu'un modele plus
+But : repondre a la question "RontoGPT est-il aussi puissant qu'un modele plus
 gros ?" avec un POURCENTAGE chiffre, sur les memes questions fermees posees
 a chaque modele, dans les memes conditions (temp 0, reponse courte).
 
 Bras :
   aura : le pipeline complet (orchestrateur + experts deterministes)
   llama: Llama 3.2 1B Q4_K_M seul, meme moteur llama.cpp, meme machine
-  qwen : Qwen 2.5 1.5B Instruct (via Ollama local, base r1-u300-lite)
+  qwen : compatibilite avec le bras Ollama historique r1-u300-lite
+  ollama: n'importe quel modele installe localement dans Ollama
 
 Dataset : 28 questions fermes a reponse courte verifiable (math, langue,
 logique, savoir, francais-typo) + 1 epreuve d'ecriture notee a part.
@@ -16,6 +17,7 @@ Usage :
   uv run python scripts/benchmark_comparatif.py --bras aura
   uv run python scripts/benchmark_comparatif.py --bras llama
   uv run python scripts/benchmark_comparatif.py --bras qwen
+  uv run python scripts/benchmark_comparatif.py --bras ollama --modele-ollama qwen3.5:8b
   uv run python scripts/benchmark_comparatif.py --rapport bench_comparatif.json
 """
 from __future__ import annotations
@@ -154,12 +156,12 @@ def note_ecriture(texte: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Bras 1 : Aura complet (pipeline local)
+# Bras 1 : RontoGPT complet (pipeline local)
 # ---------------------------------------------------------------------------
 
 def bras_aura() -> tuple:
     from aura import filtre_instantane as fi
-    from aura.orchestrateur import Aura1B
+    from aura.orchestrateur import RontoGPT
     from aura.memoire_conversation import MemoireConversation
 
     # demarrage A FROID : cache de reponses vierge (les LLM concurrents
@@ -169,14 +171,14 @@ def bras_aura() -> tuple:
     fi._vectoriseur = None
     fi._matrice = None
     fi._entrees = []
-    ia = Aura1B()
+    ia = RontoGPT()
     ia._historique = MemoireConversation(chemin=Path(tmp) / "bench.jsonl")
     ia.reinitialiser_conversation()
     return ia.executer, ia.reinitialiser_conversation
 
 
 # ---------------------------------------------------------------------------
-# Bras 2 : Llama 1B seul (meme moteur, aucun expert Aura)
+# Bras 2 : Llama 1B seul (meme moteur, aucun expert RontoGPT)
 # ---------------------------------------------------------------------------
 
 def bras_llama_seul() -> tuple:
@@ -204,7 +206,7 @@ def bras_llama_seul() -> tuple:
 # Bras 3 : concurrent Qwen 2.5 1.5B via Ollama local
 # ---------------------------------------------------------------------------
 
-def bras_qwen_ollama(modele: str = "r1-u300-lite:latest") -> tuple:
+def bras_ollama(modele: str) -> tuple:
     import requests
 
     url = "http://localhost:11434/api/chat"
@@ -282,7 +284,10 @@ def resume(bres: dict) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--bras", default="aura",
-                    help="aura, llama, qwen (separes par des virgules)")
+                    help="aura, llama, qwen, ollama (separes par des virgules)")
+    ap.add_argument("--modele-ollama", default=None,
+                    help="identifiant local Ollama (ex. qwen3.5:8b); "
+                         "bras qwen : defaut historique r1-u300-lite:latest")
     ap.add_argument("--rapport", default=None)
     args = ap.parse_args()
 
@@ -304,7 +309,14 @@ def main() -> None:
         elif nom == "llama":
             exe, rei = bras_llama_seul()
         elif nom == "qwen":
-            exe, rei = bras_qwen_ollama()
+            modele = args.modele_ollama or "r1-u300-lite:latest"
+            exe, rei = bras_ollama(modele)
+            rap.setdefault("metadata", {})["modele_qwen_ollama"] = modele
+        elif nom == "ollama":
+            if not args.modele_ollama:
+                raise SystemExit("--modele-ollama est requis avec --bras ollama")
+            exe, rei = bras_ollama(args.modele_ollama)
+            rap.setdefault("metadata", {})["modele_ollama"] = args.modele_ollama
         else:
             raise SystemExit(f"bras inconnu : {nom}")
         bres = passer_questions(exe, rei, epreuve_ecriture=True)
@@ -322,7 +334,7 @@ def main() -> None:
     if "aura" in rap["bras"]:
         a = rap["bras"]["aura"]
         print("\n=== VERDICT ===", flush=True)
-        for autre in ("llama", "qwen"):
+        for autre in ("llama", "qwen", "ollama"):
             if autre not in rap["bras"]:
                 continue
             b = rap["bras"][autre]

@@ -39,6 +39,76 @@ class TestConjugaison:
         assert moteur.get_conjugation("être", "subjonctif;;", "je") is None
 
 
+class TestRenduConjugaison:
+    """Le RENDU (`repondre`), pas seulement la table.
+
+    Angles morts reels : les tests ne couvraient que `get_conjugation` et
+    `conjuguer_table` — les tables. Le rendu, lui, ecrivait
+    `f"je {table['je']}"` sans elision, donc « conjugue avoir au futur »
+    repondait « je aurai ». La table etait juste ; la phrase etait fausse ;
+    et rien ne le voyait, parce que le banc ne pose aucune question de
+    conjugaison (0/100).
+    """
+
+    def test_elision_devant_voyelle(self, moteur):
+        r = moteur.repondre("conjugue avoir au futur")
+        assert "j'aurai" in r, r
+        assert "je aurai" not in r, r
+
+    @pytest.mark.parametrize("question,attendu", [
+        ("conjugue aimer au present", "j'aime"),
+        ("conjugue ecouter au present", "j'écoute"),
+    ])
+    def test_elision_verbes_en_voyelle(self, moteur, question, attendu):
+        assert attendu in moteur.repondre(question)
+
+    @pytest.mark.parametrize("question,attendu", [
+        ("conjugue etre au futur", "je serai"),
+        ("conjugue aller au present", "je vais"),
+        ("conjugue parler au present", "je parle"),
+    ])
+    def test_pas_d_elision_devant_consonne(self, moteur, question, attendu):
+        r = moteur.repondre(question)
+        assert attendu in r, r
+        assert "j'" not in r, r
+
+    def test_les_six_personnes_sont_rendues(self, moteur):
+        r = moteur.repondre("conjugue parler au present")
+        for forme in ("je parle", "tu parles", "il/elle parle",
+                      "nous parlons", "vous parlez", "ils/elles parlent"):
+            assert forme in r, (forme, r)
+
+    def test_table_absente_ne_plante_pas(self, moteur):
+        assert moteur.repondre("conjugue zxqv au present") is None
+
+
+class TestCapaciteNonTesteeParLeBanc:
+    """fast-lang est DECLARE au registre : sa couverture doit etre reelle.
+
+    Le banc 100 mesure 0 question servie par ce tier — non parce qu'il est
+    mort (il repond en < 0,2 ms), mais parce que le banc ne pose aucune
+    question de langue. Une capacite que rien ne teste est une capacite qui
+    casse en silence : c'est exactement ce qui etait arrive a l'elision.
+    """
+
+    def test_declare_au_registre_et_branche(self):
+        from aura import registre_experts as R
+        assert "fast-lang" in R.noms()
+        assert R.expert("fast-lang").genre == R.EXACT
+
+    def test_le_banc_naucune_question_de_conjugaison(self):
+        import sys
+        from pathlib import Path
+        racine = Path(__file__).resolve().parent.parent
+        for dossier in (racine, racine / "scripts"):
+            if str(dossier) not in sys.path:
+                sys.path.insert(0, str(dossier))
+        import banc_100 as B
+        assert not [q for q in B.QUESTIONS if "conjugu" in q[2].lower()], (
+            "si le banc se met a couvrir la conjugaison, ce test doit etre "
+            "remplace par la mesure de la couverture de fast-lang")
+
+
 class TestDefinition:
     def test_exacte(self, moteur):
         d = moteur.get_definition("photosynthèse")

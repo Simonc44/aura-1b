@@ -1,4 +1,4 @@
-"""Benchmark head-to-head : Llama 3.2 1B (Aura) vs Qwen 2.5 1.5B (Ollama).
+"""Benchmark head-to-head : Llama 3.2 1B (RontoGPT) vs Qwen 2.5 1.5B (Ollama).
 
 Memes questions, memes regles (temp 0.1, 150 tokens max), reponses verifiables.
 Usage : python scripts/compare_qwen.py   (necessite qwen2.5:1.5b dans Ollama)
@@ -48,7 +48,7 @@ def demander_llama(llm: Llama, question: str, max_tokens: int = 150):
 
 def main() -> None:
     print("=" * 74)
-    print(" HEAD-TO-HEAD : Llama 3.2 1B (Aura) vs Qwen 2.5 1.5B (Ollama)")
+    print(" HEAD-TO-HEAD : Llama 3.2 1B (RontoGPT) vs Qwen 2.5 1.5B (Ollama)")
     print("=" * 74)
 
     scores = {"llama": 0, "qwen": 0}

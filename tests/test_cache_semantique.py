@@ -40,8 +40,8 @@ class TestRepliTfidf:
         monkeypatch.setenv("AURA_MINILM", "0")
         f0.enregistrer("Qui a ecrit Les Miserables ?", "Victor Hugo.")
         assert f0._vecteurs is None          # index coupe
-        assert f0.repondre("Qui a ecrit Les Miserables ?") == "Victor Hugo."
-        assert f0.repondre("Explique la photosynthese") is None
+        assert f0.repondre_cache("Qui a ecrit Les Miserables ?") == "Victor Hugo."
+        assert f0.repondre_cache("Explique la photosynthese") is None
 
     def test_sans_modele_rien_ne_casse(self, monkeypatch, tmp_path):
         # MiniLM absent (encoder -> None) : comportement historique exact
@@ -50,7 +50,7 @@ class TestRepliTfidf:
         monkeypatch.setattr(embeddings, "encoder1", lambda texte: None)
         f0.enregistrer("Qui a ecrit Les Miserables ?", "Victor Hugo.")
         assert f0._vecteurs is None
-        assert f0.repondre("Qui a ecrit Les Miserables ?") == "Victor Hugo."
+        assert f0.repondre_cache("Qui a ecrit Les Miserables ?") == "Victor Hugo."
 
 
 @_moder
@@ -75,14 +75,14 @@ class TestIndexSemantique:
         fichier = _isole(monkeypatch, tmp_path)
         f0.enregistrer(_Q_LONGUE, "Je parle.")
         # 1) le vecteur trouve la reformulation
-        assert f0.repondre(_Q_COURTE) == "Je parle."
+        assert f0.repondre_cache(_Q_COURTE) == "Je parle."
 
         # 2) preuve que le TF-IDF seul ne l'aurait PAS trouvee
         monkeypatch.setenv("AURA_MINILM", "0")
         for attr in ("_vectoriseur", "_matrice", "_entrees", "_vecteurs"):
             monkeypatch.setattr(f0, attr, None if attr != "_entrees" else [])
         f0._charger_cache()
-        assert f0.repondre(_Q_COURTE) is None
+        assert f0.repondre_cache(_Q_COURTE) is None
 
     def test_garde_fou_verbe_different(self, monkeypatch, tmp_path):
         # cosinus MiniLM ~0.72 (au-dessus du seuil) mais « pouvoir » est
@@ -90,7 +90,7 @@ class TestIndexSemantique:
         # conjugaisons croisees)
         _isole(monkeypatch, tmp_path)
         f0.enregistrer(_Q_LONGUE, "Je parle.")
-        assert f0.repondre("conjugue pouvoir au present") is None
+        assert f0.repondre_cache("conjugue pouvoir au present") is None
 
     def test_purger_remet_l_index_a_plat(self, monkeypatch, tmp_path):
         fichier = _isole(monkeypatch, tmp_path)

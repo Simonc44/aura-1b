@@ -117,7 +117,7 @@ class TestInjectionPrompt:
     def _ia_capture(tmp_path, monkeypatch):
         from aura import orchestrateur as orch
         from aura.memoire_conversation import MemoireConversation
-        ia = orch.Aura1B()
+        ia = orch.RontoGPT()
         ia._historique = MemoireConversation(chemin=tmp_path / "conv.jsonl")
         captures = []
         ia._llama = lambda q, *a, **k: captures.append(k) or "ok"

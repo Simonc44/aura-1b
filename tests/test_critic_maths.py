@@ -7,7 +7,7 @@ Les deux corrections des bugs trouvés en test à froid :
 import pytest
 
 from aura import filtre_instantane
-from aura.orchestrateur import Aura1B
+from aura.orchestrateur import RontoGPT
 
 
 class TestMathsComposees:
@@ -43,6 +43,31 @@ class TestMathsComposees:
         assert f("raconte moi une blague") is None
         assert f("plus belle la vie") is None
 
+    def test_fraction_dans_une_phrase_n_est_pas_un_calcul(self):
+        """Bug mesure au banc GSM8K (10 oct. 2026).
+
+        La regle « expression brute » cherchait n'importe ou dans la phrase :
+        le « 3/4 » de « 3/4 of the building is occupied » etait evalue et
+        servi comme un resultat exact (0,75), en 0,02 s, sans generation.
+        7 cas sur 100 au banc, tous faux (cf. ARCHITECTURE.md 3sexies).
+        """
+        f = filtre_instantane._calcul_direct
+        assert f("I paid 3/4 of the price yesterday.") is None
+        assert f("Each floor contains 8 units, and 3/4 of the building "
+                 "is occupied.") is None
+        assert f("The recipe needs 1/2 cup of sugar and 2 eggs.") is None
+
+    def test_expression_nue_reste_calculee(self):
+        """La garde ne doit PAS casser le calcul sans verbe.
+
+        C'est le seul cas que la regle « expression brute » sert encore :
+        les formes dictees partent plus haut, dans _expression_en_mots.
+        """
+        f = filtre_instantane._calcul_direct
+        assert f("2+2") == "4"
+        assert f("combien font 2+2 ?") == "4"
+        assert f("12 * 4") == "48"
+
     def test_un_seul_nombre_rejete(self):
         assert filtre_instantane._calcul_direct(
             "combien fait 42") is None
@@ -54,29 +79,29 @@ class TestMathsComposees:
 
 class TestVerificationCritic:
     def test_factuel_sans_web_declenche(self):
-        assert Aura1B._a_besoin_verification(
+        assert RontoGPT._a_besoin_verification(
             "capitale de l australie", "", "Canberra.")
 
     def test_deja_gelee_pas_de_verif(self):
-        assert not Aura1B._a_besoin_verification(
+        assert not RontoGPT._a_besoin_verification(
             "capitale de l australie", "Titre : x | Extrait : y", "Canberra.")
 
     def test_riche_pas_de_verif(self):
-        assert not Aura1B._a_besoin_verification(
+        assert not RontoGPT._a_besoin_verification(
             "explique pourquoi le ciel est bleu", "", "x" * 500)
 
     def test_contextuelle_pas_de_verif(self):
-        assert not Aura1B._a_besoin_verification(
+        assert not RontoGPT._a_besoin_verification(
             "comment je m appelle", "", "Tu es Simon.")
 
     def test_non_factuel_pas_de_verif(self):
-        assert not Aura1B._a_besoin_verification(
+        assert not RontoGPT._a_besoin_verification(
             "raconte moi une histoire", "", "Il était une fois...")
 
     def test_reponse_conservee_si_web_vide(self, monkeypatch):
         from aura import memoire_web
         monkeypatch.setattr(memoire_web, "chercher", lambda *a, **k: "")
-        assert Aura1B._verifier_au_web("q", "rep") == "rep"
+        assert RontoGPT._verifier_au_web("q", "rep") == "rep"
 
     def test_reponse_conservee_si_web_echoue(self, monkeypatch):
         from aura import memoire_web
@@ -85,7 +110,7 @@ class TestVerificationCritic:
             raise RuntimeError("off")
 
         monkeypatch.setattr(memoire_web, "chercher", _boom)
-        assert Aura1B._verifier_au_web("q", "rep") == "rep"
+        assert RontoGPT._verifier_au_web("q", "rep") == "rep"
 
     def test_revision_si_contredite(self, monkeypatch):
         """Le web contredit le 1B -> la réponse est ré-ancrée."""
@@ -94,12 +119,12 @@ class TestVerificationCritic:
                             lambda *a, **k: "Canberra est la capitale")
         monkeypatch.setattr(llama_cerveau, "generer",
                             lambda *a, **k: "Canberra.")
-        assert Aura1B._verifier_au_web("capitale de l australie",
+        assert RontoGPT._verifier_au_web("capitale de l australie",
                                        "Sydney.") == "Canberra."
 
     def test_desactivable(self, monkeypatch):
         monkeypatch.setenv("AURA_VERIF_WEB", "0")
-        assert not Aura1B._a_besoin_verification(
+        assert not RontoGPT._a_besoin_verification(
             "capitale de l australie", "", "Canberra.")
 
     def test_reconsolidation_cache(self, monkeypatch, tmp_path):
@@ -117,11 +142,13 @@ class TestVerificationCritic:
                                       "L'Australie a pour capitale Sydney.")
         # l'écriture est refusée en doublon : le cache garde le faux...
         filtre_instantane.enregistrer("capitale de l australie", "Canberra.")
-        assert filtre_instantane.repondre("capitale de l australie") != "Canberra."
+        assert filtre_instantane.repondre_cache(
+            "capitale de l australie") != "Canberra."
         # ...sauf via la reconsolidation
         assert filtre_instantane.mettre_a_jour("capitale de l australie",
                                                "Canberra.")
-        assert filtre_instantane.repondre("capitale de l australie") == "Canberra."
+        assert filtre_instantane.repondre_cache(
+            "capitale de l australie") == "Canberra."
 
     def test_integration_pipeline_critic(self, monkeypatch):
         """Pipeline complet : factuel LLM faux -> révisé par la preuve web."""
@@ -135,9 +162,9 @@ class TestVerificationCritic:
         monkeypatch.setattr(llama_cerveau, "generer",
                             lambda q, contexte_web="", formule="",
                             max_tokens=None, historique=None, systeme=None,
-                            contexte_faits="", categorie="", complexe=False:
+                            contexte_faits="", categorie="":
                             ("Canberra." if contexte_web else "Sydney."))
-        ia = Aura1B()
+        ia = RontoGPT()
         monkeypatch.setattr(
             ia, "analyser",
             lambda q: {"experts": {"general"}, "prediction": "general",

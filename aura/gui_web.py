@@ -1,8 +1,8 @@
-"""Interface Aura basée sur pywebview : le rendu (fenêtre macOS, bulles de
+"""Interface RontoGPT basée sur pywebview : le rendu (fenêtre macOS, bulles de
 chat, panneau Aperçu) est fait entièrement en HTML/CSS/JS (voir web/index.html,
 repris de ta maquette). Ce fichier Python ne fait plus que :
 
-  - charger le cerveau Aura1B en tâche de fond (comme avant),
+  - charger le cerveau RontoGPT en tâche de fond (comme avant),
   - exposer une petite API JS <-> Python via pywebview (classe Api),
   - piloter la fenêtre (déplacement, réduction, agrandissement, fermeture),
     puisque la fenêtre est "frameless" : la barre de titre custom est en HTML,
@@ -84,11 +84,11 @@ class Api:
     Chaque méthode publique (sans _ devant) est appelable depuis le JS via
     `pywebview.api.nom_methode(args)` et renvoie une Promise côté JS.
     pywebview exécute chaque appel dans son propre thread : un appel bloquant
-    (le temps qu'Aura réfléchisse) ne fige donc pas la fenêtre.
+    (le temps qu'RontoGPT réfléchisse) ne fige donc pas la fenêtre.
     """
 
     def __init__(self) -> None:
-        self._ia: Any = None          # Aura1B charge en tache de fond
+        self._ia: Any = None          # RontoGPT charge en tache de fond
         self._fenetre: "webview.Window | None" = None
 
     # ---------------- cycle de vie de la fenêtre (barre custom) ----------------
@@ -134,9 +134,9 @@ class Api:
         except Exception:              # jamais bloquant
             pass
         try:
-            from aura.orchestrateur import Aura1B
+            from aura.orchestrateur import RontoGPT
 
-            ia = Aura1B()
+            ia = RontoGPT()
             try:  # pré-charge la réponse de démarrage, cache froid absorbé
                 ia.executer_detaille("Bonjour")
             except Exception:  # noqa: BLE001
@@ -177,9 +177,15 @@ class Api:
         # mesure au lieu d'attendre la fin. Desabonnement garanti (finally).
         desabonner = None
         try:
-            from aura.llama_cerveau import abonner_flux
-            desabonner = abonner_flux(
-                lambda morceau: self._pousser("morceau", {"texte": morceau}))
+            # LES DEUX PHASES : la reflexion et la reponse arrivent
+            # separement, chacune avec sa `phase`. Le JS les met dans deux
+            # bulles — sans quoi la pensee du modele et sa reponse
+            # s'ecriraient dans le meme fil et l'utilisateur ne saurait plus
+            # laquelle est sa reponse.
+            from aura.llama_cerveau import abonner_flux_phase
+            desabonner = abonner_flux_phase(
+                lambda morceau, phase: self._pousser(
+                    "morceau", {"texte": morceau, "phase": phase}))
         except Exception:  # noqa: BLE001   # jamais bloquant
             desabonner = None
         try:
@@ -190,6 +196,11 @@ class Api:
                 "experts": sorted(r.get("experts") or set()),
                 "cerveau": str(r.get("cerveau_choisi", "-")),
                 "latence": round(time.time() - t0, 1),
+                # Relance : « reponse » est une QUESTION (question trop
+                # ouverte) — le front peut le signaler au lieu d'afficher
+                # une reponse qui n'en est pas une.
+                "en_attente": bool(r.get("en_attente")),
+                "clarification": r.get("clarification"),
             }
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "erreur": str(e)}
@@ -232,7 +243,7 @@ def main(argv=None) -> int:
 
     api = Api()
     fenetre = webview.create_window(
-        "Aura",
+        "RontoGPT",
         url=str(_INDEX_HTML),
         js_api=api,
         width=980,

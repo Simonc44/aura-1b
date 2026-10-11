@@ -1,10 +1,10 @@
-"""Personnalites d'Aura (portable, sans dependance au paquet aura).
+"""Personnalites d'RontoGPT (portable, sans dependance au paquet aura).
 
-Ce module est le point d'entree des scripts Colab (entrainer_adaptateur.py) :
-il doit pouvoir etre copie SEUL sur Colab. Les prompts sont IDENTIQUES a
-aura/agents.py (_PERSONNALITES) : l'adaptateur apprend dans les memes
-conditions que l'inference locale d'Aura. Si les deux divergent un jour,
-corriger ICI et dans agents.py en meme temps.
+Reference portable des prompts par categorie. Le notebook Colab
+(`scripts/colab_lora_gemma.ipynb`) en embarque desormais sa PROPRE copie pour
+etre autonome : l'entrainement LoRA ne depend plus d'un .py du depot. Les
+prompts sont IDENTIQUES a aura/agents.py (_PERSONNALITES) et a la copie du
+notebook : si l'un des trois change, corriger les trois en meme temps.
 """
 
 PROMPT_PAR_CATEGORIE = {

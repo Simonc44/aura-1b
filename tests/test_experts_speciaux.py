@@ -6,7 +6,7 @@ nombres et le code.
 import pytest
 
 from aura import logique, potcode
-from aura.orchestrateur import Aura1B
+from aura.orchestrateur import RontoGPT
 
 
 # ── 1. Solveur logique (backtracking pur Python) ────────────────────────
@@ -96,7 +96,7 @@ class TestLogique:
             return "Paul est chevalier et Marie est menteur."
 
         monkeypatch.setattr(llama_cerveau, "generer", faux_generer)
-        rep = Aura1B()._resoudre_par_logique("enigme quelconque")
+        rep = RontoGPT()._resoudre_par_logique("enigme quelconque")
         assert rep == "Paul est chevalier et Marie est menteur."
         # majorite : 3 formalisations votees (identiques ici -> 3/3) +
         # 1 synthese ancree par la verification du solveur
@@ -173,42 +173,42 @@ class TestPotCode:
             return "generique"
 
         monkeypatch.setattr(llama_cerveau, "generer", faux_generer)
-        rep = Aura1B()._resoudre_par_code("ecris une fonction de tri")
+        rep = RontoGPT()._resoudre_par_code("ecris une fonction de tri")
         assert "```python" in rep and "3 asserts" in rep
 
     def test_code_casse_replie_a_none(self, monkeypatch):
         from aura import llama_cerveau
         monkeypatch.setattr(llama_cerveau, "generer",
                             lambda q, **kw: "```python\ndef resoudre(d):\n    return 1/0\nassert resoudre([]) == 0\n```")
-        assert Aura1B()._resoudre_par_code("du code") is None
+        assert RontoGPT()._resoudre_par_code("du code") is None
 
 
 # ── 3. Routage des experts speciaux ─────────────────────────────────────
 
 class TestRoutageSpeciaux:
     def test_enigme_route_vers_logique(self, monkeypatch):
-        monkeypatch.setattr(Aura1B, "_resoudre_par_logique",
+        monkeypatch.setattr(RontoGPT, "_resoudre_par_logique",
                             lambda self, q, t0=None: "solution logique")
-        r = Aura1B()._expert_special(
+        r = RontoGPT()._expert_special(
             "Deux chevaliers et un menteur : qui dit la verite ?", None, None)
         assert r["cerveau_choisi"] == "logique-1b+sat"
 
     def test_code_route_vers_sandbox(self, monkeypatch):
-        monkeypatch.setattr(Aura1B, "_resoudre_par_code",
+        monkeypatch.setattr(RontoGPT, "_resoudre_par_code",
                             lambda self, q, mode_auto=False:
                             "def resoudre(): pass")
-        r = Aura1B()._expert_special(
+        r = RontoGPT()._expert_special(
             "ecris une fonction python qui trie une liste", None, None)
         assert r["cerveau_choisi"] == "potcode-1b+sandbox"
 
     def test_donnees_numeriques_passent_avant(self, monkeypatch):
         appels = []
-        monkeypatch.setattr(Aura1B, "_resoudre_par_logique",
+        monkeypatch.setattr(RontoGPT, "_resoudre_par_logique",
                             lambda self, q, t0=None: appels.append(1) or None)
-        assert Aura1B()._expert_special(
+        assert RontoGPT()._expert_special(
             "enigme de logique quelconque", [[1.0], [2.0]], [1.0, 4.0]) is None
         assert not appels
 
     def test_question_normale_ne_declenche_rien(self):
-        assert Aura1B()._expert_special(
+        assert RontoGPT()._expert_special(
             "capitale de l australie", None, None) is None

@@ -1,22 +1,21 @@
 """Tests anti-hallucination : identite, definitions ancrees, filet final."""
 from aura import orchestrateur
-from aura.orchestrateur import Aura1B, _IDENTITE
+from aura.orchestrateur import RontoGPT, _IDENTITE
 
 
 def _ia(monkeypatch):
-    """Aura sans GGUF ni reseau : la plomberie, pas le contenu."""
+    """RontoGPT sans GGUF ni reseau : la plomberie, pas le contenu."""
     from aura import llama_cerveau, memoire_web, filtre_instantane, rag_binaire
     monkeypatch.setattr(filtre_instantane, "repondre", lambda q: None)
     monkeypatch.setattr(filtre_instantane, "enregistrer", lambda q, r: None)
     monkeypatch.setattr(memoire_web, "chercher", lambda q, **k: "")
-    monkeypatch.setattr(memoire_web, "chercher_enrichi", lambda q, **k: "")
     monkeypatch.setattr(llama_cerveau, "generer",
                         lambda *a, **k: "REponse du cerveau")
     # RAG binaire desactive : ces tests verifient le WEB et le LLM, pas
     # l'index local (sinon une question connue du RAG n'atteint jamais
     # le chemin teste).
     monkeypatch.setattr(rag_binaire, "chercher", lambda q: None)
-    return Aura1B()
+    return RontoGPT()
 
 
 class TestIdentite:
@@ -72,10 +71,8 @@ class TestDefinitionsAncrees:
         from aura import memoire_web
         monkeypatch.setattr(memoire_web, "chercher",
                             lambda q, **k: cherche.append(q) or "fait")
-        # question > 9 mots ou marqueur ouvert -> mode riche ->
-        # chercher_enrichi : il doit AUSSI enregistrer la requete.
-        monkeypatch.setattr(memoire_web, "chercher_enrichi",
-                            lambda q, **k: cherche.append(q) or "fait")
+        # une question longue passe par la MEME recherche : elle doit
+        # enregistrer la requete comme les autres.
         monkeypatch.setattr(orchestrateur.agents, "compresser",
                             lambda t, q, **k: t)
         monkeypatch.setattr(orchestrateur.agents, "en_triplets",

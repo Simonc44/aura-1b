@@ -44,11 +44,17 @@ class TestMixMultiLora:
         assert echelles == {0: 0.7, 1: 0.3, 2: 0.0, 3: 0.0}
 
 
-class TestDynamicCompute:
-    def test_generer_complexe_passe_le_flag(self, monkeypatch):
+class TestAutoThink:
+    def test_generer_think_demande_la_reflexion(self, monkeypatch):
+        """think=True : consigne de reflexion dans le prompt, budget double.
+
+        C'est le filet des puzzles/enigmes, pose par l'orchestrateur. Le
+        mode « complexe » (Dynamic Compute du mode dissertation) a ete
+        supprime : ce test couvre ce qui le remplace et qui reste branche.
+        """
         capturé = {}
 
-        def faux_chat(messages, max_tokens=256):
+        def faux_chat(messages, max_tokens=256, **_k):
             capturé["messages"] = messages
             capturé["budget"] = max_tokens
             return "La reponse."
@@ -57,13 +63,32 @@ class TestDynamicCompute:
         monkeypatch.setattr(serveur_lora, "_actif", (("math", 1.0),))
         monkeypatch.setattr(serveur_lora, "chat", faux_chat)
         from aura import llama_cerveau
-        r = llama_cerveau.generer("pourquoi le ciel est bleu ?",
-                                  complexe=True, categorie="general")
+        # Budget "double" teste SANS le plafond de temps (sinon il le borne).
+        monkeypatch.setenv("AURA_THINK_CAP_S", "0")
+        r = llama_cerveau.generer("pourquoi le ciel est bleu ?", think=True,
+                                  categorie="general")
         assert r == "La reponse."
-        # le prompt de reflexion masquee est present, budget double
         textes = " ".join(m["content"] for m in capturé["messages"])
         assert "<thinking>" in textes
         assert capturé["budget"] >= 400
+
+    def test_sans_think_aucune_consigne(self, monkeypatch):
+        """think absent : le prompt n'est pas pollue par la consigne."""
+        capturé = {}
+
+        def faux_chat(messages, max_tokens=256, **_k):
+            capturé["messages"] = messages
+            capturé["budget"] = max_tokens
+            return "La reponse."
+
+        monkeypatch.setattr(serveur_lora, "_actifs", lambda: True)
+        monkeypatch.setattr(serveur_lora, "_actif", (("math", 1.0),))
+        monkeypatch.setattr(serveur_lora, "chat", faux_chat)
+        from aura import llama_cerveau
+        monkeypatch.setattr(llama_cerveau, "_cerveau_think", lambda _llm: False)
+        llama_cerveau.generer("pourquoi le ciel est bleu ?", categorie="general")
+        textes = " ".join(m["content"] for m in capturé["messages"])
+        assert "<thinking>" not in textes
 
     def test_separer_reflexion_masque_le_brouillon(self):
         from aura.llama_cerveau import separer_reflexion

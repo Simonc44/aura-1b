@@ -12,9 +12,23 @@ class TestCalculDirect:
         ("combien fait 45*12+3", "543"),
         ("racine carree de 144", "12"),
         ("100-25", "75"),
+        # « cube de N » : meme famille que « carre de N », et le motif
+        # manquait — au banc 100, ces 3 questions partaient au LLM (~40 s)
+        # pendant que le carre voisin repondait en 5 ms.
+        ("Quel est le cube de 3 ?", "27"),
+        ("Quel est le cube de 8 ?", "512"),
+        ("Calcule le cube de 5", "125"),
     ])
     def test_calculs_exact(self, question, attendu):
         assert f0.repondre(question) == attendu
+
+    @pytest.mark.parametrize("question", [
+        # « cubique » n'est pas « cube de », et une racine cubique ne doit
+        # PAS etre lue comme un cube.
+        "racine cubique de 27", "raconte moi une histoire de cube",
+    ])
+    def test_cube_ne_deborde_pas(self, question):
+        assert f0.repondre(question) is None
 
     @pytest.mark.parametrize("question", [
         "bonjour", "Qui a ecrit Victor Hugo ?", "", "aaa bbb ccc",
@@ -44,11 +58,14 @@ class TestCacheSemantique:
         monkeypatch.setattr(f0, "_entrees", [])
 
         f0.enregistrer("Qui a ecrit Les Miserables ?", "Victor Hugo.")
-        # question quasi identique -> cache hit
-        r = f0.repondre("Qui a ecrit Les Miserables ?")
+        # question quasi identique -> cache hit (etage FLOU, appele seul :
+        # `repondre` ne fait plus que l'EXACT depuis le 6 oct. 2026)
+        r = f0.repondre_cache("Qui a ecrit Les Miserables ?")
         assert r == "Victor Hugo."
         # question differente -> None
-        assert f0.repondre("Explique la photosynthese") is None
+        assert f0.repondre_cache("Explique la photosynthese") is None
+        # et l'etage exact, lui, ne repond jamais sur du texte non mathematique
+        assert f0.repondre("Qui a ecrit Les Miserables ?") is None
 
     def test_pas_de_doublon(self, monkeypatch, tmp_path):
         monkeypatch.setattr(f0, "_FICHIER", tmp_path / "cache.jsonl")
@@ -66,7 +83,7 @@ class TestCacheSemantique:
         monkeypatch.setattr(f0, "_matrice", None)
         monkeypatch.setattr(f0, "_entrees", [])
 
-        f0.enregistrer("q", "[Aura] Erreur de generation : x")
+        f0.enregistrer("q", "[RontoGPT] Erreur de generation : x")
         assert f0.stats()["entrees_cache"] == 0
 
     @pytest.mark.parametrize("question", [
@@ -84,7 +101,7 @@ class TestCacheSemantique:
         assert f0.stats()["entrees_cache"] == 0
         # la lecture ne touche jamais le cache pour ces questions
         f0.enregistrer("autre question", "reponse neutre")
-        assert f0.repondre(question) is None
+        assert f0.repondre_cache(question) is None
 
     def test_purger_contextuelles(self, monkeypatch, tmp_path):
         monkeypatch.setattr(f0, "_vectoriseur", None)
@@ -102,8 +119,8 @@ class TestCacheSemantique:
 
 class TestPipelineNiveaux:
     def test_niveau0_passe_avant_llm(self):
-        from aura.orchestrateur import Aura1B
-        ia = Aura1B()
+        from aura.orchestrateur import RontoGPT
+        ia = RontoGPT()
         r = ia.executer_detaille("Calcule le carre de 9")
         assert r["cerveau_choisi"] == "niveau0-instantane"
         assert r["reponse"] == "81"

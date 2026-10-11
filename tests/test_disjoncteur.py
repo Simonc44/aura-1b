@@ -1,8 +1,10 @@
 """Disjoncteur anti-repetition + routage meta-IA.
 
 Bug reference (production) : « es tu une ia aussi puissn qu'un 8B ou pluas »
--> mode dissertation lance (>= 9 mots), partie 2 recopiee mot pour mot de
-la partie 1, phrase revenue 3 fois, 153,3 s de generation.
+— question fermee partie en redaction longue, texte recopie mot pour mot,
+phrase revenue 3 fois, 153,3 s de generation. Le mode « dissertation » a
+depuis ete supprime ; le DISJONCTEUR, lui, reste : c'est lui qui empeche
+une boucle de sortir, quel que soit le chemin de generation pris.
 """
 from aura import llama_cerveau as lc
 from aura import orchestrateur as orch
@@ -53,36 +55,28 @@ class TestCoupureEtAntiCopie:
         assert coupe.count("La notion de puissance") == 1
         assert "suite." not in coupe
 
-    def test_sans_copies_retire_la_phrase_reprise(self):
-        precedent = "Partie 1 : " + PHRASE
-        nouveau = "Transition utile. " + PHRASE + " Ensuite une idee neuve."
-        propre = lc._sans_copies(nouveau, precedent)
-        assert "Transition utile." in propre
-        assert "La notion de puissance" not in propre
-        assert "idee neuve" in propre
-
-    def test_sans_copies_ne_vide_jamais_le_texte(self):
-        # tout est copie -> on garde l'original plutot qu'une reponse vide
-        assert lc._sans_copies(PHRASE, PHRASE) == PHRASE
-        assert lc._sans_copies(PHRASE, "") == PHRASE
-
     def test_sans_doublons_deduplique_les_extraits(self):
         extraits = PHRASE + " " + PHRASE + " Un deuxieme extrait utile."
         propre = lc._sans_doublons(extraits)
         assert propre.count("La notion de puissance") == 1
         assert "deuxieme extrait utile" in propre
 
-    def test_resume_sections_court_anti_copie(self):
-        resume = lc._resume_sections([PHRASE + " Suite.", PHRASE])
-        #1re phrase de chaque partie, pas les 900 caracteres bruts
-        assert resume.startswith("- La notion de puissance")
-        assert len(resume) < len(PHRASE) * 2
-        assert resume.count(PHRASE) == 0
+    def test_sans_doublons_garde_le_texte_isole(self):
+        # une seule copie : rien a retirer, le texte sort intact
+        assert lc._sans_doublons("Une phrase unique et suffisamment longue "
+                                "pour depasser le seuil de detection.")
 
 
-# ── generation streamée avec coupure + relance ─────────────────────────
+# ── generation streamée : coupure IMMEDIATE sur boucle ─────────────────
 
 class TestGenerationAntiBoucle:
+    """Le disjoncteur coupe PENDANT le flux, pas apres.
+
+    `_streamer` est le seul point de passage de la generation in-process :
+    y couper la boucle garantit que ni la reponse livree, ni les morceaux
+    deja publies au flux ne partent en repetition.
+    """
+
     class FauxLlmBoucle:
         """Rend une boucle DES LE stream (chaque chunk = la meme phrase)."""
 
@@ -97,26 +91,15 @@ class TestGenerationAntiBoucle:
                     yield {"choices": [{"delta": {"content": PHRASE + " "}}]}
             return flux()
 
-    def test_coupure_immediate_et_relance_unique(self):
+    def test_coupure_des_la_deuxieme_recopie(self):
         llm = self.FauxLlmBoucle()
-        texte = lc._generer_avec_disjoncteur(
+        texte, boucle = lc._streamer(
             llm, [{"role": "user", "content": "q"}], 190,
-            {"temperature": 0.5, "repeat_penalty": 1.1, "stop": ["<|eot_id|>"]})
-        #1re passe coupee sur boucle + UNE relance (penalite/temp differentes)
-        assert llm.appels == 2
-        # jamais de boucle livree
-        assert lc._en_boucle(texte) is False
-        # texte tronque : loin des 6 recopies produites par le faux llm
+            {"temperature": 0.5, "repeat_penalty": 1.1})
+        assert boucle is True            # la boucle est SIGNALEE
+        assert lc._en_boucle(texte) is False   # et jamais livree telle quelle
+        # le flux a ete abandonne bien avant les 6 recopies produites
         assert len(texte) < len(PHRASE) * 3
-
-    def test_relance_avec_penalite_et_temperature_differentes(self):
-        llm = self.FauxLlmBoucle()
-        lc._generer_avec_disjoncteur(
-            llm, [{"role": "user", "content": "q"}], 190,
-            {"temperature": 0.5, "repeat_penalty": 1.1, "stop": ["<|eot_id|>"]})
-        # le faux llm ne capture pas les kwargs : on verifie l'absence
-        # d'erreur et le nombre d'appels (le parametrage est dans le code)
-        assert llm.appels == 2
 
     class FauxLlmSain:
         def __init__(self):
@@ -124,14 +107,27 @@ class TestGenerationAntiBoucle:
 
         def create_chat_completion(self, **kw):
             self.appels += 1
-            return {"choices": [{"message": {"content": "Reponse saine."}}]}
 
-    def test_sans_boucle_un_seul_appel(self):
+            def flux():
+                for mot in ("Reponse ", "saine ", "et complete."):
+                    yield {"choices": [{"delta": {"content": mot}}]}
+            return flux()
+
+    def test_sans_boucle_aucune_coupure(self):
         llm = self.FauxLlmSain()
-        texte = lc._generer_avec_disjoncteur(
-            llm, [{"role": "user", "content": "q"}], 190, {"temperature": 0.5})
-        assert llm.appels == 1
-        assert texte == "Reponse saine."
+        texte, boucle = lc._streamer(
+            llm, [{"role": "user", "content": "q"}], 190,
+            {"temperature": 0.5})
+        assert boucle is False
+        assert texte == "Reponse saine et complete."
+
+    def test_profil_de_relance_plus_punitif(self):
+        """La relance change VRAIMENT les parametres (sinon elle ne sert a rien)."""
+        from aura import echantillonnage as ech
+        normal = ech.pour_inprocess(ech.NORMAL)
+        relance = ech.pour_inprocess(ech.RELANCE)
+        assert relance["repeat_penalty"] > normal["repeat_penalty"]
+        assert relance["temperature"] > normal["temperature"]
 
 
 # ── routage meta-IA (l'anti-mode-dissertation) ─────────────────────────
@@ -151,10 +147,11 @@ class TestRoutageMetaIA:
         assert orch._est_meta_ia(
             "Explique comment la photosynthese fonctionne en detail") is False
 
-    def test_mode_riche_interdit_aux_questions_meta(self):
-        # C'ETAIT LE BUG : >= 9 mots -> riche -> plan + 3 sections (153 s)
+    def test_question_meta_longue_garde_un_budget_court(self):
+        # C'ETAIT LE BUG : >= 9 mots -> redaction longue -> 153 s.
+        # La garde qui reste garantit un BUDGET court a cette question.
         assert len(QUESTION_META.split()) >= 9
-        assert orch.Aura1B._est_complexe(QUESTION_META) is False
+        assert orch.llama_cerveau._max_tokens_adaptatif(QUESTION_META) == 120
 
     def test_reponse_courte_sans_llm(self, monkeypatch):
         # la question meta courte part en constante : 0 s, zero generation
@@ -162,7 +159,7 @@ class TestRoutageMetaIA:
             raise AssertionError("le LLM ne doit pas etre charge")
 
         monkeypatch.setattr(lc, "_charger", _explose)
-        ia = orch.Aura1B()
+        ia = orch.RontoGPT()
         r = ia.executer_detaille(QUESTION_META)
         assert r["cerveau_choisi"] == "constante-capacite"
         assert r["reponse"] == orch._CAPACITE

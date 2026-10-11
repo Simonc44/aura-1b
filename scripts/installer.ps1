@@ -1,5 +1,5 @@
 # =====================================================================
-#  Aura — Installeur Windows
+#  RontoGPT — Installeur Windows
 #  Installe l'IA, ses dependances et la commande `aura` dans PowerShell.
 #
 #  Usage :
@@ -13,7 +13,7 @@
 # =====================================================================
 param(
     [switch]$Silencieux,
-    [string]$Destination = "$env:LOCALAPPDATA\Aura"
+    [string]$Destination = "$env:LOCALAPPDATA\RontoGPT"
 )
 
 $ErrorActionPreference = "Stop"
@@ -21,7 +21,7 @@ $ErrorActionPreference = "Stop"
 $RacineProjet = Split-Path -Parent $PSScriptRoot   # scripts/ -> racine
 
 Write-Host ""
-Write-Host "=== Installeur Aura-1B ===" -ForegroundColor Cyan
+Write-Host "=== Installeur RontoGPT ===" -ForegroundColor Cyan
 Write-Host "Destination : $Destination"
 
 # ---------------------------------------------------------------
@@ -68,7 +68,7 @@ foreach ($e in $elements) {
 }
 
 # Fichiers facultatifs : presents s'ils existent (exe, .aef, .sig, cerveau)
-foreach ($f in @("dist\Aura.exe", "aura_system.aef.enc", "aura_system.aef",
+foreach ($f in @("dist\RontoGPT.exe", "aura_system.aef.enc", "aura_system.aef",
                  "aura_system.aef.sig", "cle_publique.pub",
                  ".cache_aef\cerveau.gguf")) {
     $src = Join-Path $RacineProjet $f
@@ -111,17 +111,17 @@ if (-not (Test-Path $GgufCache) -and -not (Test-Path $GgufModeles)) {
 }
 
 # ---------------------------------------------------------------
-# 4. Enregistrer la commande `aura` dans le profil PowerShell
+# 4. Enregistrer les commandes `rontogpt` et `aura` (compatibilite)
 # ---------------------------------------------------------------
-$FonctionAura = @'
+$FonctionRontoGPT = @'
 
-# === Aura (IA locale) - ajoute par installer.ps1 ===
-function aura {
+# === RontoGPT (IA locale) - ajoute par installer.ps1 ===
+function rontogpt {
     $d = "__AURA_DEST__"
     $fichier = Join-Path $d "aura_system.aef.enc"     # chiffre prioritaire
     if (-not (Test-Path $fichier)) { $fichier = Join-Path $d "aura_system.aef" }
     if (-not (Test-Path $fichier)) {
-        Write-Host "[Aura] Aucun fichier .aef dans $d" -ForegroundColor Red
+        Write-Host "[RontoGPT] Aucun fichier .aef dans $d" -ForegroundColor Red
         return
     }
     Push-Location $d                       # -m aura.kernel exige le paquet
@@ -133,19 +133,20 @@ function aura {
         Pop-Location
     }
 }
+function aura { rontogpt @args }
 '@
 # le here-string simple-quote protege $args/$env de l'interpolation :
 # seule la destination est injectee, a l'installation
-$FonctionAura = $FonctionAura.Replace("__AURA_DEST__", $Destination)
+$FonctionRontoGPT = $FonctionRontoGPT.Replace("__AURA_DEST__", $Destination)
 
 $Profil = $PROFILE.CurrentUserAllHosts   # vaut pour toutes les consoles PS
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Profil) | Out-Null
 $ContenuProfil = if (Test-Path $Profil) { Get-Content $Profil -Raw } else { "" }
-if ($ContenuProfil -notmatch [regex]::Escape("# === Aura")) {
-    Add-Content -Path $Profil -Value $FonctionAura -Encoding utf8
-    Write-Host "[OK] Commande 'aura' ajoutee au profil PowerShell"
+if ($ContenuProfil -notmatch [regex]::Escape("# === RontoGPT")) {
+    Add-Content -Path $Profil -Value $FonctionRontoGPT -Encoding utf8
+    Write-Host "[OK] Commande 'rontogpt' ajoutee au profil PowerShell"
 } else {
-    Write-Host "[=] Commande 'aura' deja presente dans le profil"
+    Write-Host "[=] Commande 'rontogpt' deja presente dans le profil"
 }
 
 # ---------------------------------------------------------------
@@ -169,7 +170,7 @@ $TomlSrc = Join-Path $RacineProjet "aura.toml"
 if (Test-Path $TomlSrc) { Copy-Item -Force $TomlSrc $Destination }
 
 # Lancement de l'interface : un .bat + un raccourci sur le Bureau
-$Bat = Join-Path $Destination "Lancer Aura.bat"
+$Bat = Join-Path $Destination "Lancer RontoGPT.bat"
 @"
 @echo off
 cd /d "$Destination"
@@ -179,12 +180,12 @@ pause
 try {
     $Bureau = [Environment]::GetFolderPath("Desktop")
     $Shell = New-Object -ComObject WScript.Shell
-    $Lnk = $Shell.CreateShortcut((Join-Path $Bureau "Aura.lnk"))
+    $Lnk = $Shell.CreateShortcut((Join-Path $Bureau "RontoGPT.lnk"))
     $Lnk.TargetPath = $Bat
     $Lnk.WorkingDirectory = $Destination
-    $Lnk.Description = "Aura - IA locale 100% offline"
+    $Lnk.Description = "RontoGPT - IA locale 100% offline"
     $Lnk.Save()
-    Write-Host "[OK] Raccourci 'Aura' cree sur le Bureau"
+    Write-Host "[OK] Raccourci 'RontoGPT' cree sur le Bureau"
 } catch {
     Write-Host "[!] Raccourci Bureau impossible : $_" -ForegroundColor Yellow
 }
@@ -209,7 +210,7 @@ Write-Host ""
 Write-Host "=== Installation terminee ===" -ForegroundColor Cyan
 Write-Host "Ouvre une NOUVELLE fenetre PowerShell puis :"
 Write-Host '  aura "quel est le carre de 7"'
-Write-Host "Ou double-clique sur le raccourci 'Aura' du Bureau (interface graphique)."
+Write-Host "Ou double-clique sur le raccourci 'RontoGPT' du Bureau (interface graphique)."
 Write-Host "Pour voir si une mise a jour existe :"
 Write-Host "  & `$Destination\.venv\Scripts\python.exe -m aura.maj"
 if (-not $Silencieux) { Read-Host "Entree pour fermer" }

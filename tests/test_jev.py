@@ -7,20 +7,20 @@ import threading
 import time
 
 from aura import filtre_instantane, memoire_web
-from aura.orchestrateur import Aura1B
+from aura.orchestrateur import RontoGPT
+from aura import llama_cerveau
 
 
 def _ia_neutre(monkeypatch, analyse=None):
-    """Aura sans GGUF requis, cache niveau 0 neutre, routage force en option."""
+    """RontoGPT sans GGUF requis, cache niveau 0 neutre, routage force en option."""
     from aura import llama_cerveau, rag_binaire
     monkeypatch.setattr(filtre_instantane, "repondre", lambda q: None)
     monkeypatch.setattr(filtre_instantane, "enregistrer", lambda q, r: None)
     monkeypatch.setattr(llama_cerveau, "generer", lambda *a, **k: "ok-llm")
-    monkeypatch.setattr(llama_cerveau, "generer_riche", lambda *a, **k: "ok-llm")
     monkeypatch.setattr(rag_binaire, "chercher", lambda q: None)
     if analyse is not None:
-        monkeypatch.setattr(Aura1B, "analyser", lambda self, q: analyse)
-    return Aura1B()
+        monkeypatch.setattr(RontoGPT, "analyser", lambda self, q: analyse)
+    return RontoGPT()
 
 
 class TestCycleUnique:
@@ -30,10 +30,10 @@ class TestCycleUnique:
             time.sleep(1.0)
             return {"experts": {"general"}, "methodes": ["test"]}
 
-        monkeypatch.setattr(Aura1B, "analyser", routeur_lent)
+        monkeypatch.setattr(RontoGPT, "analyser", routeur_lent)
         monkeypatch.setattr(filtre_instantane, "repondre", lambda q: "81")
         monkeypatch.setattr(filtre_instantane, "enregistrer", lambda q, r: None)
-        ia = Aura1B()
+        ia = RontoGPT()
         t0 = time.perf_counter()
         r = ia.executer_detaille("Calcule le carre de 9")
         duree = time.perf_counter() - t0
@@ -45,7 +45,7 @@ class TestCycleUnique:
         ia = _ia_neutre(monkeypatch, analyse={"experts": {"general"},
                                               "methodes": ["test"]})
         r = ia.executer_detaille("bonjour")
-        assert r["cerveau_choisi"] == "llama-3.2-1b"
+        assert r["cerveau_choisi"] == f"{llama_cerveau.famille()}-1b"
         assert "general" in r["experts"]
 
 
@@ -73,11 +73,11 @@ class TestGardeFou:
         assert r["formule"] == "mul(X0,X0)"
 
     def test_donnees_valides(self):
-        assert not Aura1B._donnees_valides(None, None)
-        assert not Aura1B._donnees_valides([1.0], None)
-        assert not Aura1B._donnees_valides([1.0], [1.0, 2.0])   # longueurs
-        assert not Aura1B._donnees_valides([1.0], [1.0])        # 1 point seul
-        assert Aura1B._donnees_valides([1.0, 2.0], [1.0, 4.0])
+        assert not RontoGPT._donnees_valides(None, None)
+        assert not RontoGPT._donnees_valides([1.0], None)
+        assert not RontoGPT._donnees_valides([1.0], [1.0, 2.0])   # longueurs
+        assert not RontoGPT._donnees_valides([1.0], [1.0])        # 1 point seul
+        assert RontoGPT._donnees_valides([1.0, 2.0], [1.0, 4.0])
 
 
 class TestFanOutParallele:
@@ -143,12 +143,17 @@ class TestFanOutParallele:
         r = ia.executer_detaille("actualite")
         assert r["contexte_web"] == "FAIT"
 
-    def test_riche_passe_par_chercher_enrichi(self, monkeypatch):
+    def test_question_longue_passe_par_la_meme_recherche(self, monkeypatch):
+        """Une question longue n'a PAS de chemin de recherche a part.
+
+        Le mode « enrichi » (double requete) servait la dissertation ; il a
+        ete supprime. Ce test verrouille le fait qu'une question ouverte
+        utilise la MEME fonction de recherche que les autres — sinon le
+        chemin le moins teste serait celui des questions les plus longues.
+        """
         ia = _ia_neutre(monkeypatch, analyse={"experts": {"web"},
                                               "methodes": ["test"]})
-        vu = []
-        monkeypatch.setattr(memoire_web, "chercher_enrichi",
-                            lambda q, **k: vu.append(1) or "ENRICHI")
+        monkeypatch.setattr(memoire_web, "chercher", lambda q, **k: "FAIT")
         r = ia.executer_detaille(
             "Redige une analyse comparee du solaire et de l'eolien en France")
-        assert r["contexte_web"] == "ENRICHI" and vu
+        assert r["contexte_web"] == "FAIT"

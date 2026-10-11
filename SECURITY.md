@@ -1,6 +1,6 @@
 # Security Policy
 
-Aura-1B is a local AI runtime whose **core promise is trust**: exact math,
+RontoGPT is a local AI runtime whose **core promise is trust**: exact math,
 verified facts, sealed binaries. Security reports are treated as top
 priority — a system that can be silently tampered with loses its reason
 to exist.
@@ -13,7 +13,7 @@ to exist.
 | latest `v0.x` tag | ✅ |
 | older tags | ❌ |
 
-Aura moves fast; please verify your issue against the latest `main` before reporting.
+RontoGPT moves fast; please verify your issue against the latest `main` before reporting.
 
 ## Reporting a vulnerability
 
@@ -33,7 +33,7 @@ You will get an acknowledgment within **72 hours**, and we will keep you
 informed of the fix progress. Credit is given in the release notes unless
 you prefer to stay anonymous.
 
-## Security model — what Aura guarantees
+## Security model — what RontoGPT guarantees
 
 | Layer | Guarantee |
 |---|---|
@@ -54,11 +54,11 @@ you prefer to stay anonymous.
 Out of scope for the sealed format: memory-forensics extraction on a machine
 where the system is legitimately running. In scope and very welcome: any
 **sandbox escape** of `potcode.py`, any **AST evaluator bypass**, any way to
-make Aura **deliver an unverified answer as verified**.
+make RontoGPT **deliver an unverified answer as verified**.
 
 ## Known design trade-offs
 
-- `Aura.exe` embeds compiled bytecode only and delegates execution to the
+- `RontoGPT.exe` embeds compiled bytecode only and delegates execution to the
   local Python after cryptographic verification — a conscious choice for
   transparency over obfuscation.
 - The fact graph is only as good as its sources: it is fed exclusively from

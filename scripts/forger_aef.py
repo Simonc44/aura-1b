@@ -1,4 +1,4 @@
-"""Supercompilateur : forge le fichier monolithique .aef (Aura Executable Format) v2.
+"""Supercompilateur : forge le fichier monolithique .aef (RontoGPT Executable Format) v2.
 
 Format binaire (little-endian) :
 
@@ -20,12 +20,13 @@ Format binaire (little-endian) :
 
   SECTION CONFIG  (JSON compresse LZMA : routeur, niveau 0, reglages)
   SECTION CODE    (archive ZIP du paquet `aura/` : le systeme lui-meme)
-  SECTION GGUF    (poids BRUTS : llama.cpp les charge directement, zero-copy)
+  SECTION GGUF    (poids bruts : extraits dans le cache avant chargement)
 
 Pourquoi les poids ne sont PAS compresses (mesure sur ce GGUF) :
   LZMA preset 9 ne gagne que 1.6% sur les tenseurs Q4 (haute entropie),
   contre ~7 min de forge et ~2 min de decompression au boot. Le GGUF brut
-  permet aussi le chargement direct en RAM sans copie intermediaire.
+  limite le temps de forge ; le kernel extrait les poids dans `.cache_aef/`
+  car llama.cpp charge un chemin de fichier GGUF.
 
 Usage :
   python scripts/forger_aef.py                    # forge aura_system.aef
@@ -37,6 +38,7 @@ import lzma
 import os
 import struct
 import sys
+import tomllib
 import zipfile
 from pathlib import Path
 
@@ -63,11 +65,29 @@ def _build_court() -> str:
     except Exception:
         return "unknown"
 
-GGUF_DEFAUT = RACINE / "modeles" / "Llama-3.2-1B-Instruct-Q4_K_M.gguf"
-if not GGUF_DEFAUT.exists():            # doublon evite : le cache du kernel
-    _cache_gguf = RACINE / ".cache_aef" / "cerveau.gguf"
-    if _cache_gguf.exists():
-        GGUF_DEFAUT = _cache_gguf
+def _gguf_configure() -> Path:
+    """Cerveau selectionne par l'env ou aura.toml, sans repli silencieux."""
+    try:
+        with (RACINE / "aura.toml").open("rb") as f:
+            cfg = tomllib.load(f)
+    except (OSError, tomllib.TOMLDecodeError):
+        cfg = {}
+    llama_cfg = cfg.get("llama") or {}
+    chemin = os.environ.get("AURA_GGUF_CHEMIN") or llama_cfg.get("chemin")
+    if chemin:
+        p = Path(chemin).expanduser()
+        return p if p.is_absolute() else (RACINE / p).resolve()
+
+    cerveau = (os.environ.get("AURA_GGUF") or llama_cfg.get("gguf")
+               or "GEMMA").upper()
+    # Source unique des noms de cerveaux : les chemins utilises par le runtime.
+    from aura.llama_cerveau import _CHEMINS
+    if cerveau not in _CHEMINS:
+        raise ValueError(f"cerveau inconnu dans aura.toml/AURA_GGUF : {cerveau}")
+    return Path(_CHEMINS[cerveau])
+
+
+GGUF_DEFAUT = _gguf_configure()
 SORTIE = RACINE / "aura_system.aef"
 
 
@@ -96,22 +116,49 @@ def _pack_code() -> bytes:
     return buf.getvalue()
 
 
-def _pack_config() -> bytes:
+def _quantification(nom: str) -> str:
+    """Extrait le niveau GGUF du nom de fichier, sinon le signale."""
+    import re
+    m = re.search(r"Q\d(?:_[Kk](?:_[A-Z])?)?(?:_\d+)?", nom)
+    return m.group(0).upper() if m else "inconnue"
+
+
+def _cle_cerveau(gguf: Path) -> str:
+    """Identifiant runtime correspondant au fichier embarque."""
+    from aura.llama_cerveau import _CHEMINS
+    cible = gguf.resolve()
+    for cle, chemin in _CHEMINS.items():
+        if Path(chemin).resolve() == cible:
+            return cle
+    nom = gguf.name.lower()
+    if "deepseek-r1" in nom:
+        return "R1_DISTILL"
+    return "CUSTOM"
+
+
+def _pack_config(gguf: Path | None = None,
+                 profil: dict | None = None,
+                 reg: dict | None = None) -> bytes:
     """Config compilee : reglages AUTO-TUNES pour la machine de forge
-    (profil materiel detecte) + reglages du systeme + empreinte machine."""
-    profil = pm.profiler()
-    reg = pm.reglages_optimaux(profil)
+    (profil materiel detecte) + identite du cerveau + empreinte machine."""
+    profil = profil or pm.profiler()
+    reg = reg or pm.reglages_optimaux(profil)
     cfg = {
         "n_ctx": reg["n_ctx"], "n_batch": reg["n_batch"],
         "n_threads": reg["n_threads"], "n_threads_batch": reg["n_threads_batch"],
         "flash_attn": reg["flash_attn"], "type_kv": reg["type_kv"],
-        "quantification": "Q4_K_M",
+        "modele": gguf.name if gguf else "inconnu",
+        "cle_cerveau": _cle_cerveau(gguf) if gguf else "CUSTOM",
+        "taille_gguf_octets": gguf.stat().st_size if gguf else 0,
+        "quantification": _quantification(gguf.name) if gguf else "inconnue",
         "niveau0_seuil": 0.85,
         "mode_riche_seuil_mots": 9,
         "max_tokens_faits": 120, "max_tokens_explications": 320,
         "build": ".".join(map(str, VERSION)),
         "machine": pm.empreinte(profil),          # provenance (pc de forge)
         "machine_desc": f"{profil['cpu_modele']} / {profil['ram_go']} Go RAM",
+        "machine_specs": {k: profil.get(k) for k in (
+            "cpu_modele", "cpu_coeurs_logiques", "ram_go", "avx2", "os")},
     }
     return lzma.compress(json.dumps(cfg).encode("utf-8"), preset=6)
 
@@ -124,9 +171,10 @@ def forger(gguf: Path = GGUF_DEFAUT, sortie: Path = SORTIE,
 
     print("== AURA FORGE ==")
     profil = pm.profiler()
+    reg = pm.reglages_optimaux(profil)        # n_ctx/n_batch de CETTE machine
     print(f"  machine : {profil['cpu_modele']} | {profil['ram_go']} Go RAM "
           f"| empreinte {pm.empreinte(profil)}")
-    config = _pack_config()
+    config = _pack_config(gguf, profil, reg)
     code = _pack_code()
     taille_gguf = gguf.stat().st_size
     print(f"  config : {len(config):,} o | code : {len(code):,} o | "
@@ -140,7 +188,7 @@ def forger(gguf: Path = GGUF_DEFAUT, sortie: Path = SORTIE,
         MAGIC, VERSION[0], VERSION[1], VERSION[2], 0,
         _build_court().encode("ascii")[:8].ljust(8, b"\x00"),
         0,                       # flags : poids brutes (chargement direct)
-        3072, 768, os.cpu_count() or 4,
+        reg["n_ctx"], reg["n_batch"], reg["n_threads"],
         len(config), len(code), taille_gguf,
         hashlib.sha256(config).digest(),
         hashlib.sha256(code).digest(),

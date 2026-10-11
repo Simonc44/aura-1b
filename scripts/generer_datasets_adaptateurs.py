@@ -1,4 +1,4 @@
-"""Genere les 4 datasets d'adaptateurs LoRA pour Aura.
+"""Genere les 4 datasets d'adaptateurs LoRA pour RontoGPT.
 
 Sources (tout est deja sur disque, rien d'invente sans verification) :
   - R1-U300/knowledge.jsonl   : 234 entrees catégorisées (fait, sante, droit...)

@@ -1,6 +1,6 @@
-# Contributing to Aura-1B
+# Contributing to RontoGPT
 
-First off, **thank you** — Aura is a young project and every contribution
+First off, **thank you** — RontoGPT is a young project and every contribution
 matters, from a typo fix to a whole new reasoning expert.
 
 The golden rule of this codebase, which every contribution should respect:
@@ -23,19 +23,19 @@ address in that file.
    - the **exact command** you ran;
    - the full console output.
 3. Label the severity honestly: does it produce a **wrong answer silently**
-   (highest priority — Aura's whole point is trust) or a crash?
+   (highest priority — RontoGPT's whole point is trust) or a crash?
 
 > [!IMPORTANT]
-> A silently wrong answer is treated as a security-adjacent bug. If Aura
+> A silently wrong answer is treated as a security-adjacent bug. If RontoGPT
 > answers something unverifiable with confidence, that is a reportable defect.
 
 ## 💡 How to suggest a feature
 
 Open a **Feature request** issue and describe:
 - the **problem** you are trying to solve, not just the solution you imagine;
-- which of Aura's design rules it touches (router? level 0? an expert? the
+- which of RontoGPT's design rules it touches (router? level 0? an expert? the
   fact graph?) — the architecture doc in the README is the map;
-- whether it fits the "proposes / proves" rule. A feature that makes Aura
+- whether it fits the "proposes / proves" rule. A feature that makes RontoGPT
   *guess more* needs a very strong case.
 
 ## 🧩 Good first contributions
@@ -87,7 +87,7 @@ uv run mypy aura/       # 0 error
   a deterministic component verifies, and failure means *refusal with
   fallback*, never a best-effort wrong answer.
 - No new heavyweight dependency without an issue discussion first — the
-  whole point of Aura is a small footprint.
+  whole point of RontoGPT is a small footprint.
 
 ## 🧪 Testing your change
 

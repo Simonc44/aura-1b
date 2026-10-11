@@ -1,4 +1,4 @@
-"""Aura Kernel : boot un fichier .aef (Aura Executable Format), chiffre ou non.
+"""RontoGPT Kernel : boot un fichier .aef (RontoGPT Executable Format), chiffre ou non.
 
 Sequence de demarrage (ouvrir_et_verifier) :
 1. lecture du magic : "AURA" (clair) ou "AUAE" (chiffre AES-256-GCM)
@@ -17,14 +17,14 @@ Sequence de demarrage (ouvrir_et_verifier) :
 Puis, selon le contexte :
 - boot()            : import du paquet extrait + config compilee (usage python)
 - boot_depuis_cache(): import direct depuis un cache deja rempli (mode exe :
-  Aura.exe verifie/dechiffre/extrait, puis delegue a l'environment python
+  RontoGPT.exe verifie/dechiffre/extrait, puis delegue a l'environment python
   local qui possede les dependances lourdes : numpy, llama-cpp, ...)
 
 Usage :
   python -m aura.kernel aura_system.aef "question"
   python -m aura.kernel aura_system.aef              # mode interactif
   python -m aura.kernel --cache "question"           # cache deja rempli (exe)
-  Aura.exe aura_system.aef "question"                # exe (delegue a uv)
+  RontoGPT.exe aura_system.aef "question"                # exe (delegue a uv)
 """
 import hashlib
 import importlib
@@ -89,7 +89,7 @@ def _ouvrir(path_aef: Path) -> tuple:
         return io.BytesIO(clair), clair
     if magic != b"AURA":
         f.close()
-        raise ValueError("magic invalide : pas un fichier Aura (.aef ou .aef.chiffre)")
+        raise ValueError("magic invalide : pas un fichier RontoGPT (.aef ou .aef.chiffre)")
     f.seek(0)
     return f, None
 
@@ -109,6 +109,22 @@ def _sha256_stream(f, taille: int, aussi=None) -> bytes:
             aussi.update(bloc)
         reste -= len(bloc)
     return h.digest()
+
+
+def _cache_gguf_valide(sha256: str | None = None,
+                       taille: int | None = None) -> bool:
+    """Le GGUF extrait correspond-il au manifeste cree apres verification ?"""
+    gguf = CACHE / "cerveau.gguf"
+    manifeste = CACHE / "cerveau.json"
+    try:
+        meta = json.loads(manifeste.read_text(encoding="utf-8"))
+        st = gguf.stat()
+        return (meta.get("taille") == st.st_size
+                and abs(meta.get("mtime", 0) - st.st_mtime) <= 1e-6
+                and (sha256 is None or meta.get("sha256") == sha256)
+                and (taille is None or meta.get("taille") == taille))
+    except (OSError, ValueError, KeyError, json.JSONDecodeError):
+        return False
 
 
 def _marqueur_valide(path_aef: Path, clair: bytes | None) -> bool:
@@ -136,12 +152,16 @@ def _marqueur_valide(path_aef: Path, clair: bytes | None) -> bool:
             if clair is None else clair[:HEADER_TAILLE]
         if etat.get("header") != hashlib.sha256(avec).hexdigest()[:16]:
             return False
+        if not _cache_gguf_valide(etat.get("gguf_sha256"),
+                                  etat.get("gguf_taille")):
+            return False
     except (OSError, ValueError, KeyError, json.JSONDecodeError):
         return False
     return True
 
 
-def _sceller_marqueur(path_aef: Path) -> None:
+def _sceller_marqueur(path_aef: Path, gguf_sha256: str,
+                      gguf_taille: int) -> None:
     """Scelle l'identite du fichier verifie (fast path des boots suivants)."""
     CACHE.mkdir(exist_ok=True)
     st = path_aef.stat()
@@ -154,6 +174,8 @@ def _sceller_marqueur(path_aef: Path) -> None:
         "taille": st.st_size,
         "mtime": st.st_mtime,
         "header": hashlib.sha256(avec).hexdigest()[:16],
+        "gguf_sha256": gguf_sha256,
+        "gguf_taille": gguf_taille,
     }), encoding="utf-8")
 
 
@@ -222,9 +244,9 @@ def ouvrir_et_verifier(path_aef: str | Path, verifier_tout: bool = False) -> dic
          sha_cfg, sha_code, sha_gguf) = struct.unpack(HEADER_FORMAT, header)
 
         if magic != b"AURA":
-            raise ValueError("magic invalide : pas un fichier Aura (.aef)")
+            raise ValueError("magic invalide : pas un fichier RontoGPT (.aef)")
         build_txt = build.rstrip(b"\x00").decode("ascii", "replace")
-        print(f"[kernel] Aura v{majeur}.{mineur}.{correctif} (build {build_txt})")
+        print(f"[kernel] RontoGPT v{majeur}.{mineur}.{correctif} (build {build_txt})")
 
         # hash cumule du FICHIER ENTIER (header+config+code+poids) : sert a
         # la signature Ed25519 sans aucune lecture supplementaire
@@ -237,6 +259,8 @@ def ouvrir_et_verifier(path_aef: str | Path, verifier_tout: bool = False) -> dic
             raise ValueError("config alteree : refus de boot")
         h_fichier.update(cfg_comp)
         cfg = json.loads(lzma.decompress(cfg_comp))
+        if cfg.get("taille_gguf_octets") not in (None, 0, t_gguf):
+            raise ValueError("taille GGUF incoherente entre config et header")
 
         # 2. code (ZIP) : verifie puis extrait si nouveau
         code = f.read(t_code)
@@ -251,14 +275,15 @@ def ouvrir_et_verifier(path_aef: str | Path, verifier_tout: bool = False) -> dic
             raise ValueError("poids alters : refus de boot (integrite rompue)")
 
         cache_gguf = CACHE / "cerveau.gguf"
-        if cache_gguf.exists() and cache_gguf.stat().st_size == t_gguf:
-            print("[kernel] poids deja en cache, copie ignoree")
+        sha_gguf_hex = sha_gguf.hex()
+        if _cache_gguf_valide(sha_gguf_hex, t_gguf):
+            print("[kernel] poids verifies deja en cache, copie ignoree")
         else:
             CACHE.mkdir(exist_ok=True)
             print("[kernel] extraction des poids (1re fois seulement)...")
-            f.seek(HEADER_TAILLE + t_cfg + t_code)   # rembobine : le hash a
-            # deja consomme la section poids, il faut la relire depuis le debut
-            with open(cache_gguf, "wb") as out:
+            temporaire = cache_gguf.with_name("cerveau.gguf.tmp")
+            f.seek(HEADER_TAILLE + t_cfg + t_code)   # relit les poids hashes
+            with open(temporaire, "wb") as out:
                 reste = t_gguf
                 while reste > 0:
                     bloc = f.read(min(4 * 1024 * 1024, reste))
@@ -266,6 +291,13 @@ def ouvrir_et_verifier(path_aef: str | Path, verifier_tout: bool = False) -> dic
                         raise IOError("section poids tronquee : fichier altere")
                     out.write(bloc)
                     reste -= len(bloc)
+            os.replace(temporaire, cache_gguf)
+            st_gguf = cache_gguf.stat()
+            (CACHE / "cerveau.json").write_text(json.dumps({
+                "sha256": sha_gguf_hex,
+                "taille": st_gguf.st_size,
+                "mtime": st_gguf.st_mtime,
+            }), encoding="utf-8")
     finally:
         f.close()
 
@@ -284,14 +316,16 @@ def ouvrir_et_verifier(path_aef: str | Path, verifier_tout: bool = False) -> dic
         marqueur.write_text(sha_code.hex())
 
     CACHE.mkdir(exist_ok=True)
+    cfg["chemin_gguf"] = str((CACHE / "cerveau.gguf").resolve())
     (CACHE / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
-    _sceller_marqueur(path_aef)
+    _sceller_marqueur(path_aef, sha_gguf.hex(), t_gguf)
     return cfg
 
 
 def boot(path_aef: str | Path, verifier_tout: bool = False) -> dict:
     """Verification complete + import du systeme (usage python)."""
     cfg = ouvrir_et_verifier(path_aef, verifier_tout=verifier_tout)
+    _appliquer_identite_cerveau(cfg)
     dossier_code = CACHE / "code"
     sys.path.insert(0, str(dossier_code))
     # le CODE EXTRAIT du .aef prime sur toute copie deja importee (exe ou
@@ -311,14 +345,47 @@ def boot_depuis_cache() -> dict:
     fichier_cfg = CACHE / "config.json"
     if not fichier_cfg.exists() or not (CACHE / "code" / "aura").exists():
         raise ValueError("cache vide : boote d'abord le .aef "
-                         "(Aura.exe <fichier.aef> ou python -m aura.kernel <fichier.aef>)")
+                         "(RontoGPT.exe <fichier.aef> ou python -m aura.kernel <fichier.aef>)")
     cfg = json.loads(fichier_cfg.read_text(encoding="utf-8"))
+    if not _cache_gguf_valide(taille=cfg.get("taille_gguf_octets")):
+        raise ValueError("GGUF du cache absent/modifie : rebooter depuis le .aef")
+    _appliquer_identite_cerveau(cfg)
     sys.path.insert(0, str(CACHE / "code"))
     aura = importlib.import_module("aura")
     os.environ["AURA_CONFIG"] = json.dumps(cfg)
     print(f"[kernel] boot depuis le cache : ctx={cfg['n_ctx']} "
           f"batch={cfg['n_batch']} threads={cfg['n_threads']}")
     return {"module": aura, "config": cfg}
+
+
+def _appliquer_identite_cerveau(cfg: dict) -> None:
+    """Le cerveau inclus dans l'AEF est la source de verite au runtime.
+
+    Les reglages CPU/GPU restent ceux de forge sur la meme machine ; sur un
+    autre materiel, on active l'auto-tuning local sauf choix explicite.
+    """
+    cle = cfg.get("cle_cerveau")
+    if cle and cle != "CUSTOM":
+        demandee = os.environ.get("AURA_GGUF")
+        if demandee and demandee.upper() != str(cle).upper():
+            print(f"[kernel] AURA_GGUF={demandee} ignore : l'AEF contient {cle}")
+        os.environ["AURA_GGUF"] = str(cle)
+
+    specs = cfg.get("machine_specs") or {}
+    if not specs or "AURA_TUNING" in os.environ:
+        return
+    try:
+        try:
+            from . import profil_materiel as pm
+        except ImportError:
+            import profil_materiel as pm
+        actuel = pm.profiler()
+        cles = ("cpu_modele", "cpu_coeurs_logiques", "ram_go", "avx2", "os")
+        if any(specs.get(k) != actuel.get(k) for k in cles):
+            os.environ["AURA_TUNING"] = "1"
+            print("[kernel] materiel different de la forge : auto-tuning local active")
+    except Exception as e:
+        print(f"[kernel] profil local indisponible : reglages AEF conserves ({e})")
 
 
 def principal() -> int:
@@ -337,7 +404,7 @@ def principal() -> int:
         sysm = boot(args[0], verifier_tout=verifier_tout)
         questions = args[1:]
 
-    ia = sysm["module"].Aura1B()
+    ia = sysm["module"].RontoGPT()
     if questions:
         print(ia.executer(" ".join(questions)))
         return 0

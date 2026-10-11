@@ -40,7 +40,7 @@ class TestCoupe:
     def test_routeur_sans_flou_inchange(self, monkeypatch):
         monkeypatch.setenv("AURA_FLOU", "0")
         d = routeur.RouteurIntelligent().classer("calcule 2 puissance 10")
-        assert "MiniLM-SVM" not in d["methodes"]
+        assert "MiniLM-MLP" not in d["methodes"]
         assert d["prediction"] == "math"
         assert d["scores"]
 
@@ -52,13 +52,13 @@ class TestFusion:
                             lambda q: {"math": 1.0, "web": 0.0,
                                        "general": 0.0})
         d = routeur.RouteurIntelligent().classer("explique moi ce concept")
-        assert "MiniLM-SVM" in d["methodes"]
+        assert "MiniLM-MLP" in d["methodes"]
         assert abs(sum(d["scores"].values()) - 1.0) < 0.01
 
         # meme question, sans avis flou : scores different, pas de marque
         monkeypatch.setattr(routeur, "_probas_flou", lambda q: None)
         d2 = routeur.RouteurIntelligent().classer("explique moi ce concept")
-        assert "MiniLM-SVM" not in d2["methodes"]
+        assert "MiniLM-MLP" not in d2["methodes"]
         assert d["scores"] != d2["scores"]
 
     def test_echec_flou_ne_casse_rien(self, monkeypatch):
@@ -79,5 +79,5 @@ class TestAvisFlouReel:
 
     def test_fusion_reelle(self):
         d = routeur.RouteurIntelligent().classer("explique moi ce concept")
-        assert "MiniLM-SVM" in d["methodes"]
+        assert "MiniLM-MLP" in d["methodes"]
         assert d["prediction"] == "general"

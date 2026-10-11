@@ -1,8 +1,8 @@
 ; =====================================================================
-;  Aura — installeur Windows (Inno Setup 6)
+;  RontoGPT — installeur Windows (Inno Setup 6)
 ;  Construit par CI (release.yml) :
 ;    ISCC /DVersion=0.1.0 /DRacine=<racine du projet> packaging\aura.iss
-;  Produit : dist\Aura-Setup-<version>.exe
+;  Produit : dist\RontoGPT-Setup-<version>.exe
 ;
 ;  Philosophie : l'installeur ne fait que COPIER les fichiers du projet
 ;  et creer les raccourcis ; la premiere execution (post-install) appelle
@@ -20,14 +20,14 @@
 
 [Setup]
 AppId={{A7E6A1C4-3B5E-4D2F-9C11-0AURA1B2C3D4E}
-AppName=Aura
+AppName=RontoGPT
 AppVersion={#Version}
 AppPublisher=Simonc44
-DefaultDirName={autopf}\Aura
-DefaultGroupName=Aura
+DefaultDirName={autopf}\RontoGPT
+DefaultGroupName=RontoGPT
 DisableProgramGroupPage=yes
 OutputDir=..\dist
-OutputBaseFilename=Aura-Setup-{#Version}
+OutputBaseFilename=RontoGPT-Setup-{#Version}
 Compression=lzma2/max
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -48,15 +48,15 @@ Source: "{#Racine}\README.md"; DestDir: "{app}"; Flags: ignoreversion skipifsour
 ; configuration centreee (profils rapide/equilibre/qualite)
 Source: "{#Racine}\aura.toml"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 ; lanceur d'interface : %~dp0 = dossier du .bat, donc aucun chemin codé en dur
-Source: "{#Racine}\packaging\Lancer Aura.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#Racine}\packaging\Lancer RontoGPT.bat"; DestDir: "{app}"; Flags: ignoreversion
 ; le .aef chiffre s'il existe deja (sinon telechargement ulterieur)
 Source: "{#Racine}\aura_system.aef.enc"; DestDir: "{app}"; Flags: skipifsourcedoesntexist
 Source: "{#Racine}\cle_publique.pub"; DestDir: "{app}"; Flags: skipifsourcedoesntexist
 
 [Icons]
-Name: "{autoprograms}\Aura"; Filename: "{app}\Lancer Aura.bat"
-Name: "{autodesktop}\Aura"; Filename: "{app}\Lancer Aura.bat"
-Name: "{autoprograms}\Desinstaurer Aura"; Filename: "{uninstallexe}"
+Name: "{autoprograms}\RontoGPT"; Filename: "{app}\Lancer RontoGPT.bat"
+Name: "{autodesktop}\RontoGPT"; Filename: "{app}\Lancer RontoGPT.bat"
+Name: "{autoprograms}\Desinstaurer RontoGPT"; Filename: "{uninstallexe}"
 
 [Run]
 ; premiere execution : venv + dependances + raccourci deja presents

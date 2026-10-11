@@ -17,23 +17,46 @@ from collections import defaultdict
 
 from . import syllogismes
 
-# comparaisons textuelles -> (superieur, inferieur)
-_RE_PLUS = re.compile(
-    r"(\w+)\s+est\s+(?:plus\s+|le\s+)?(age|grand|grande|vieux|vieille|"
-    r"lourd|gros|rapide|fort|cher|haute|haut|long|petit|jeune|leger)"
-    r"e?\s+que\s+(\w+)", re.IGNORECASE)
-_RE_MOINS = re.compile(
-    r"(\w+)\s+est\s+(?:moins\s+)?(age|grand|grande|vieux|vieille|"
-    r"lourd|gros|rapide|fort|cher|haute|haut|long)\s+que\s+(\w+)",
-    re.IGNORECASE)
+# ── comparaisons ──────────────────────────────────────────────────────
+# Un SEUL motif couvre « plus » et « moins », tous les adjectifs, et le
+# VERBE intercalaire. Trois defauts corriges le 6 oct. 2026, chacun ayant
+# coute des questions du banc :
+#   1. l'ARTICLE entre « que » et l'entite n'etait pas prevu : sur « le
+#      chien est plus lourd que le chat », (\w+) capturait « le », la paire
+#      etait jetee, et le solveur s'abstenait (logique-04/06) ;
+#   2. seul le verbe « est » etait accepte, donc « coute plus cher qu'un
+#      stylo » ne donnait rien (logique-06) ;
+#   3. « moins » n'etait JAMAIS lu : _RE_MOINS existait mais n'etait appele
+#      nulle part (motif mort).
+_ADJ = (r"age(?:s)?|grand(?:e)?s?|vieux|vieille|vielle?|lourd(?:e)?s?|"
+       r"gros(?:se)?s?|rapide(?:s)?|fort(?:e)?s?|cher|chere?|chere|haut(?:e)?s?|"
+       r"long(?:ue)?s?|petit(?:e)?s?|jeune(?:s)?|leger|l[ée]g[èe]re?s?|"
+       r"lent(?:e)?s?|riche(?:s)?|pauvre(?:s)?|intelligent(?:e)?s?|"
+       r"court(?:e)?s?|drole|drole(?:s)?")
+_ART = r"(?:le\s+|la\s+|les\s+|l'|un\s+|une\s+|des\s+)?"
+# adjectifs dont le SENS est inverse : « plus petit que » = plus PETIT en
+# valeur, donc X est SOUS Y. Comparaison sur la forme nue (sans e final).
+_ADJ_INVERSES = frozenset(("petit", "jeune", "leger", "lent", "court",
+                           "pauvre"))
+
+_RE_COMP = re.compile(
+    r"(\w+)\s+(?:\w+\s+)?(plus|moins)\s+(" + _ADJ + r")\s+"
+    r"qu'?e?\s*" + _ART + r"(\w+)", re.IGNORECASE)
 # signes bruts : A > B ou A < B
 _RE_SIGNE = re.compile(r"(\w+)\s*(>)\s*(\w+)|(\w+)\s*(<)\s*(\w+)")
 # mots interrogatifs de recherche d'extremum
 _RE_MAX = re.compile(r"\b(le plus (?:age|grand|vieux|lourd|rapide|fort)|"
                      r"qui est le plus|le maximum|le plus age)\b", re.I)
+# « devant » ET « avant » : les deux disent la meme chose dans une course
+# (« A arrive avant B », logique-08), et l'article est optionnel.
 _RE_DEVANT = re.compile(
-    r"(\w+)\s+(?:est|arrive|termine|fini[sz]?)\s+devant\s+(\w+)", re.I)
-_RE_MIN = re.compile(r"\b(le plus (?:petit|jeune|leger)|le minimum|dernier)\b", re.I)
+    r"(\w+)\s+(?:est|arrive|termine|fini[sz]?)\s+(?:devant|avant)\s+"
+    + _ART + r"(\w+)", re.I)
+# « le MINIMUM » se dit aussi « coute le MOINS cher » : sans cette branche,
+# logique-06 rendait l'ordre complet au lieu de repondre a la question.
+_RE_MIN = re.compile(
+    r"\b(le plus (?:petit|jeune|leger|lent|court|faible)|"
+    r"le minimum|le moins(?:\s+\w+)?|dernier|la moins)\b", re.I)
 _RE_ORDRE = re.compile(r"\b(dans l'ordre|du plus .* au plus .*\bordre)\b",
                        re.I)
 
@@ -42,8 +65,24 @@ _MOTS_OUT = {"que", "et", "puis", "ensuite", "de", "du", "le", "la", "les",
 
 
 def _est_entite(mot: str) -> bool:
-    return bool(mot and mot.lower() not in _MOTS_OUT and not mot.isdigit()
-                and len(mot) > 1)
+    """Ce mot est-il une entite nommee (et pas un mot-outil) ?
+
+    Les entites d'UNE lettre sont acceptees si elles sont MAJUSCULES :
+    « A arrive avant B » (logique-08) parle bien de A et B, alors que
+    « Clara a 4 ans » ne parle pas de l'entite « a ». Le filtre de mot-outil
+    (que/et/le...) reste, lui, insensible a la casse.
+    """
+    if not mot or mot.lower() in _MOTS_OUT or mot.isdigit():
+        return False
+    return len(mot) > 1 or mot.isupper()
+
+
+def _inverse(adj: str) -> bool:
+    """L'adjectif inverse-t-il le sens ? (« plus petit que » -> sous Y)"""
+    a = adj.lower()
+    if a.endswith("e") and a[:-1] in _ADJ_INVERSES:
+        a = a[:-1]
+    return a in _ADJ_INVERSES
 
 
 def extraire_relations(texte: str) -> list[tuple[str, str]]:
@@ -53,12 +92,15 @@ def extraire_relations(texte: str) -> list[tuple[str, str]]:
     t = re.sub(r"\btu\ses\b", "toi est", t, flags=re.IGNORECASE)
     paires: list[tuple[str, str]] = []
     # « A est plus age que B » -> (A, B) ; « A est plus petit que B »
-    # -> (B, A) (petit/jeune inversent le sens)
-    for m in _RE_PLUS.finditer(t):
-        a, adj, b = m.group(1), m.group(2).lower(), m.group(3)
+    # -> (B, A) ; « A est moins age que B » -> (B, A). Deux retournements
+    # INDEPENDANTS : l'adjectif (petit/jeune/leger) et la polarite (moins).
+    # Les combiner en XOR evite « moins petit » = plus grand.
+    for m in _RE_COMP.finditer(t):
+        a, polarite, adj, b = (m.group(1), m.group(2).lower(),
+                               m.group(3).lower(), m.group(4))
         if not (_est_entite(a) and _est_entite(b)):
             continue
-        inverse = adj in ("petit", "jeune", "leger")
+        inverse = _inverse(adj) != (polarite == "moins")
         paires.append((b, a) if inverse else (a, b))
     # signes : A > B -> (A, B) ; A < B -> (B, A)
     for m in _RE_SIGNE.finditer(texte):

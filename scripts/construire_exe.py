@@ -1,4 +1,4 @@
-"""Construit Aura.exe : le kernel .aef en executable Windows leger.
+"""Construit RontoGPT.exe : le kernel .aef en executable Windows leger.
 
 Strategie (pourquoi leger) :
   L'exe n'embarque QUE le kernel (verification SHA-256, dechiffrement
@@ -18,9 +18,9 @@ PROTECTION du code (honnete) :
   (ingenierie inverse toujours possible en theorie) — voir README.
 
 Usage :
-  uv run python scripts/construire_exe.py          # -> dist/Aura.exe
-  dist\\Aura.exe aura_system.aef.enc "carre de 15"  # verifie+extrait+delegue
-  dist\\Aura.exe --cache "carre de 15"              # cache deja rempli
+  uv run python scripts/construire_exe.py          # -> dist/RontoGPT.exe
+  dist\\RontoGPT.exe aura_system.aef.enc "carre de 15"  # verifie+extrait+delegue
+  dist\\RontoGPT.exe --cache "carre de 15"              # cache deja rempli
 """
 import shutil
 import subprocess
@@ -29,7 +29,7 @@ from pathlib import Path
 
 RACINE = Path(__file__).resolve().parent.parent
 SORTIE = RACINE / "dist"
-NOM = "Aura"
+NOM = "RontoGPT"
 
 REQUIRED = ["cryptography"]
 
@@ -86,8 +86,8 @@ def construire() -> Path:
 
     print("""
 usage de l'exe :
-  Aura.exe <fichier.aef|fichier.aef.enc> [question]   verifie + extrait + repond
-  Aura.exe --cache [question]                          cache deja rempli
+  RontoGPT.exe <fichier.aef|fichier.aef.enc> [question]   verifie + extrait + repond
+  RontoGPT.exe --cache [question]                          cache deja rempli
 """)
     return exe
 

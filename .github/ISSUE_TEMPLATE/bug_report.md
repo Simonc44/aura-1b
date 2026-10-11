@@ -19,7 +19,7 @@ Steps / exact command:
 - OS: [e.g. Windows 11 / Ubuntu 24.04]
 - Python: [e.g. 3.12]
 - GGUF downloaded: [yes / no]
-- Mode: [python -m aura / Aura.exe / .aef kernel]
+- Mode: [python -m aura / RontoGPT.exe / .aef kernel]
 
 **Console output**
 ```
@@ -27,7 +27,7 @@ Steps / exact command:
 ```
 
 **Severity — pick one:**
-- [ ] **Silently wrong answer** (Aura answered something incorrect with confidence) — highest priority
+- [ ] **Silently wrong answer** (RontoGPT answered something incorrect with confidence) — highest priority
 - [ ] Crash / traceback
 - [ ] Cosmetic / docs
 

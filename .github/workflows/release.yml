@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-exe:
-    name: Build Aura.exe (Windows)
+    name: Build RontoGPT.exe (Windows)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,15 +25,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller cryptography
 
-      - name: Build Aura.exe (bytecode seul, ~8-15 Mo)
+      - name: Build RontoGPT.exe (bytecode seul, ~8-15 Mo)
         run: python scripts/construire_exe.py
 
       - name: Empaqueter + checksums SHA-256
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}"
-          $zip = "Aura-$version-windows.zip"
-          Compress-Archive -Path "dist/Aura.exe", "README.md", "LICENSE" -DestinationPath $zip
+          $zip = "RontoGPT-$version-windows.zip"
+          Compress-Archive -Path "dist/RontoGPT.exe", "README.md", "LICENSE" -DestinationPath $zip
           $h = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
           "$h  $zip" | Out-File -Encoding ascii "checksums-sha256.txt"
           Get-Content checksums-sha256.txt
@@ -41,9 +41,9 @@ jobs:
       - name: Uploader l'artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Aura-windows
+          name: RontoGPT-windows
           path: |
-            Aura-*-windows.zip
+            RontoGPT-*-windows.zip
             checksums-sha256.txt
 
   build-installer:
@@ -68,8 +68,8 @@ jobs:
       - name: Upload de l'installeur
         uses: actions/upload-artifact@v4
         with:
-          name: Aura-installeur
-          path: dist/Aura-Setup-*.exe
+          name: RontoGPT-installeur
+          path: dist/RontoGPT-Setup-*.exe
 
   release:
     name: GitHub Release
@@ -81,12 +81,12 @@ jobs:
       - name: Recuperer le build Windows
         uses: actions/download-artifact@v4
         with:
-          name: Aura-windows
+          name: RontoGPT-windows
 
       - name: Recuperer l'installeur
         uses: actions/download-artifact@v4
         with:
-          name: Aura-installeur
+          name: RontoGPT-installeur
 
       - name: Creer la release avec les notes du tag
         uses: softprops/action-gh-release@v2
@@ -95,9 +95,9 @@ jobs:
           body_path: RELEASE_NOTES.md
           fail_on_unmatched_files: false
           files: |
-            Aura-*-windows.zip
-            Aura-Setup-*.exe
-            dist/Aura-Setup-*.exe
+            RontoGPT-*-windows.zip
+            RontoGPT-Setup-*.exe
+            dist/RontoGPT-Setup-*.exe
             checksums-sha256.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

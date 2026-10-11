@@ -4,7 +4,8 @@ language:
   - fr
   - en
 base_model:
-  - meta-llama/Llama-3.2-1B-Instruct
+  - google/gemma-3-1b-it
+  - Andycurrent/Gemma-3-1B-it-GLM-4.7-Flash-Heretic-Uncensored-Thinking_GGUF
 tags:
   - llm
   - cpu
@@ -16,7 +17,9 @@ tags:
   - program-of-thoughts
   - on-device-ai
   - sealed-distribution
-  - llama-3.2
+  - gemma-3
+  - gemma3
+  - reasoning
   - minicpm
 library_name: llama.cpp
 pipeline_tag: text-generation
@@ -24,7 +27,7 @@ pipeline_tag: text-generation
 
 <div align="center">
 
-<img src="https://huggingface.co/Simonc-44/aura-1b/resolve/main/assets/aura.png" alt="Aura-1B" width="420"/>
+<img src="https://huggingface.co/Simonc-44/aura-1b/resolve/main/assets/aura.png" alt="RontoGPT" width="420"/>
 
 **La réponse la plus rapide est celle qu'on n'a pas besoin de générer.**
 *The fastest answer is the one you never generate.*
@@ -40,18 +43,18 @@ pipeline_tag: text-generation
 
 ---
 
-Aura-1B n'est pas un modèle de plus : c'est un **système orchestré** qui
+RontoGPT n'est pas un modèle de plus : c'est un **système orchestré** qui
 sépare le langage, les maths exactes et la mémoire factuelle en modules
 spécialisés. Règle d'or : *le petit modèle propose, le programme prouve* —
 ce qui n'est pas prouvé est vérifié ou refusé, jamais inventé.
 
 <div align="center">
 
-<img src="https://huggingface.co/Simonc-44/aura-1b/resolve/main/assets/architecture.png" alt="Architecture d'Aura-1B" width="820"/>
+<img src="https://huggingface.co/Simonc-44/aura-1b/resolve/main/assets/architecture.png" alt="Architecture d'RontoGPT" width="820"/>
 
 </div>
 
-| | Aura-1B | Un 8B sur le même PC |
+| | RontoGPT | Un 8B sur le même PC |
 |---|---|---|
 | Question quotidienne | **0,0–2,3 s** | 30–60 s |
 | Maths / dates / unités | **exact** (AST, PAL, PGS) | hallucine hors statistiques |
@@ -65,7 +68,7 @@ ce qui n'est pas prouvé est vérifié ou refusé, jamais inventé.
 |---|---|---|
 | [`aura_system.aef.enc`](https://huggingface.co/Simonc-44/aura-1b/resolve/main/aura_system.aef.enc) | 779 Mo | **Le système complet scellé et chiffré** (AES-256-GCM) : config auto-tunée + code + cerveau 807 Mo en un seul fichier |
 | [`aura_system.aef.sig`](https://huggingface.co/Simonc-44/aura-1b/resolve/main/aura_system.aef.sig) | 110 o | Signature **Ed25519** (authenticité vérifiable) |
-| [`Aura.exe`](https://huggingface.co/Simonc-44/aura-1b/resolve/main/Aura.exe) | 8,2 Mo | Le noyau léger : vérifie, déchiffre, exécute |
+| [`RontoGPT.exe`](https://huggingface.co/Simonc-44/aura-1b/resolve/main/RontoGPT.exe) | 8,2 Mo | Le noyau léger : vérifie, déchiffre, exécute |
 
 > [!WARNING]
 > **Le secret de déchiffrement n'est JAMAIS publié ici** — il s'obtient
@@ -79,11 +82,11 @@ ce qui n'est pas prouvé est vérifié ou refusé, jamais inventé.
 set AURA_SECRET=<le secret>
 
 # 2. premier lancement : vérifie 3× SHA-256 + signature, puis répond
-Aura.exe aura_system.aef.enc "quel est le carre de 7"
+RontoGPT.exe aura_system.aef.enc "quel est le carre de 7"
 # -> 49
 
 # 3. runs suivants : démarrage instantané (cache déjà rempli)
-Aura.exe --cache "15% de 200 plus 30% de 100"
+RontoGPT.exe --cache "15% de 200 plus 30% de 100"
 # -> 60
 ```
 
@@ -100,18 +103,34 @@ tests, installeur) est **open source** :
 
 ## ⚠️ Limites honnêtes
 
-Sur les questions **vérifiables** (maths, faits, dates, format), Aura-1B bat
+Sur les questions **vérifiables** (maths, faits, dates, format), RontoGPT bat
 des modèles plus grands par construction — eux devinent, il prouve. Sur
 **l'analyse profonde, le savoir de niche et la logique abstraite**, un 8B
 fine-tuné gagne encore : ces compétences vivent dans les poids (feuille de
 route : LoRA + MEMIT). Détail complet dans le README du repo.
+
+**Chiffré, pas supposé** (10 oct. 2026, `lm-eval` 0.4.13, cerveau nu sans le pipeline) :
+GSM8K 5-shot = **0,16** (strict-match) / **0,20** (flexible-extract) sur 100 questions.
+Le format de réponse est bon (le modèle termine bien par `#### N`), c'est le raisonnement qui
+casse — donc le score est réel et non un artefact de mesure. Les tâches à choix multiple
+(ARC, HellaSwag, MMLU…) restent **non mesurables** ici : llama.cpp n'expose pas les logprobs du
+prompt, et les scores qu'on en tirerait seraient du hasard déguisé. Le pont
+(`scripts/lm_eval_aura.py`) refuse ces tâches explicitement. Détail dans `ARCHITECTURE.md` § 3quinquies.
+
+Et **à travers RontoGPT elle-même** (mêmes 100 questions, via l'API `/v1/ask`, 10 oct. 2026) :
+0,12 en flexible-extract, 0,00 en strict-match. Ce dernier chiffre ne mesure rien — RontoGPT
+répond en français et ne produit jamais le marqueur `####` qu'attend ce filtre. La comparaison
+honnête est donc 0,12 contre 0,20 : **sur GSM8K, le pipeline ne rattrape pas le cerveau**, il
+ne couvre pas ces énoncés. Cette mesure a aussi mis au jour un défaut réel dans la couche
+« exacte » (`_calcul_direct` répond à toute phrase contenant `a/b`). Détail dans
+`ARCHITECTURE.md` § 3sexies.
 
 ## 📚 Citation
 
 ```bibtex
 @software{aura1b2026,
   author  = {Simon [Simonc44]},
-  title   = {Aura-1B: Hybrid Neuro-Symbolic AI System},
+  title   = {RontoGPT: Hybrid Neuro-Symbolic AI System},
   year    = {2026},
   url     = {https://github.com/Simonc44/aura-1b}
 }

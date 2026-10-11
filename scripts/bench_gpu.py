@@ -1,7 +1,7 @@
-"""Bench CPU vs Vulkan d'Aura (meme question, memes budgets).
+"""Bench CPU vs Vulkan d'RontoGPT (meme question, memes budgets).
 
 Compare les deux binaires embarques :
-    CPU     : serveur/llama-server.exe   (build cpu-x64, ce qu'Aura utilise)
+    CPU     : serveur/llama-server.exe   (build cpu-x64, ce qu'RontoGPT utilise)
     VULKAN  : serveur/vulkan/...         (build win-vulkan-x64, -ngl 99)
 
 Mesure sur /completion : prefill (prompt tok/s) + decode (predicted tok/s),

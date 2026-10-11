@@ -11,6 +11,7 @@ Usage :
 """
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -41,6 +42,30 @@ QUIZ = [
 nom = Path(llama_cerveau._CHEMIN_GGUF).name
 print(f"=== Cerveau : {nom} ===\n")
 
+# Le pic instantane pris apres le chargement sous-estime fortement le besoin
+# reel. Echantillonner le RSS pendant tout le quiz donne une borne empirique
+# reproductible pour ce processus (poids + contexte + Python), pas pour toute
+# la machine ni pour un autre profil de contexte.
+try:
+    import psutil
+    _processus = psutil.Process(os.getpid())
+    _pic_rss = [0]
+    _mesure_fin = threading.Event()
+
+    def _mesurer_rss():
+        while not _mesure_fin.is_set():
+            try:
+                _pic_rss[0] = max(_pic_rss[0], _processus.memory_info().rss)
+            except psutil.Error:
+                pass
+            _mesure_fin.wait(0.05)
+
+    _fil_rss = threading.Thread(target=_mesurer_rss, daemon=True)
+    _fil_rss.start()
+except ImportError:
+    _mesure_fin = None
+    _pic_rss = None
+
 llm = llama_cerveau._charger()
 score, total = 0, len(QUIZ)
 temps_total, tokens_total = 0.0, 0
@@ -59,4 +84,12 @@ for question, attendus, max_tokens in QUIZ:
 
 print(f"\n=== Score : {score}/{total} | temps total {temps_total:.0f}s "
       f"(~{temps_total/total:.1f}s/reponse) ===")
+if _mesure_fin is not None:
+    _mesure_fin.set()
+    _fil_rss.join(timeout=1)
+if _pic_rss is not None:
+    print(f"Pic RSS processus (echantillonne a 50 ms) : "
+          f"{_pic_rss[0] / (1024**2):.1f} MiB")
+else:
+    print("Pic RSS processus : non mesure (installer psutil)")
 print(f"(cerveau : {nom})")

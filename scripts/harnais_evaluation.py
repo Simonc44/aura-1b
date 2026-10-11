@@ -1,13 +1,13 @@
-"""Harnais d'evaluation PERSONNEL d'Aura : mesure le SYSTEME, pas le cerveau.
+"""Harnais d'evaluation PERSONNEL d'RontoGPT : mesure le SYSTEME, pas le cerveau.
 
 Contrairement a lm-evaluation-harness (qui note un GGUF nu sur des taches
-genériques), ce harnais evalue les VRAIS points d'entree d'Aura :
+genériques), ce harnais evalue les VRAIS points d'entree d'RontoGPT :
 
-  --cible pipeline : le code source (aura.orchestrateur.Aura1B) in-process
+  --cible pipeline : le code source (aura.orchestrateur.RontoGPT) in-process
   --cible aef      : le PAQUET SCELLE — kernel.boot() verifie (SHA-256 +
                      Ed25519), dechiffre (AURA_SECRET), extrait — puis c'est
                      le CODE DU PAQUET qui repond (ce qui est publie)
-  --cible exe      : Aura.exe reel, un sous-processus par question — le
+  --cible exe      : RontoGPT.exe reel, un sous-processus par question — le
                      chemin utilisateur complet, du double-clic a la reponse
 
 Dataset deterministe (aucun reseau requis) : maths niveau 0, calcul
@@ -24,7 +24,7 @@ Format dataset (JSONL) : {"question", "attendu", "mode":
 Usage :
   uv run python scripts/harnais_evaluation.py                     # pipeline
   uv run python scripts/harnais_evaluation.py --cible aef         # paquet scelle
-  uv run python scripts/harnais_evaluation.py --cible exe         # Aura.exe
+  uv run python scripts/harnais_evaluation.py --cible exe         # RontoGPT.exe
   uv run python scripts/harnais_evaluation.py --rapport eval.json
 """
 from __future__ import annotations
@@ -63,7 +63,7 @@ DATASET: list[dict[str, Any]] = [
     {"question": "j'ai 10 euros, j'en depense 4, combien il me reste",
      "attendu": "6", "mode": "numerique", "categorie": "calcul-verbal"},
     # identite constante (hors des poids, 0 hallucination possible)
-    {"question": "qui es tu", "attendu": "Aura",
+    {"question": "qui es tu", "attendu": "RontoGPT",
      "mode": "contient", "categorie": "identite"},
     {"question": "qui t'a cree", "attendu": "Simon",
      "mode": "contient", "categorie": "identite"},
@@ -128,10 +128,10 @@ def verifier(reponse: str, attendu: str, mode: str) -> bool:
 def _cible_pipeline():
     """Code source, in-process. Memoire redirigee vers un fichier temporaire
     (le harnais ne pollue jamais la vraie .conversation.jsonl)."""
-    from aura.orchestrateur import Aura1B
+    from aura.orchestrateur import RontoGPT
     from aura.memoire_conversation import MemoireConversation
 
-    ia = Aura1B()
+    ia = RontoGPT()
     tmp = tempfile.TemporaryDirectory()
     ia._historique = MemoireConversation(
         chemin=Path(tmp.name) / "eval.jsonl")
@@ -150,7 +150,7 @@ def _cible_aef(chemin_aef: Path):
             os.environ["AURA_SECRET"] = f_secret.read_text(
                 encoding="utf-8").strip()
     sysm = kernel.boot(chemin_aef)
-    ia = sysm["module"].Aura1B()
+    ia = sysm["module"].RontoGPT()
     mc = sysm["module"].memoire_conversation      # version du PAQUET
     tmp = tempfile.TemporaryDirectory()
     ia._historique = mc.MemoireConversation(
@@ -159,7 +159,7 @@ def _cible_aef(chemin_aef: Path):
 
 
 def _cible_exe(exe: Path, chemin_aef: Path):
-    """Aura.exe reel : un sous-processus par question (chemin utilisateur).
+    """RontoGPT.exe reel : un sous-processus par question (chemin utilisateur).
     Le cache kernel rend le boot rapide apres la premiere verification.
     Limite structurelle : l'etat evenementiel est en RAM, chaque
     sous-processus demarre neuf — les tests memoire passent alors par le
@@ -255,12 +255,12 @@ def afficher(rapport: dict, cible: str) -> None:
 
 def main() -> int:
     parseur = argparse.ArgumentParser(
-        description="Harnais d'evaluation du systeme Aura (pipeline/aef/exe)")
+        description="Harnais d'evaluation du systeme RontoGPT (pipeline/aef/exe)")
     parseur.add_argument("--cible", choices=("pipeline", "aef", "exe"),
                          default="pipeline")
     parseur.add_argument("--aef", default="aura_system.aef.enc",
                          help="chemin du paquet (cibles aef/exe)")
-    parseur.add_argument("--exe", default="dist/Aura.exe",
+    parseur.add_argument("--exe", default="dist/RontoGPT.exe",
                          help="chemin de l'exe (cible exe)")
     parseur.add_argument("--dataset", default=None,
                          help="JSONL supplementaire (defaut : dataset integre)")

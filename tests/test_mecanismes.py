@@ -1,12 +1,14 @@
-"""Tests des 3 nouveaux mecanismes (inspires de GitHub) :
+"""Tests des mecanismes structures du pipeline :
 1. Program-of-Thoughts (aura/raisonneur.py) : le 1B ecrit, l'AST verifie
 2. MiniRAG-lite (aura/graphe_faits.py) : triplets de faits verifies
-3. StoryWriter-lite : redaction section par section dans generer_riche
+
+Le troisieme (« StoryWriter-lite », redaction section par section) a ete
+supprime avec le mode dissertation ; ses tests sont partis avec lui.
 """
 import pytest
 
 from aura import raisonneur
-from aura.orchestrateur import Aura1B
+from aura.orchestrateur import RontoGPT
 
 
 # ── 1. Program-of-Thoughts ──────────────────────────────────────────────
@@ -113,21 +115,21 @@ class TestPotPipeline:
             llama_cerveau, "generer",
             lambda *a, **k: etapes if k.get("systeme")
             else "Paul a 11 ans.")
-        r = Aura1B()._resoudre_par_pot("puzzle quelconque")
+        r = RontoGPT()._resoudre_par_pot("puzzle quelconque")
         assert r == "Paul a 11 ans."
 
     def test_resoudre_par_pot_replie_si_pas_d_etapes(self, monkeypatch):
         from aura import llama_cerveau
         monkeypatch.setattr(llama_cerveau, "generer",
                             lambda *a, **k: "je ne sais pas vraiment")
-        assert Aura1B()._resoudre_par_pot("puzzle") is None
+        assert RontoGPT()._resoudre_par_pot("puzzle") is None
 
     def test_resoudre_par_pot_replie_si_calcul_casse(self, monkeypatch):
         from aura import llama_cerveau
         monkeypatch.setattr(llama_cerveau, "generer",
                             lambda *a, **k:
                             "ETAPE 1 : x = 5 / 0\nETAPE 2 : y = 1 + 1\n")
-        assert Aura1B()._resoudre_par_pot("puzzle") is None
+        assert RontoGPT()._resoudre_par_pot("puzzle") is None
 
     def test_pipeline_pot_complete(self, monkeypatch):
         """Question puzzle sans web ni donnees -> cerveau pot-1b+ast."""
@@ -137,11 +139,12 @@ class TestPotPipeline:
         monkeypatch.setattr(llama_cerveau, "generer",
                             lambda q, contexte_web="", formule="",
                             max_tokens=None, historique=None, systeme=None,
-                            contexte_faits="":
+                            contexte_faits="", think=None, categorie="",
+                            complexe=False, deadline=None:
                             "ETAPE 1 : Marie = 2 * 4\n"
                             "ETAPE 2 : Paul = 8 + 3\nREPONSE : 11 ans."
                             if systeme else "Paul a 11 ans.")
-        ia = Aura1B()
+        ia = RontoGPT()
         r = ia.executer_detaille(
             "Paul a 3 ans de plus que Marie qui a le double de Leo (4 ans). "
             "Quel age a Paul ?")
@@ -191,61 +194,3 @@ class TestGrapheFaits:
             "Emmanuel Macron est le president de la France.")[0]
         assert "Macron" in s and "France" in o
 
-
-# ── 3. StoryWriter-lite (redaction section par section) ─────────────────
-
-class TestStoryWriterLite:
-    PLAN = ("PARTIE 1 : Etat des lieux du solaire\n"
-            "PARTIE 2 : L'essor de l'eolien\n"
-            "PARTIE 3 : Comparaison et perspectives\n"
-            "CONNECTEURS : Neanmoins, Par consequent")
-
-    def _llm_sections(self, textes):
-        class FauxLlm:
-            def __init__(self):
-                self.appels = []
-
-            def create_chat_completion(self, **kw):
-                self.appels.append(kw)
-                contenu = textes[len(self.appels) - 1]
-                return {"choices": [{"message": {"content": contenu}}]}
-        return FauxLlm()
-
-    def test_redaction_par_sections(self, monkeypatch):
-        from aura import llama_cerveau as lc
-        # appel 1 = le plan, puis les 3 sections
-        llm = self._llm_sections([self.PLAN, "SECTION UN.",
-                                  "SECTION DEUX.", "TROIS."])
-        monkeypatch.setattr(lc, "_charger", lambda: llm)
-        monkeypatch.setattr(lc, "grammaire_plan", lambda: None)
-        r = lc.generer_riche("Redige une analyse comparee du solaire et "
-                             "de l'eolien en France")
-        # 3 sections + 1 passe plan = 4 appels
-        assert len(llm.appels) == 4
-        assert "SECTION UN." in r and "TROIS." in r
-        # la 2e section a recu la memoire de la 1re (coherence)
-        prompt_sec2 = llm.appels[2]["messages"][0]["content"]
-        assert "SECTION UN." in prompt_sec2
-
-    def test_repli_passe_unique_si_une_section_echoue(self, monkeypatch):
-        from aura import llama_cerveau as lc
-
-        class FauxLlm:
-            def __init__(self):
-                self.n = 0
-
-            def create_chat_completion(self, **kw):
-                self.n += 1
-                if self.n == 1:
-                    return {"choices": [{"message": {"content": self.PLAN}}]}
-                if self.n in (2, 3):
-                    raise RuntimeError("boom")
-                return {"choices": [{"message": {"content": "PASSE UNIQUE."}}]}
-
-        llm = FauxLlm()
-        monkeypatch.setattr(lc, "_charger", lambda: llm)
-        monkeypatch.setattr(lc, "grammaire_plan", lambda: None)
-        monkeypatch.setattr(lc, "generer", lambda *a, **k: "REPLI-SIMPLE")
-        r = lc.generer_riche("Redige une analyse comparee du solaire "
-                             "et de l'eolien en France")
-        assert r == "REPLI-SIMPLE"

@@ -20,7 +20,7 @@ Surete de conception (meme doctrine que agents.py) :
 - pas de thread-lock (la suite est mono-thread ; le jour ou generer()
   sera multithread, ce module ajoutera le sien).
 
-Production : scripts/entrainer_adaptateur.py (Colab, PEFT) -> 
+Production : scripts/colab_lora_gemma.ipynb (Colab autonome, PEFT) -> 
 adaptateurs/<nom>.gguf -> hot-swap automatique au routage.
 """
 import ctypes
@@ -54,6 +54,153 @@ _ACTIF: str | None = None        # adaptateur actuellement monte
 
 _LIB = None                      # bindings C-API (charges paresseusement)
 _ERR: str | None = None          # raison de l'indisponibilite (log 1 fois)
+
+
+# ── COUPLAGE A L'ARCHITECTURE DU CERVEAU ────────────────────────────────
+# Un adaptateur LoRA n'est PAS un plugin : c'est un DELTA DE POIDS calcule
+# pour une architecture precise (meme nombre de couches, memes dimensions,
+# memes tetes). Monte sur une autre base, il ne specialise rien — il produit
+# du bruit, generalement SANS erreur visible.
+#
+# Le controle comparait jusqu'ici des CHAINES DE CARACTERES dans le nom du
+# fichier (« llama-3.2-1b » in nom). Un fichier renomme passait donc, et un
+# cerveau du bon type range sous un autre nom etait refuse : la garde
+# protegeait exactement ceux qui n'en avaient pas besoin. Les nombres qui
+# comptent sont DANS le GGUF et se lisent (aura/gguf_meta.py) : le verdict
+# est desormais une MESURE.
+#
+# 9 oct. 2026 — BASCULE Llama-3.2 -> Gemma-3 puis RE-ENTRAINEMENT : le
+# cerveau par defaut est Gemma (26 couches, dim 1152, 4/1 tetes) et les
+# nouveaux adaptateurs sont calcules pour LUI. Le verdict ne repose plus
+# sur une constante a resynchroniser a la main : il lit l'architecture des
+# adaptateurs SUR LE DISQUE (leur en-tete GGUF porte `general.architecture`)
+# et la compare a celle du cerveau charge (cf. verifier_cerveau).
+#
+# Ce que ça change : le jour ou l'on remplace les 4 fichiers .gguf par
+# les versions Gemma, AUCUNE ligne de ce module n'a besoin de bouger — le
+# montage s'active tout seul. Inversement, des adaptateurs Llama (ou d'une
+# autre famille) restent refuses sur un cerveau Gemma, sans reglage.
+# Production : scripts/colab_lora_gemma.ipynb (Colab).
+#
+# ARCHITECTURE_CIBLE reste la description de reference des adaptateurs
+# ATTENDUS (ceux en cours de re-entrainement). Elle sert de repli quand un
+# adaptateur est present mais son en-tete illisible, et de documentation ;
+# elle n'est plus le critere du verdict.
+ARCHITECTURE_CIBLE: dict[str, str | int] = {
+    "famille": "gemma3",
+    "parametres": "1B",
+    "block_count": 26,
+    "embedding_length": 1152,
+    "head_count": 4,
+    "head_count_kv": 1,
+}
+
+#: Architecture du cerveau MAINTENANT par defaut. Sert a documenter l'ecart
+#: et a le mesurer, jamais a filtrer : le verdict vient du fichier.
+ARCHITECTURE_CERVEAU: dict[str, str | int] = {
+    "famille": "gemma3",
+    "parametres": "1B",
+    "block_count": 26,
+    "embedding_length": 1152,
+    "head_count": 4,
+    "head_count_kv": 1,
+}
+
+#: Marqueurs de NOM utilises uniquement pour les messages et les dossiers
+#: d'adaptateurs par famille (jamais pour autoriser ou refuser un montage :
+#: cf. verifier_cerveau, qui lit le GGUF).
+MOTIFS_CERVEAU: tuple[str, ...] = ("llama-3.2-1b", "llama-3-2-1b", "llama3.2-1b")
+MOTIFS_GEMMA: tuple[str, ...] = ("gemma-3-1b", "gemma3-1b", "gemma-3-1b-it")
+
+
+def cerveau_compatible(chemin: str | Path) -> bool:
+    """Le cerveau donne est-il celui pour lequel les LoRA ont ete calcules ?
+
+    Lit l'EN-TETE du GGUF (aura/gguf_meta.py) : nombre de couches, dimension,
+    tetes. Un nom de fichier ne prouve rien — un fichier renomme passait la
+    version precedente de ce controle.
+    """
+    ok, _ = verifier_cerveau(chemin)
+    return ok
+
+
+def adaptateurs_installes() -> list[Path]:
+    """Chemin de chaque adaptateur present sur disque (toutes categories)."""
+    d = dossier()
+    if not d.is_dir():
+        return []
+    trouves: list[Path] = []
+    for nom in _ADAPTATEURS.values():
+        for ext in (".gguf", ".bin"):
+            p = d / f"{nom}{ext}"
+            if p.is_file():
+                trouves.append(p)
+                break
+    return trouves
+
+
+def architecture_adaptateurs() -> dict:
+    """Famille (et champs disponibles) lus dans les adaptateurs sur disque.
+
+    Un LoRA GGUF porte `general.architecture` (mesure sur les fichiers du
+    projet : `llama`), mais PAS `block_count`/`embedding_length` — ces cles
+    n'existent que dans le GGUF du cerveau. On agrège donc ce qui EST la.
+    """
+    from . import gguf_meta
+
+    familles: set[str] = set()
+    for p in adaptateurs_installes():
+        f = gguf_meta.famille(p)
+        if f:
+            familles.add(f)
+    return {"familles": sorted(familles)}
+
+
+def verifier_cerveau(chemin: str | Path) -> tuple[bool, str]:
+    """(compatible, message). A appeler AVANT de monter des adaptateurs.
+
+    Le verdict compare l'architecture RELLE des adaptateurs PRESENTS sur
+    disque a celle du cerveau charge — plus une constante a tenir a jour.
+    Remplacer les .gguf par les versions Gemma suffit donc a activer le
+    montage. Ne leve jamais : renvoie un verdict que l'appelant journalise
+    ou refuse.
+    """
+    from . import gguf_meta
+
+    arc_cerveau = gguf_meta.architecture(chemin)
+    if not arc_cerveau:
+        return False, (f"architecture du cerveau "
+                       f"'{Path(str(chemin)).name}' illisible "
+                       "(fichier absent ou tronque)")
+    installes = adaptateurs_installes()
+    if not installes:
+        return True, ""              # aucun adaptateur : rien a proteger
+    for p in installes:
+        arc = gguf_meta.architecture(p)
+        if not arc:                  # en-tete illisible : llama.cpp tranchera
+            continue
+        ecarts = []
+        if arc.get("famille") != arc_cerveau.get("famille"):
+            ecarts.append(f"famille : adaptateur {arc.get('famille')}, "
+                          f"cerveau {arc_cerveau.get('famille')}")
+        # Ne comparer un nombre que si l'ADAPTATEUR l'expose : les LoRA
+        # GGUF ne portent pas block_count, exiger l'egalite contre None
+        # refuserait un adaptateur pourtant correct.
+        for cle in ("block_count", "embedding_length", "head_count",
+                    "head_count_kv"):
+            vu, attendu = arc.get(cle), arc_cerveau.get(cle)
+            if vu is not None and attendu is not None and vu != attendu:
+                ecarts.append(f"{cle} : adaptateur {vu}, cerveau {attendu}")
+        if ecarts:
+            return False, (
+                f"les adaptateurs installes ne sont pas ceux du cerveau "
+                f"a monter — {'; '.join(ecarts)} "
+                f"({gguf_meta.resume(chemin)}). Un LoRA est un delta de "
+                "poids pour une architecture precise ; monte sur une autre "
+                "base il produit du bruit SANS erreur visible. Ils sont "
+                "ignores en attendant leur re-entrainement "
+                "(scripts/colab_lora_gemma.ipynb).")
+    return True, ""
 
 
 def _actifs() -> bool:

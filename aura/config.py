@@ -1,6 +1,6 @@
 """Configuration centralisee : aura.toml + profils (rapide / equilibre / qualite).
 
-Pourquoi un module dedie : chaque module d'Aura lit ses variables ``AURA_*``
+Pourquoi un module dedie : chaque module d'RontoGPT lit ses variables ``AURA_*``
 au moment de l'IMPORT (llama_cerveau._CHEMIN_GGUF, orchestrateur._SEUIL_*
 ...). ``appliquer()`` doit donc tourner AVANT d'importer l'orchestrateur —
 c'est le cas dans ``aura.api``, ``aura.gui_web`` et ``aura.__main__``.
@@ -18,6 +18,7 @@ Usage :
 from __future__ import annotations
 
 import json
+import logging
 import os
 import tomllib
 from pathlib import Path
@@ -89,6 +90,47 @@ def _vers_env(valeur) -> str:
     return str(valeur)
 
 
+logger = logging.getLogger(__name__)
+
+
+def _conflits(fichier: dict, nom: str) -> dict[str, tuple[str, str]]:
+    """Variables qu'une valeur EXPLICITE du fichier ecrase alors que le profil
+    selectionne les regle AUSSI. env -> (valeur du fichier, valeur du profil)."""
+    regles = PROFILS.get(nom, {})
+    out: dict[str, tuple[str, str]] = {}
+    for (section, cle), env in _CLES.items():
+        bloc = fichier.get(section)
+        if not isinstance(bloc, dict) or cle not in bloc or env not in regles:
+            continue
+        valeur = _vers_env(bloc[cle])
+        if valeur != regles[env]:
+            out[env] = (valeur, regles[env])
+    return out
+
+
+def conflits_profil(chemin: Path | None = None,
+                    profil: str | None = None) -> dict[str, tuple[str, str]]:
+    """Le fichier defait-il SILENCIEUSEMENT le profil selectionne ?
+
+    La priorite « fichier > profil » est assumee : c'est un choix explicite de
+    l'utilisateur. Mais l'appliquer sans rien dire est un piege — mesure du
+    8 oct. 2026 : `aura.toml` epingle `budget_s = 45` ; le profil `qualite`
+    (budget 180 s, calibre pour les longues redactions) devient donc
+    inoperant, et rien ne le signalait : le budget declare d'un cote et
+    celui reellement applique de l'autre, sans une ligne pour le dire.
+
+    Renvoie {} quand il n'y a rien a signaler.
+    """
+    fichier = _lire_toml(chemin)
+    nom = (profil
+           or str(((fichier.get("profil") or {}).get("nom")) or "")
+           or os.environ.get("AURA_PROFIL", "")
+           or "equilibre").strip().lower()
+    if nom not in PROFILS:
+        nom = "equilibre"
+    return _conflits(fichier, nom)
+
+
 def appliquer(chemin: Path | None = None,
               profil: str | None = None) -> dict[str, str]:
     """Pose les variables AURA_* du fichier + du profil. Renvoie ce qui a
@@ -111,9 +153,25 @@ def appliquer(chemin: Path | None = None,
 
     # 2) valeurs explicites du fichier (elles battent le profil)
     for (section, cle), env in _CLES.items():
+        # SAUF le choix du profil lui-meme : l'etape 1 l'a deja resolu avec la
+        # bonne priorite (« argument > fichier > env > defaut »). Le reecrire
+        # ici faisait GAGNER le fichier sur l'argument : `--profil qualite`
+        # etait silencieusement annule par `[profil] nom = "equilibre"`, en
+        # contradiction avec la priorite documentee en tete de ce module.
+        if env == "AURA_PROFIL":
+            continue
         bloc = fichier.get(section)
         if isinstance(bloc, dict) and cle in bloc:
             pose[env] = _vers_env(bloc[cle])
+
+    # Le fichier peut DEFAIRE le profil sans le dire : ici, on le dit. Le
+    # message nomme la variable, les deux valeurs ET la sortie (retirer la
+    # ligne), parce qu'un avertissement sans remede n'est qu'un bruit.
+    for env, (du_fichier, du_profil) in _conflits(fichier, nom).items():
+        logger.warning(
+            "aura.toml ecrase le profil %s : %s = %s (profil : %s) — retire "
+            "la ligne du fichier pour laisser le profil decider",
+            nom, env, du_fichier, du_profil)
 
     for k, v in pose.items():
         if k not in deja:
@@ -149,15 +207,22 @@ def main(argv=None) -> int:
                     choices=sorted(PROFILS), help="forcer un profil (test)")
     args = ap.parse_args(argv)
     pose = appliquer(profil=args.profil)
+    conflits = conflits_profil(profil=args.profil)
     if args.json:
         print(json.dumps({"version": version(), "pose": pose,
+                          "conflits_profil": conflits,
                           "environnement": efficace()},
                          ensure_ascii=False, indent=2))
         return 0
-    print(f"Aura {version()} — profil : {os.environ.get('AURA_PROFIL', '?')}")
+    print(f"RontoGPT {version()} — profil : {os.environ.get('AURA_PROFIL', '?')}")
     print(f"Fichier : {_CHEMIN if _lire_toml() else _CHEMIN.name + ' (absent -> defauts)'}")
     for k, v in efficace().items():
         print(f"  {k:26s} = {v}")
+    # Le profil dit une chose et le fichier une autre : a dire AVANT de
+    # chercher pourquoi une reponse est trop courte.
+    for env, (du_fichier, du_profil) in conflits.items():
+        print(f"  [!] {env} : le fichier impose {du_fichier}, le profil "
+              f"voulait {du_profil} — retire la ligne pour laisser le profil")
     return 0
 
 

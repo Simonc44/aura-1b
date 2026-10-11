@@ -74,11 +74,11 @@ class TestEvaluer:
              "categorie": "math"},
             {"question": "q2", "attendu": "2", "mode": "numerique",
              "categorie": "math"},
-            {"question": "q3", "attendu": "Aura", "mode": "contient",
+            {"question": "q3", "attendu": "RontoGPT", "mode": "contient",
              "categorie": "identite"},
         ]
         reponses = {"q1": "resultat 1", "q2": "resultat 3",   # 1 faux
-                    "q3": "Je suis Aura"}
+                    "q3": "Je suis RontoGPT"}
 
         def poser(q):
             return reponses[q]

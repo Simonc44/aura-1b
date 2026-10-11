@@ -1,4 +1,4 @@
-# Aura-1B v0.2.0 — the system grows a mind of its own
+# RontoGPT v0.2.0 — the system grows a mind of its own
 
 > **The fastest answer is the one you never generate.**
 > A 100 % local, CPU-native AI: Llama 3.2 1B orchestrated with exact math,
@@ -38,7 +38,7 @@
 
 ## 📊 The equivalence, measured by capability
 
-| Capability | Aura-1B system | Raw 1B brain |
+| Capability | RontoGPT system | Raw 1B brain |
 |---|---|---|
 | Logic & math | **beyond class** — exact, proven | hallucinates |
 | Facts (graph + web) | **~7-8B anchored**, 0 hallucination | ~1B, frozen |

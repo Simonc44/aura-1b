@@ -1,4 +1,4 @@
-"""Nourrit le graphe de faits d'Aura depuis knowledge.jsonl (R1-U300).
+"""Nourrit le graphe de faits d'RontoGPT depuis knowledge.jsonl (R1-U300).
 
 Chaque entree {cat, q, a} devient un triplet du graphe :
     sujet   = la question (les mots de la question servent d'index)
@@ -6,8 +6,8 @@ Chaque entree {cat, q, a} devient un triplet du graphe :
     objet   = la reponse (tronquee a MAX_OBJET caracteres)
 
 Regles de securite :
-- categorie « identite » EXCLUE : ces entrees decrivent R1-U300, pas Aura
-  (sinon Aura se presenterait comme un autre assistant) ;
+- categorie « identite » EXCLUE : ces entrees decrivent R1-U300, pas RontoGPT
+  (sinon RontoGPT se presenterait comme un autre assistant) ;
 - « sante » et « droit » marquees « (info generale) » : le graphe ne doit
   jamais suggerer un avis professionnel ;
 - deduplication exacte par graphe_faits.ajouter → re-run sans doublon.

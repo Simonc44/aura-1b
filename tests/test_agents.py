@@ -1,4 +1,4 @@
-"""Tests des 5 agents cognitifs d'Aura.
+"""Tests des 5 agents cognitifs d'RontoGPT.
 
 1. Planificateur       : decoupe en etapes des taches actionables
 2. Compresseur RAG     : 3 phrases les plus utiles au lieu du bruit web
@@ -11,7 +11,7 @@ Plus : integration orchestrateur + failsafe (AURA_AGENTS=0).
 import pytest
 
 from aura import agents
-from aura.orchestrateur import Aura1B
+from aura.orchestrateur import RontoGPT
 
 
 def _ia_neutre(monkeypatch, analyse=None):
@@ -19,11 +19,10 @@ def _ia_neutre(monkeypatch, analyse=None):
     monkeypatch.setattr(filtre_instantane, "repondre", lambda q: None)
     monkeypatch.setattr(filtre_instantane, "enregistrer", lambda q, r: None)
     monkeypatch.setattr(llama_cerveau, "generer", lambda *a, **k: "ok-llm")
-    monkeypatch.setattr(llama_cerveau, "generer_riche", lambda *a, **k: "ok-llm")
     monkeypatch.setattr(rag_binaire, "chercher", lambda q: None)
     if analyse is not None:
-        monkeypatch.setattr(Aura1B, "analyser", lambda self, q: analyse)
-    return Aura1B()
+        monkeypatch.setattr(RontoGPT, "analyser", lambda self, q: analyse)
+    return RontoGPT()
 
 
 # ── 1. Planificateur ────────────────────────────────────────────────────
@@ -74,12 +73,6 @@ class TestCompresseur:
         assert 1 <= len(phrases) <= 3
         assert any("2 650" in p or "prix" in p.lower() for p in phrases)
 
-    def test_mode_riche_coupe_propre(self):
-        texte = "AAA. " * 100                              # 600 car
-        texte += "derniere phrase complete du contexte. " * 30
-        sortie = agents.compresser(texte, "q", riche=True)
-        assert sortie.endswith(".")
-        assert len(sortie) <= 1550
 
 
 # ── 3. Rédacteur ────────────────────────────────────────────────────────
@@ -165,7 +158,7 @@ class TestMasqueur:
 
     def test_composite_garde_la_base(self):
         p = agents.composer_personnalite({"web"}, "quel temps fait-il")
-        assert p and p.startswith("Tu es Aura")     # base conservee
+        assert p and p.startswith("Tu es RontoGPT")     # base conservee
         assert "faits" in p.lower()                  # masque ajoute
 
     def test_logique_garde_le_cot_natif(self):

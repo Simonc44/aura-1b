@@ -1,0 +1,78 @@
+{
+  "score": "5/5",
+  "score_verifiable": "5/5",
+  "score_forme": "0/0",
+  "provenance": {
+    "constante": "2/2",
+    "niveau0-instantane": "2/2",
+    "micro-faits": "1/1"
+  },
+  "duree_s": 1.5,
+  "resultats": [
+    {
+      "id": "format-mot",
+      "categorie": "format",
+      "question": "Ecris exactement le mot BANANE.",
+      "ok": true,
+      "mesure": "0.0s, 6 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "constante",
+      "experts": [
+        "recopie"
+      ]
+    },
+    {
+      "id": "format-couleurs",
+      "categorie": "format",
+      "question": "Donne trois couleurs primaires separees par des virgules.",
+      "ok": true,
+      "mesure": "1.4s",
+      "verifiable": true,
+      "latence": 1.44,
+      "cerveau": "micro-faits",
+      "experts": [
+        "micro"
+      ]
+    },
+    {
+      "id": "format-calcul",
+      "categorie": "format",
+      "question": "Combien font 4 + 4 ? Reponds en un seul chiffre.",
+      "ok": true,
+      "mesure": "0.0s, 1 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    },
+    {
+      "id": "format-phrase",
+      "categorie": "format",
+      "question": "Ecris la phrase : je teste Aura.",
+      "ok": true,
+      "mesure": "0.0s, 13 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "constante",
+      "experts": [
+        "recopie"
+      ]
+    },
+    {
+      "id": "format-soustraction",
+      "categorie": "format",
+      "question": "Donne le resultat de 10 - 3.",
+      "ok": true,
+      "mesure": "0.0s, 1 car",
+      "verifiable": true,
+      "latence": 0.0,
+      "cerveau": "niveau0-instantane",
+      "experts": [
+        "instantane"
+      ]
+    }
+  ]
+}

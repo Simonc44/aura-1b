@@ -238,7 +238,7 @@ def soak(tours: int, seuil: int) -> int:
 
 
 def main() -> int:
-    parseur = argparse.ArgumentParser(description="Soak test de la memoire Aura")
+    parseur = argparse.ArgumentParser(description="Soak test de la memoire RontoGPT")
     parseur.add_argument("--tours", type=int, default=2000,
                          help="nombre de tours simules (defaut 2000 ~ 2 h)")
     parseur.add_argument("--seuil", type=int, default=16 * 1024,

@@ -1,15 +1,15 @@
-"""Aura-Vocal : l'encoche (notch) d'un MacBook, mais vivante.
+"""RontoGPT-Vocal : l'encoche (notch) d'un MacBook, mais vivante.
 
 Un petit rectangle noir aux coins inferieurs arrondis, colle au bord
 superieur au centre de l'ecran, comme la notch d'un MacBook Pro :
   - au centre : la camera (capteur visible), le voyant d'activite
-    (il s'allume quand Aura ecoute) et le capteur de luminosite ;
-  - a gauche : le statut d'Aura (comme un menu de la barre macOS) ;
+    (il s'allume quand RontoGPT ecoute) et le capteur de luminosite ;
+  - a gauche : le statut d'RontoGPT (comme un menu de la barre macOS) ;
   - a droite : l'heure (comme la barre de menus).
 Maintiens l'encoche pour parler, relache : ce que tu dis s'ecrit dans
-la bulle sous l'encoche, Aura repond, dit la reponse et la copie.
+la bulle sous l'encoche, RontoGPT repond, dit la reponse et la copie.
 Double-clic sur l'encoche : fermer. F9 : alternative clavier.
-Transcription faster-whisper 100 % locale ; moteur Aura-1B.
+Transcription faster-whisper 100 % locale ; moteur RontoGPT.
 
 Usage : uv run python scripts/aura_vocal.py [--sans-voix] [--smoke]
 """
@@ -97,9 +97,9 @@ class NotchVocale(tk.Tk):
         self._cv.pack()
         _coins_bas(self._cv, _L, _H, 12, _NOIR)
 
-        # --- a gauche : le menu Aura (statut, texte blanc) ---
+        # --- a gauche : le menu RontoGPT (statut, texte blanc) ---
         self._txt = self._cv.create_text(
-            16, _H // 2, text="Aura   chargement...", fill=_BLANC,
+            16, _H // 2, text="RontoGPT   chargement...", fill=_BLANC,
             font=("Segoe UI", 9, "bold"), anchor="w")
 
         # --- au centre : camera + voyant + capteur (comme la notch) ---
@@ -168,13 +168,13 @@ class NotchVocale(tk.Tk):
                 return
             self._ecoute = True
             self._led(_ROUGE)
-            self._statut("Aura   j'ecoute - relache pour envoyer")
+            self._statut("RontoGPT   j'ecoute - relache pour envoyer")
             self._bulle_texte("... parle")
             self._file.put(("go", None))
         elif not activer and self._ecoute:
             self._ecoute = False
             self._led(_JAUNE)
-            self._statut("Aura   transcription...")
+            self._statut("RontoGPT   transcription...")
 
     # ---------------- affichage ----------------
     def _bulle_texte(self, texte: str) -> None:
@@ -201,8 +201,8 @@ class NotchVocale(tk.Tk):
             self._file.put(("erreur", "whisper: " + str(e)[:120]))
             return
         try:
-            from aura.orchestrateur import Aura1B
-            ia = Aura1B()
+            from aura.orchestrateur import RontoGPT
+            ia = RontoGPT()
             self._file.put(("pret", ia))
         except Exception as e:  # noqa: BLE001
             self._file.put(("erreur", "aura: " + str(e)[:120]))
@@ -243,7 +243,7 @@ class NotchVocale(tk.Tk):
         import sounddevice as sd  # type: ignore[import-untyped]
         fs = 16000
         blocs: list = []
-        self._file.put(("etape", "Aura   j'ecoute..."))
+        self._file.put(("etape", "RontoGPT   j'ecoute..."))
         try:
             with sd.InputStream(samplerate=fs, channels=1, dtype="float32",
                                 blocksize=1600) as flux:
@@ -273,7 +273,7 @@ class NotchVocale(tk.Tk):
             return
         if pic < 0.05:
             audio = audio * (0.3 / pic)   # gain auto si micro faible
-        self._file.put(("etape", "Aura   transcription..."))
+        self._file.put(("etape", "RontoGPT   transcription..."))
         try:
             segments, _ = self._whisper.transcribe(
                 audio, language="fr", beam_size=1, vad_filter=True,
@@ -326,14 +326,14 @@ class NotchVocale(tk.Tk):
                     self._statut(str(msg[1]))
                 elif g == "niveau":
                     b = min(8, int(float(msg[1]) * 300))
-                    self._statut("Aura   niveau " + "|" * b
+                    self._statut("RontoGPT   niveau " + "|" * b
                                  + (" faible !" if b < 2 else ""))
                 elif g == "micro":
                     self._bulle_texte("[micro] " + str(msg[1]))
                 elif g == "pret":
                     self._ia = msg[1]
                     self._led(_VERT)
-                    self._statut("Aura   pret - maintiens l'encoche ou F9")
+                    self._statut("RontoGPT   pret - maintiens l'encoche ou F9")
                 elif g == "go":
                     threading.Thread(target=self._enregistrer,
                                      daemon=True).start()
@@ -341,13 +341,13 @@ class NotchVocale(tk.Tk):
                     self._occupe = True
                     self._led(_JAUNE)
                     self._bulle_texte("tu : " + str(msg[1]))
-                    self._statut("Aura   reflechit...")
+                    self._statut("RontoGPT   reflechit...")
                     threading.Thread(target=self._repondre,
                                      args=(msg[1],), daemon=True).start()
                 elif g == "reponse":
                     q, rep, dt = str(msg[1]), str(msg[2]), msg[3]
-                    self._bulle_texte("tu : " + q + _NL + "Aura : " + rep)
-                    self._statut("Aura   pret - " + str(dt)
+                    self._bulle_texte("tu : " + q + _NL + "RontoGPT : " + rep)
+                    self._statut("RontoGPT   pret - " + str(dt)
                                  + " s - copie (Ctrl+V)")
                     self._led(_VERT)
                     self._occupe = False
@@ -361,7 +361,7 @@ class NotchVocale(tk.Tk):
                                          daemon=True).start()
                 elif g == "erreur":
                     self._bulle_texte("[probleme] " + str(msg[1]))
-                    self._statut("Aura   pret - reessaie")
+                    self._statut("RontoGPT   pret - reessaie")
                     self._led(_VERT)
                     self._occupe = False
                     self._ecoute = False

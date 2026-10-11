@@ -1,0 +1,23 @@
+{"question":"Quelle ville est la capitale française ?","attendu":"Paris","categorie":"capitales"}
+{"question":"Quelle est la capitale italienne ?","attendu":"Rome","categorie":"capitales"}
+{"question":"Quelle ville est le siège de la capitale espagnole ?","attendu":"Madrid","categorie":"capitales"}
+{"question":"Quelle ville gouverne le Japon comme capitale ?","attendu":"Tokyo","categorie":"capitales"}
+{"question":"Quelle est la capitale du Canada ?","attendu":"Ottawa","categorie":"capitales"}
+{"question":"Quel sommet est le plus haut sur Terre ?","attendu":"Everest","categorie":"géographie"}
+{"question":"Quel océan couvre la plus grande superficie ?","attendu":"Pacifique","categorie":"géographie"}
+{"question":"Quel est le plus vaste désert chaud du globe ?","attendu":"Sahara","categorie":"géographie"}
+{"question":"Quelle planète a la plus grande taille du système solaire ?","attendu":"Jupiter","categorie":"sciences"}
+{"question":"Quelle planète surnomme-t-on la rouge ?","attendu":"Mars","categorie":"sciences"}
+{"question":"Combien de planètes orbitent autour du Soleil ?","attendu":"8","categorie":"sciences"}
+{"question":"Quelle étoile est la plus proche de notre planète ?","attendu":"Soleil","categorie":"sciences"}
+{"question":"Quel est le plus grand pays en superficie ?","attendu":"Russie","categorie":"géographie"}
+{"question":"Quelle molécule constitue l'eau ?","attendu":"H2O","categorie":"chimie"}
+{"question":"Par quelles lettres désigne-t-on l'or en chimie ?","attendu":"Au","categorie":"chimie"}
+{"question":"À température normale, l'eau bout à combien de degrés Celsius ?","attendu":"100","categorie":"sciences"}
+{"question":"Combien d'os y a-t-il dans le squelette adulte ?","attendu":"206","categorie":"sciences"}
+{"question":"En quelle année a débuté la Première Guerre mondiale ?","attendu":"1914","categorie":"histoire"}
+{"question":"En quelle année commence la Seconde Guerre mondiale ?","attendu":"1939","categorie":"histoire"}
+{"question":"Quelle est la capitale du pays imaginaire de Narnia ?","attendu":null,"categorie":"abstention"}
+{"question":"Combien font 4 plus 4 ?","attendu":null,"categorie":"abstention"}
+{"question":"Quel est le prix de l'essence aujourd'hui en France ?","attendu":null,"categorie":"abstention"}
+{"question":"Qui a gagné la Coupe du monde de football 2026 ?","attendu":null,"categorie":"abstention"}

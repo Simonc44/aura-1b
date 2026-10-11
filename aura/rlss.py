@@ -112,6 +112,10 @@ def session(nb: int | None = None) -> dict:
 
     random.shuffle(triplets)
     from . import llama_cerveau
+    # HORS REQUETE : pas d'echeance utilisateur ici. Sans ce reset, une
+    # echeance posee par une question precedente sur le meme fil
+    # fausserait tous les exercices (budget reduit au plancher).
+    llama_cerveau.poser_echeance(None)
 
     _SORTIE.parent.mkdir(parents=True, exist_ok=True)
     succes = echecs = 0
