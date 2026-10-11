@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/RontoGPT.png" alt="RontoGPT" width="420"/>
+<img src="assets/RontoGPT.png" alt="RontoGPT logo" width="780"/>
 
 **The fastest answer is the one you never generate.**
 
