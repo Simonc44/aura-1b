@@ -59,8 +59,6 @@ That's it. Start talking to RontoGPT.
   </a>
 </p>
 
-<p align="center"><sub>If RontoGPT is useful to you, a ⭐ helps others find it.</sub></p>
-
 <details>
 <summary>Technical details, architecture, and benchmarks</summary>
 
@@ -437,8 +435,10 @@ CI (GitHub Actions) runs on **Ubuntu + Windows** (Python 3.11/3.12), re-validate
 the whole `.aef` chain (forge → Ed25519 signature → boot → tamper detection)
 on Linux, and syntax-checks the PowerShell installer.
 
+</details>
+
 ## 📄 License
 
 GPLv3 — see [LICENSE](LICENSE). Copyleft: any derivative of RontoGPT's multi-agent architecture must remain open-source under the same terms.
 
-</details>
+<p align="center"><sub>If RontoGPT is useful to you, a ⭐ helps others find it.</sub></p>
