@@ -4,17 +4,10 @@
 
 **The fastest answer is the one you never generate.**
 
-<p>A local AI designed for fast answers, with specialized tools around its language model.</p>
+<p>100% local, CPU-native AI system that splits language, exact math and factual
+memory into specialized modules — instead of asking one small model to do
+everything (and hallucinate when it can't).</p>
 
-<table align="center">
-  <tr>
-    <td align="center"><strong>🧠 Local AI</strong><br/>No GPU required</td>
-    <td align="center"><strong>⚡ Verifiable arithmetic</strong><br/>Exact on supported operations</td>
-    <td align="center"><strong>🌐 Targeted search</strong><br/>Sources cited in web answers</td>
-  </tr>
-</table>
-
-[![Tests](https://github.com/Simonc44/rontogpt/actions/workflows/tests.yml/badge.svg?style=flat-square)](https://github.com/Simonc44/rontogpt/actions/workflows/tests.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-5bc0de.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-5bc0de)
 ![mypy](https://img.shields.io/badge/mypy-checked-5bc0de)
