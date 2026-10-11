@@ -754,6 +754,22 @@ def _formater_contexte(contexte_web: str, formule: str) -> str:
     return "\n\n".join(parties)
 
 
+def _ajouter_contextes(messages: list[dict], contexte_web: str,
+                       formule: str, contexte_faits: str) -> None:
+    """Ajoute les preuves comme blocs distincts, clairement etiquetes."""
+    blocs = []
+    if contexte_web:
+        blocs.append(_formater_contexte(contexte_web, "").strip())
+    if contexte_faits:
+        blocs.append("BASE DE FAITS VERIFIEE :\n" + contexte_faits)
+    if formule:
+        blocs.append(f"FORMULE EXACTE (verifiee, erreur ~0) : Y = {formule}")
+    for bloc in blocs:
+        messages.append({"role": "user", "content": bloc})
+        messages.append({"role": "assistant", "content":
+                         "Compris, j'utiliserai ce bloc comme contexte."})
+
+
 # Budget de generation D'UNE REPONSE DEVELOPPEE (explication, comparaison).
 # Il valait « budget du mode riche » (plan + 3 sections, 800 tokens) : ce
 # mode n'existe plus, et 800 tokens a ~13 tok/s representaient 60 s pour UNE
@@ -1326,9 +1342,9 @@ def _injecter_correction(messages: list[dict], note: str) -> None:
 # native : celui par defaut (Gemma-3 Heretic Thinking) reflechit seul en
 # <think> et n'a pas besoin qu'on le lui demande.
 _INSTRUCTION_THINK = (
-    "Pour les questions complexes, reflechis d'abord entre "
-    "<thinking> et </thinking> (analyse, plan, verification), "
-    "puis ecris la reponse finale apres la balise fermante.")
+    "Pour une question complexe, ecris une reflexion tres concise entre "
+    "<thinking> et </thinking> : au plus 3 lignes avec les seules etapes "
+    "ou variables necessaires. Donne ensuite directement la reponse finale.")
 
 
 def generer(question: str, contexte_web: str = "", formule: str = "",
@@ -1363,7 +1379,8 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
     if deadline is None:
         deadline = echeance_ambiant()
     effacer_reflexion()
-    contexte = _formater_contexte(contexte_web, formule)
+    raisonner = bool(think if think is not None else
+                     os.environ.get("AURA_THINK") == "1")
 
     # ── SELF-CORRECTION STREAM (aura/auto_correction.py) ────────────────
     # La PENSEE est surveillee pendant qu'elle s'ecrit. Une egalite
@@ -1407,18 +1424,14 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
                 serveur_lora.activer(categorie)
             messages_srv = [{"role": "system",
                              "content": systeme or _SYSTEME}]
-            for tour in _tours_fenetre(historique):
+            tours_historique = _tours_fenetre(historique)
+            if raisonner:
+                tours_historique = tours_historique[-2:]
+            for tour in tours_historique:
                 messages_srv.append({"role": tour["role"],
                                      "content": tour["content"]})
-            if contexte:
-                messages_srv.append({"role": "user", "content": contexte})
-                messages_srv.append({"role": "assistant",
-                                     "content": "Compris, j'utilise uniquement ces faits."})
-            if contexte_faits:
-                messages_srv.append({"role": "user", "content":
-                    f"BASE DE FAITS (verifiee) :\n{contexte_faits}"})
-                messages_srv.append({"role": "assistant",
-                                     "content": "Compris, je m'appuie sur ces faits verifies."})
+            _ajouter_contextes(messages_srv, contexte_web, formule,
+                               contexte_faits)
             messages_srv.append({"role": "user", "content": question})
             # AUTO-THINK (think=True, pose par l'orchestrateur sur les
             # puzzles/enigmes) : brouillon masque demande dans le tour
@@ -1506,17 +1519,12 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
                 f"Details : {e}")
 
     messages = [{"role": "system", "content": systeme or _SYSTEME}]
-    for tour in _tours_fenetre(historique):     # fenetre glissante ancree
+    tours_historique = _tours_fenetre(historique)
+    if raisonner:
+        tours_historique = tours_historique[-2:]
+    for tour in tours_historique:               # fenetre glissante ancree
         messages.append({"role": tour["role"], "content": tour["content"]})
-    if contexte:
-        messages.append({"role": "user", "content": contexte})
-        messages.append({"role": "assistant",
-                         "content": "Compris, j'utilise uniquement ces faits."})
-    if contexte_faits:
-        messages.append({"role": "user", "content":
-            f"BASE DE FAITS (verifiee) :\n{contexte_faits}"})
-        messages.append({"role": "assistant",
-                         "content": "Compris, je m'appuie sur ces faits verifies."})
+    _ajouter_contextes(messages, contexte_web, formule, contexte_faits)
     # prompt systeme custom = expert special (PoT/logique/code) : il gere
     # ses propres instructions — le suffixe CoT generique le contredirait
     messages.append({"role": "user",

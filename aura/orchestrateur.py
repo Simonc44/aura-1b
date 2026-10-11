@@ -645,14 +645,14 @@ class RontoGPT:
     def _verifier_au_web(question: str, reponse: str) -> str:
         """Re-ancre une reponse factuelle courte sur la preuve web (CRITIC).
 
-        Pas d'heuristique fragile de comparaison de mots (les extraits citent
-        souvent la reponse fausse comme « confusion connue ») : le modele
-        REpond une seconde fois, ancre sur les faits trouves. Une seule
-        passe — le resultat n'est pas re-verifie (pas de boucle).
-        Echec web = reponse initiale conservee (jamais bloquant).
+        La seconde requete cible la reponse candidate si la premiere ne
+        ramene pas de contexte lexicalement pertinent. Le score ne valide
+        jamais la veracite : seule la revision ancree sur les sources est
+        retenue. Echec web = reponse initiale conservee.
         """
         try:
-            ctx = memoire_web.chercher(question, max_resultats=2, timeout=6)
+            ctx = memoire_web.chercher_iteratif(
+                question, cible=reponse, max_resultats=2, timeout=6, tours=2)
         except Exception as e:
             LOG.info("[critic] verification impossible (%s) -> reponse conservee", e)
             return reponse
@@ -830,8 +830,13 @@ class RontoGPT:
             _SYSTEME_RAISONNEMENT if think
             else _SYSTEME_REDACTION if redaction
             else self._historique.bloc_systeme(systeme_final))
+        # Le brouillon de raisonnement n'herite pas de l'historique distant :
+        # garder au plus le dernier echange utile pour resoudre les references
+        # conversationnelles, sans injecter les vieux exemples/corrections.
+        historique_generation = (
+            self._historique.fenetre()[-2:] if think else self._historique)
         return self._llama(question, contexte_web, formule,
-                           historique=self._historique,
+                           historique=historique_generation,
                            contexte_faits=contexte_faits,
                            systeme=systeme_envoye,
                            categorie=categorie,
@@ -1318,6 +1323,15 @@ class RontoGPT:
         # l'API, qui n'ont pas a connaitre cette valeur de contexte.
         deadline = (t0 + _BUDGET_S) if _BUDGET_S > 0 else None
         llama_cerveau.poser_echeance(deadline)
+        try:
+            return self._executer_detaille(question, X, y, t0)
+        finally:
+            # Nettoyage obligatoire : les workers de l'API reutilisent leur fil.
+            llama_cerveau.poser_echeance(None)
+
+    def _executer_detaille(self, question: str, X=None, y=None,
+                           t0: float | None = None) -> dict:
+        t0 = t0 if t0 is not None else time.time()
         # ── RELANCE DE CLARIFICATION EN ATTENTE (un seul tour) ─────────
         # Si la porte a demande une precision au tour precedent, ce message
         # EST la precision : on la recolle a la question d'origine et le

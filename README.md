@@ -27,17 +27,36 @@ into a 3B, 8B, or equivalent-quality model.
 
 **Other languages:** [Français](README.fr.md)
 
-[Why](#-why-rontogpt) •
-[Quickstart](#-quickstart) •
-[Architecture](#-architecture) •
-[Teach it](#-teaching-your-ai) •
-[.aef format](#-the-aef-format--encrypted-distribution) •
-[Benchmarks](#-benchmarks) •
-[Roadmap](#-roadmap)
-
 </div>
 
 ---
+
+## Download and run
+
+<p align="center">
+  <a href="https://github.com/Simonc44/rontogpt/archive/refs/heads/main.zip"><strong>DOWNLOAD RontoGPT (.ZIP)</strong></a>
+</p>
+
+Download and extract the ZIP. In PowerShell, open the extracted folder and run
+the installer:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/installer.ps1
+```
+
+Then open a new PowerShell window:
+
+```powershell
+rontogpt --chat
+```
+
+The ~807 MB brain downloads once. Technical details, options, and limitations
+are further down this README.
+
+<details>
+<summary>Technical details, architecture, and benchmarks</summary>
+
+The technical reference is grouped below.
 
 ## 💡 Why RontoGPT?
 
@@ -206,7 +225,7 @@ class node_llm,node_adapters,node_loraserver,node_kernel,node_web,node_llama,nod
 
 | Mechanism | What it fixes | How |
 |---|---|---|
-| **CRITIC check** | factual LLM answers from memory | short factual answers are re-generated anchored on web proof before delivery; the verified answer **replaces** the old one in the cache (reconsolidation) |
+| **Iterative CRITIC search** | factual LLM answers from memory | up to two targeted web queries; the second includes the candidate answer when the first results do not mention it. A shared MiniLM ONNX reranker keeps at most three relevant evidence lines (lexical fallback if unavailable); retrieval relevance is not proof |
 | **Fact graph** (`graphe_faits.py`) | offline long-tail knowledge | triplets `(subject, relation, object)` in JSONL, multi-word coverage lookup (natural multi-hop). Fed **only** from web-verified answers + your `knowledge.jsonl` (223 entries) — it can never contain a hallucination |
 | **PAL** (`pal.py`) | dates, units, compound percentages | « 15% de 200 plus 30% de 100 » → 60, « 100 f en c », « combien de jours jusqu'au 25 décembre » — deterministic, < 1 ms |
 | **Program-of-Thoughts** (`raisonneur.py`) | word puzzles with numbers | the 1B writes `ETAPE 1/ETAPE 2` lines, the safe AST evaluates each step: « Léo a 4 ans, Marie le double, Paul 3 de plus » → **11, every step verified** |
@@ -219,7 +238,7 @@ class node_llm,node_adapters,node_loraserver,node_kernel,node_web,node_llama,nod
 | **Long-term memory** (`graphe_faits.py`) | equal-weight knowledge | every triplet carries a strength; each **verified** use reinforces it, lookup is strength × recency weighted — knowledge organizes its own importance, zero retraining |
 | **Self-play** (`selfplay.py`) | improvement needs a user | a challenge generator builds logic puzzles & drills from the fact graph, a deterministic judge validates, successes reinforce the graph and join the training dataset — AlphaGo-style closed loop. `aura --selfplay 20` |
 | **RLSS** (`rlss.py`) | unvalidated self-training | generated exercises → brain answers → exact validation → successes stored for the next LoRA, failures become injected corrections |
-| **Durable corrections** | explicit user feedback | corrections recorded via `enregistrer_correction()` or `/v1/learn` can be retrieved for lexically similar questions; this does not modify model weights or prevent every future mistake |
+| **Durable corrections** | explicit user feedback | corrections recorded via `enregistrer_correction()` or `/v1/learn` use a stricter normalized-word similarity threshold to reduce unrelated retrieval; this remains RAG and does not modify model weights |
 
 To enable Google Search Grounding, set `AURA_GEMINI_API_KEY` in the
 environment before starting RontoGPT. RontoGPT then sends the question to Gemini;
@@ -236,6 +255,18 @@ reasoning arrive first and the answer second (`PHASE_PENSEE` then
 result never receives the thinking — `generer()` still returns the answer
 alone, and the reasoning travels on its own channel (`reflexion_du_tour()`,
 the log, the UI).
+
+For explicit reasoning, RontoGPT keeps only the latest conversation exchange
+and places web snippets, verified facts, and exact formulas in separate prompt
+blocks. Style examples are omitted. Evidence remains available for the answer
+while unrelated context is reduced; reasoning and answer are still generated
+in one model call.
+
+Explicitly requested thinking now asks for at most three concise lines. This
+prompt can guide visible reasoning but cannot guarantee a shorter native Gemma
+reasoning channel. llama.cpp GBNF grammars constrain generated output formats;
+they are not applied here because the current chat-template/native-think path
+does not expose a safe grammar boundary between thought and final answer.
 
 On top of it, the **Self-Correction Stream** (`auto_correction.py`) reads the
 thinking *while it is being written* and checks every arithmetic equality it
@@ -430,3 +461,5 @@ on Linux, and syntax-checks the PowerShell installer.
 ## 📄 License
 
 GPLv3 — see [LICENSE](LICENSE). Copyleft: any derivative of RontoGPT's multi-agent architecture must remain open-source under the same terms.
+
+</details>

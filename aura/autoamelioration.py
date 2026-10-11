@@ -15,6 +15,8 @@ import time
 from pathlib import Path
 
 import logging
+import re
+import unicodedata
 
 LOG = logging.getLogger("aura.autoamelioration")
 
@@ -65,21 +67,34 @@ def chercher_corrections_similaires(question: str, max_resultats: int = 3) -> li
     if not corrections:
         return []
 
-    q_mots = set(question.lower().split())
+    stop = {"avec", "dans", "pour", "mais", "quel", "quelle", "qui",
+            "quoi", "comment", "est", "les", "des", "une", "un", "de",
+            "du", "la", "le", "et", "sur", "par", "que", "pas", "the",
+            "and", "for", "with", "what", "how", "is", "are"}
+
+    def mots(texte: str) -> set[str]:
+        texte = unicodedata.normalize("NFKD", texte.lower())
+        texte = "".join(c for c in texte if not unicodedata.combining(c))
+        return {mot for mot in re.findall(r"[a-z0-9]{2,}", texte)
+                if mot not in stop}
+
+    q_mots = mots(question)
     scores = []
     for c in corrections:
-        c_mots = set(c.get("question", "").lower().split())
-        # score = nb de mots en commun / nb mots question
+        c_mots = mots(c.get("question", ""))
         intersection = q_mots & c_mots
         if intersection:
-            score = len(intersection) / max(len(q_mots), 1)
+            score = 2 * len(intersection) / max(len(q_mots) + len(c_mots), 1)
+            seuil = 0.5 if len(q_mots) <= 2 or len(c_mots) <= 2 else 0.42
+            if score < seuil or (len(intersection) < 2 and q_mots != c_mots):
+                continue
             scores.append((score, c))
 
     # trier par score, prendre les meilleurs
     scores.sort(key=lambda x: x[0], reverse=True)
     resultats = []
     for score, c in scores[:max_resultats]:
-        if score > 0.2:  # seuil minimum
+        if score >= 0.42:
             resultats.append(
                 f"[correction anterieure] Question similaire : "
                 f"\"{c['question'][:80]}\" → reponse correcte : {c['correction']}"

@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import unicodedata
 
 LOG = logging.getLogger("aura.web")
 
@@ -116,6 +117,100 @@ def chercher(requete: str, max_resultats: int = 3,
         LOG.info("recherche web indisponible : %s", e)
         return ""
     return "\n".join(morceaux)
+
+
+def chercher_iteratif(question: str, cible: str = "", max_resultats: int = 2,
+                      timeout: int | None = None, tours: int = 2) -> str:
+    """Recherche une preuve en deux passes au plus, la seconde ciblant la cible.
+
+    Le score est un filtre de pertinence lexical, pas une preuve de veracite.
+    Les resultats restent a verifier par le modele avant de reviser sa reponse.
+    """
+    def mots(texte: str) -> set[str]:
+        texte = unicodedata.normalize("NFKD", texte.lower())
+        texte = "".join(c for c in texte if not unicodedata.combining(c))
+        return {m for m in re.findall(r"[a-z0-9]{3,}", texte)
+                if m not in {"pour", "avec", "dans", "quel", "quelle",
+                             "estce", "comment", "what", "where", "when",
+                             "the", "and", "for", "was", "are"}}
+
+    requetes = [question.strip()]
+    cible_courte = " ".join(cible.strip().split()[:18])
+    if cible_courte:
+        requetes.append(f'{question.strip()} "{cible_courte}" source officielle')
+    contextes: list[str] = []
+    urls: set[str] = set()
+    for requete in requetes[:max(1, min(int(tours), 2))]:
+        try:
+            resultat = chercher(requete, max_resultats=max_resultats,
+                                timeout=timeout)
+        except Exception as exc:
+            LOG.info("recherche iterative indisponible: %s", exc)
+            continue
+        lignes = []
+        termes_question = mots(question)
+        termes_cible = mots(cible)
+        for ligne in resultat.splitlines():
+            termes_ligne = mots(ligne)
+            pertinent = (len(termes_ligne & termes_question) >= 1
+                         or bool(termes_ligne & termes_cible))
+            if not pertinent:
+                continue
+            urls_ligne = set(_URL_RE.findall(ligne))
+            if urls_ligne and urls_ligne <= urls:
+                continue
+            urls.update(urls_ligne)
+            lignes.append(ligne)
+        if lignes:
+            contextes.extend(lignes)
+            # Une source directement pertinente suffit à éviter un appel reseau.
+            if any(mots(l) & termes_cible for l in lignes) or not cible_courte:
+                break
+    return _reranker_preuves(question, cible, contextes, maximum=3)
+
+
+def _reranker_preuves(question: str, cible: str,
+                      lignes: list[str], maximum: int = 3) -> str:
+    """Garde les meilleures lignes avant injection au petit modele.
+
+    MiniLM partage l'encodeur ONNX deja utilise ailleurs par RontoGPT. S'il
+    manque, une similarite lexicale sans dependance prend le relais.
+    """
+    candidates = list(dict.fromkeys(l.strip() for l in lignes if l.strip()))
+    if not candidates:
+        return ""
+
+    scores: list[float] | None = None
+    try:
+        from . import embeddings
+
+        textes = [question.strip()]
+        if cible.strip():
+            textes.append(cible.strip()[:500])
+        vecteurs = embeddings.encoder(textes + candidates)
+        if vecteurs is not None and len(vecteurs) == len(textes) + len(candidates):
+            # encodeur() renvoie des vecteurs L2-normalises : le produit
+            # scalaire est le cosinus, calcule en un seul produit matriciel.
+            sims = vecteurs[:len(textes)] @ vecteurs[len(textes):].T
+            scores = (0.8 * sims[0] + 0.2 * sims[1]
+                      if len(textes) > 1 else sims[0]).tolist()
+    except Exception as exc:  # le RAG ne depend jamais de MiniLM
+        LOG.debug("reranking semantique indisponible: %s", exc)
+
+    if scores is None:
+        def mots(texte: str) -> set[str]:
+            texte = unicodedata.normalize("NFKD", texte.lower())
+            texte = "".join(c for c in texte if not unicodedata.combining(c))
+            return set(re.findall(r"[a-z0-9]{3,}", texte))
+
+        q = mots(question)
+        c = mots(cible)
+        scores = [len((q | c) & mots(ligne)) / max(len(q | c), 1)
+                  for ligne in candidates]
+
+    meilleurs = sorted(range(len(candidates)), key=lambda i: scores[i],
+                       reverse=True)[:max(1, maximum)]
+    return "\n".join(candidates[i] for i in meilleurs)
 
 
 def extraire_sources(contexte: str, maximum: int = 5) -> list[tuple[str, str]]:

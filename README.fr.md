@@ -26,19 +26,38 @@ ciblées ; ils ne transforment pas le modèle en un 3B, 8B ou modèle de qualit�
 ![Moteur](https://img.shields.io/badge/propuls%C3%A9%20par-llama.cpp-5bc0de)
 ![Format](https://img.shields.io/badge/format%20scell%C3%A9-.aef-5bc0de)
 
-[Pourquoi](#-pourquoi-rontogpt) •
-[Démarrage](#-démarrage-rapide) •
-[Architecture](#️-architecture) •
-[L'entraîner](#-entraîner-son-ia) •
-[Format .aef](#-le-format-aef--distribution-chiffrée) •
-[Benchmarks](#-benchmarks) •
-[Feuille de route](#-feuille-de-route)
-
 **Autres langues :** [English](README.md)
 
 </div>
 
 ---
+
+## Télécharger et lancer
+
+<p align="center">
+  <a href="https://github.com/Simonc44/rontogpt/archive/refs/heads/main.zip"><strong>TÉLÉCHARGER RontoGPT (.ZIP)</strong></a>
+</p>
+
+Téléchargez puis extrayez l'archive. Dans PowerShell, ouvrez le dossier extrait
+et lancez l'installeur :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/installer.ps1
+```
+
+Ouvrez ensuite une nouvelle fenêtre PowerShell :
+
+```powershell
+rontogpt --chat
+```
+
+Le cerveau (~807 Mo) est téléchargé une seule fois. Les détails techniques,
+options et limites sont plus bas dans ce README.
+
+<details>
+<summary>Voir les particularités, l'architecture et les benchmarks</summary>
+
+Les informations techniques détaillées sont regroupées ci-dessous.
 
 ## 💡 Pourquoi RontoGPT ?
 
@@ -202,13 +221,13 @@ class node_llm,node_adapters,node_loraserver,node_kernel,node_web,node_llama,nod
 | **Routeur** | TF-IDF + Régression Logistique (150 exemples) + prototypes cosinus + seuil de confiance | Classe toute question (fautes de frappe incluses) — pas de if/else codés en dur. Un routage peu confiant refuse de deviner. |
 | **Cerveau** | **Gemma-3-1B-it (Q4_K_M, 806 Mo)** via llama.cpp — le GGUF `…-Heretic-Uncensored-Thinking`, architecture `gemma3` (26 couches, dim 1152, 4 têtes / 1 KV), **raisonnement natif ` thinking`** | Bon français ET anglais d'origine, et il *raisonne* au lieu de répondre à l'aveugle. Cerveau remplaçable : `AURA_GGUF=LLAMA` recharge l'ancien Llama 3.2 1B Instruct, `AURA_GGUF=MINICPM` MiniCPM5-1B. Le format de prompt n'est **pas** lu dans l'environnement — `famille()` lit l'architecture DANS le GGUF (`gguf_meta.py`) et en déduit les balises de fin de tour : `AURA_GGUF=LLAMA` est donc un vrai commutateur à une variable. |
 | **Expert symbolique** | Programmation génétique (gplearn), `pow` protégée | Trouve la loi **exacte** (`mul(mul(X0,X0),X0)` pour X³) — zéro hallucination, vérifiable. |
-| **Mémoire web** | DDGS sans clé par défaut ; Google Search Grounding Gemini optionnel ; titres, extraits et URLs conservés | Les faits récents arrivent avec leurs sources, puis le modèle local les reformule en signalant les preuves insuffisantes. |
+| **Mémoire web** | DDGS par défaut ; reranking MiniLM ONNX partagé, avec repli lexical ; trois lignes de preuve au maximum | Réduit le bruit et les tokens injectés ; le reranking mesure la pertinence, pas la vérité. |
 
 ### La couche d'intelligence vérifiée (pourquoi un 1B arrête d'halluciner)
 
 | Mécanisme | Ce que ça corrige | Comment |
 |---|---|---|
-| **Vérification CRITIC** | réponses factuelles courtes sans contexte web | RontoGPT cherche des sources, demande une révision ancrée et ne reconsolide que si la réponse change et cite au moins deux URLs distinctes ; cela reste une vérification assistée, pas une preuve de vérité |
+| **Vérification CRITIC itérative** | réponses factuelles courtes sans contexte web | Jusqu'à deux requêtes ; la seconde cible la réponse candidate si les résultats initiaux ne la recoupent pas. Les trois meilleures lignes sont conservées avant génération ; pertinence ne signifie pas preuve de vérité. |
 | **Graphe de faits** (`graphe_faits.py`) | savoir de niche hors-ligne | triplets `(sujet, relation, objet)` en JSONL, recherche par couverture multi-mots. Nourri par le corpus local et par des réponses révisées avec au moins deux liens ; des sources peuvent malgré tout être erronées |
 | **PAL** (`pal.py`) | dates, unités, pourcentages composés | « 15% de 200 plus 30% de 100 » → 60, « 100 f en c », « combien de jours jusqu'au 25 décembre » — déterministe, < 1 ms |
 | **Program-of-Thoughts** (`raisonneur.py`) | énigmes chiffrées | le 1B écrit des lignes `ETAPE 1/ETAPE 2`, l'AST sécurisé évalue chaque étape : « Léo a 4 ans, Marie le double, Paul 3 de plus » → **11, chaque étape vérifiée** |
@@ -221,7 +240,7 @@ class node_llm,node_adapters,node_loraserver,node_kernel,node_web,node_llama,nod
 | **Mémoire à long terme** (`graphe_faits.py`) | savoir à poids égal | chaque triplet porte une force ; chaque usage **vérifié** la renforce, la recherche pondère force × récence — le savoir organise lui-même son importance, zéro réentraînement |
 | **Self-play** (`selfplay.py`) | s'améliorer demande un utilisateur | un générateur de défis fabrique énigmes logiques et exercices depuis le graphe de faits, un juge déterministe valide, les succès renforcent le graphe et rejoignent le jeu d'entraînement — boucle fermée façon AlphaGo. `aura --selfplay 20` |
 | **RLSS** (`rlss.py`) | auto-entraînement non validé | exercices générés → le cerveau répond → validation exacte → succès stockés pour le prochain LoRA, échecs transformés en corrections injectées |
-| **Corrections durables** | retour explicite de l'utilisateur | les corrections ajoutées par `enregistrer_correction()` ou `/v1/learn` peuvent être retrouvées pour les questions lexicalement proches ; cela ne modifie pas les poids et n'empêche pas toute erreur future |
+| **Corrections durables** | retour explicite de l'utilisateur | seuil lexical plus strict pour limiter les corrections hors sujet ; reste du RAG et ne modifie pas les poids |
 
 Pour activer Google Search Grounding, définir `AURA_GEMINI_API_KEY` dans
 l'environnement avant de lancer RontoGPT. La recherche Google envoie alors la
@@ -238,6 +257,17 @@ voit le raisonnement arriver d'abord, la réponse ensuite (`PHASE_PENSEE` puis
 final ne reçoit jamais la pensée : `generer()` renvoie toujours la réponse
 seule, et le raisonnement voyage sur son propre canal (`reflexion_du_tour()`,
 le journal, l'interface).
+
+En mode de raisonnement explicite, RontoGPT limite l'historique au dernier
+échange et sépare dans le prompt les extraits web, les faits vérifiés et les
+formules exactes. Les exemples de style sont omis. Cela garde les preuves
+disponibles pour la réponse tout en réduisant le contexte parasite ; pensée et
+réponse sont toujours générées dans le même appel.
+
+Une consigne de pensée explicite demande aussi au modèle de rester bref. Elle
+ne garantit pas de raccourcir le canal natif Gemma. Les grammaires GBNF de
+llama.cpp contraignent le format de sortie ; elles ne sont pas activées ici,
+car le chemin Gemma ne fournit pas de séparation sûre entre pensée et réponse.
 
 Par-dessus, le **Self-Correction Stream** (`auto_correction.py`) lit la pensée
 *pendant qu'elle s'écrit* et vérifie chaque égalité arithmétique qu'il y trouve
@@ -465,3 +495,5 @@ d'altération) sur Linux, et vérifie la syntaxe de l'installeur PowerShell.
 ## 📄 Licence
 
 GPLv3 — voir [LICENSE](LICENSE). Copyleft : toute dérivée de l'architecture multi-agents d'RontoGPT reste open-source aux mêmes termes.
+
+</details>

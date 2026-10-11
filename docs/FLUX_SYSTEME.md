@@ -49,6 +49,10 @@ qualité dépend aussi de la couverture des experts et des données.
   l'extrait et l'URL ; les URLs sont conservées après compression et ajoutées
   comme citations à la réponse. Une citation indique la provenance, pas la
   validation indépendante de la page.
+- Le contrôle CRITIC peut effectuer une seconde requête ciblée si la première
+  ne recoupe pas la réponse candidate. Le reranker réutilise l'encodeur MiniLM
+  ONNX partagé (repli lexical si indisponible) et ne transmet au plus que trois
+  lignes au modèle. Ce classement mesure la pertinence, pas la véracité.
 - Les extraits et synthèses web sont traités comme données non fiables : le
   modèle local reçoit l'instruction d'ignorer les consignes intégrées aux
   pages et de signaler les preuves absentes ou contradictoires.
@@ -57,6 +61,10 @@ qualité dépend aussi de la couverture des experts et des données.
   les poids. Une révision web n'est consolidée dans le cache et le graphe que
   si elle change la réponse et porte au moins deux URLs distinctes. Ce seuil
   réduit les apprentissages fragiles, sans garantir la vérité des sources.
+- Pour un raisonnement explicite, le prompt conserve au plus le dernier
+  échange de conversation et sépare les preuves web, les faits vérifiés et les
+  formules en blocs distincts. La génération de la pensée et de la réponse
+  reste un seul appel : les preuves ne sont donc pas injectées après coup.
 
 ## Ce que le paquet `.aef` fait exactement
 
