@@ -12,7 +12,7 @@ everything (and hallucinate when it can't).</p>
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-5bc0de?logo=python&logoColor=white)
 ![GPU](https://img.shields.io/badge/GPU-not%20required-5bc0de)
 ![Engine](https://img.shields.io/badge/powered%20by-llama.cpp-5bc0de?logo=meta&logoColor=white)
-![Format](https://img.shields.io/badge/format-.aef-5bc0de)
+![Format](https://img.shields.io/badge/sealed_format-.aef-5bc0de?logo=files&logoColor=white)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-5bc0de?logo=gnu&logoColor=white)](LICENSE)
 <a href="https://github.com/Simonc44/rontogpt/stargazers"><img src="https://img.shields.io/github/stars/Simonc44/rontogpt?style=social" alt="stars - RontoGPT" /></a>
 
