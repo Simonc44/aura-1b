@@ -4,6 +4,16 @@
 
 **La réponse la plus rapide est celle qu'on n'a pas besoin de générer.**
 
+```text
+$ rontogpt "quel est le carré de 7 ?"
+49
+```
+
+Pour les calculs pris en charge, RontoGPT utilise un évaluateur déterministe
+au lieu de demander au modèle de deviner. Au dernier banc enregistré de
+100 questions, le système hybride a réussi **85/85 questions vérifiables** ;
+ce résultat ne mesure pas le cerveau 1B seul.
+
 Une IA 100 % locale, native-CPU, qui sépare le langage, les maths exactes et la
 mémoire factuelle en modules spécialisés — au lieu de demander à un seul petit
 modèle de tout faire (et d'halluciner quand il n'y arrive pas).
@@ -34,25 +44,25 @@ ciblées ; ils ne transforment pas le modèle en un 3B, 8B ou modèle de qualit�
 
 ## Télécharger et lancer
 
-<p align="center">
-  <a href="https://github.com/Simonc44/rontogpt/archive/refs/heads/main.zip"><strong>TÉLÉCHARGER RontoGPT (.ZIP)</strong></a>
-</p>
+**Recommandé — cloner le dépôt et lancer avec `uv` (Python 3.11+) :**
 
-Téléchargez puis extrayez l'archive. Dans PowerShell, ouvrez le dossier extrait
-et lancez l'installeur :
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/installer.ps1
+```bash
+git clone https://github.com/Simonc44/rontogpt.git
+cd rontogpt
+uv sync
+uv run python scripts/telecharger_llama.py  # télécharge le cerveau (~807 Mo) une fois
+uv run rontogpt --chat
 ```
 
-Ouvrez ensuite une nouvelle fenêtre PowerShell :
+Essayez un calcul vérifié :
 
-```powershell
-rontogpt --chat
+```bash
+uv run rontogpt "quel est le carré de 7 ?"  # 49
 ```
 
-Le cerveau (~807 Mo) est téléchargé une seule fois. Les détails techniques,
-options et limites sont plus bas dans ce README.
+**Installeur Windows :** [télécharger l'archive ZIP](https://github.com/Simonc44/rontogpt/archive/refs/heads/main.zip), l'extraire, puis lancer `scripts/installer.ps1` depuis le dossier extrait.
+
+<p align="center"><a href="https://github.com/Simonc44/rontogpt/stargazers"><strong>⭐ Ajouter une étoile à RontoGPT</strong></a></p>
 
 <details>
 <summary>Voir les particularités, l'architecture et les benchmarks</summary>

@@ -4,6 +4,16 @@
 
 **The fastest answer is the one you never generate.**
 
+```text
+$ rontogpt "what is 7 squared?"
+49
+```
+
+For supported calculations, RontoGPT uses a deterministic evaluator instead
+of asking the language model to guess. In the latest saved 100-question run,
+it passed **85/85 verifiable questions**; that measures the full hybrid system,
+not the standalone 1B brain.
+
 A 100% local, CPU-native AI system that splits language, exact math and factual
 memory into specialized modules — instead of asking one small model to do
 everything (and hallucinate when it can't).
@@ -33,25 +43,25 @@ into a 3B, 8B, or equivalent-quality model.
 
 ## Download and run
 
-<p align="center">
-  <a href="https://github.com/Simonc44/rontogpt/archive/refs/heads/main.zip"><strong>DOWNLOAD RontoGPT (.ZIP)</strong></a>
-</p>
+**Recommended — clone and run with `uv` (Python 3.11+):**
 
-Download and extract the ZIP. In PowerShell, open the extracted folder and run
-the installer:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/installer.ps1
+```bash
+git clone https://github.com/Simonc44/rontogpt.git
+cd rontogpt
+uv sync
+uv run python scripts/telecharger_llama.py  # downloads the ~807 MB brain once
+uv run rontogpt --chat
 ```
 
-Then open a new PowerShell window:
+Try a verified calculation:
 
-```powershell
-rontogpt --chat
+```bash
+uv run rontogpt "7 ** 2"  # 49
 ```
 
-The ~807 MB brain downloads once. Technical details, options, and limitations
-are further down this README.
+**Windows installer:** [download the source ZIP](https://github.com/Simonc44/rontogpt/archive/refs/heads/main.zip), extract it, then run `scripts/installer.ps1` from the extracted folder.
+
+<p align="center"><a href="https://github.com/Simonc44/rontogpt/stargazers"><strong>⭐ Star RontoGPT on GitHub</strong></a></p>
 
 <details>
 <summary>Technical details, architecture, and benchmarks</summary>
@@ -92,35 +102,6 @@ capable as a larger model on open-ended tasks. To compare RontoGPT with 1B, 1.5B
 3B, and 8B models, they must run on the same independent set with cold caches
 and matched time/context limits, reporting quality, latency, and RAM separately.
 Current results are insufficient for that claim.
-
-## 🚀 Quickstart
-
-### One command (Windows, PowerShell)
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/installer.ps1
-```
-
-Then, in a **new** PowerShell window:
-
-```powershell
-rontogpt "quel est le carre de 7" # -> 49
-rontogpt                          # interactive chat
-```
-
-The installer copies the package to `%LOCALAPPDATA%\RontoGPT`, creates the venv,
-downloads the brain (807 MB, once) and registers the `rontogpt` command
-(the historical `aura` alias remains available).
-
-### Development install
-
-```bash
-uv sync                                        # deps (llama.cpp included)
-python scripts/telecharger_llama.py            # 807 MB GGUF, once
-uv run rontogpt --demo                         # demo: X³ formula + physics news
-uv run rontogpt "quelle est la capitale de la France ?"
-uv run rontogpt --chat                         # chat with memory
-```
 
 ## 🏗 Architecture
 
