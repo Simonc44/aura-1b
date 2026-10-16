@@ -544,10 +544,12 @@ une raison qui n'est pas la paresse :
 * **Ce qui est sorti** : le **bus de flux** — les deux phases
   (`pensee` / `reponse`), la table des abonnés, le répartiteur `_FluxTour` qui
   gère une balise `<think>` coupée entre deux morceaux, et la mémoire de la
-  réflexion du tour. `aura/flux_cerveau.py`, **291 lignes**, ré-exportées par
+  réflexion du tour. `aura/flux_cerveau.py`, **293 lignes**, ré-exportées par
   `llama_cerveau` exactement comme le post-traitement : la surface publique ne
   bouge pas, `llama_cerveau.publier_flux(...)` et `llama_cerveau._abonnes_flux`
-  continuent de marcher. Le module de cerveau passe de 1 647 à **1 398 lignes**.
+  continuent de marcher. Le module de cerveau passe de 1 647 à **1 399 lignes**
+  (il était repassé de 1 612 à 1 647 après le post-traitement, via les travaux
+  intermédiaires du commit `28701ed`).
   Ce qui compte ici n'est pas le nombre de lignes, c'est la **frontière** : le
   module du bus ne sait plus ce qu'est llama.cpp, et `llama_cerveau` ne sait
   plus comment on répartit un flux.
