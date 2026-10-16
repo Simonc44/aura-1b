@@ -21,6 +21,7 @@ dependencies = [
     "pywebview>=6.0",  # GUI web (aura/gui_web.py) : fenetre frameless + pont JS <-> Python
     "onnxruntime>=1.24.3",
     "tokenizers>=0.23.2",
+    "google-adk>=2.12.0",  # agents ADK opt-in (AURA_ADK=1) : aura/agents_adk.py
 ]
 
 [project.scripts]
@@ -30,6 +31,7 @@ aura = "aura.__main__:main"  # alias historique
 [project.optional-dependencies]
 mamba = ["torch>=2.2", "transformers>=4.46"]
 rwkv_legacy = ["rwkv>=0.8", "tiktoken>=0.5"]
+interp = ["torch>=2.2", "transformers>=4.46", "transformer_lens>=2.0"]
 
 [dependency-groups]
 dev = [
@@ -50,7 +52,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["aura"]
+# `rontogpt` porte le nom public : sans lui dans la wheel, `python -m rontogpt`
+# marcherait depuis la racine du depot (CWD dans sys.path) mais pas une fois
+# le projet installe.
+packages = ["aura", "rontogpt"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

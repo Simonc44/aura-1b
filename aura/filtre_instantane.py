@@ -38,6 +38,7 @@ import os
 import re
 import time
 import unicodedata
+from fractions import Fraction
 from pathlib import Path
 
 import numpy as np
@@ -59,7 +60,8 @@ _SEUIL_VECTEUR = 0.70
 
 # reponses contextuelles (liées a l'utilisateur ou a la conversation) :
 # a ne JAMAIS mettre en cache, la reponse serait fausse hors contexte.
-_MOTS_CONTEXTUELS = ("mon ", "ma ", "mes ", "je ", "j'", "moi", "tu ", "ton ",
+_MOTS_CONTEXTUELS = ("répète", "repete", "redis ", "recommence", "refais",
+                     "encore", "mon ", "ma ", "mes ", "je ", "j'", "moi", "tu ", "ton ",
                      "ta ", "tes ", "nous ", "votre ", "vos ", "prenom",
                      "mon nom", "mon age")
 
@@ -153,6 +155,109 @@ def _evaluer(noeud):
     raise ValueError("expression non autorisee")
 
 
+# -- contre-verification independante (fix bug 2, 12 oct. 2026) -----------
+# « Combien font (4583 * 921) + 14582 » a ete servi 1887823 au lieu de
+# 4235525. Un resultat de calcul n'est desormais livre que si DEUX
+# evaluateurs independants s'accordent : l'AST garde ci-dessus et un
+# parseur a descente recursive en fractions exactes (priorites : ** >
+# unaire > * / // % > + -). Desaccord = abstention (None), jamais un chiffre
+# faux servi avec l'aplomb d'un resultat prouve.
+_JETON_CALCUL = re.compile(r"\s*(\d+(?:\.\d+)?|\*\*|//|[-+*/%()])")
+
+
+def _evaluer_independant(expr: str) -> Fraction:
+    """Second evaluateur, SANS ast : descente recursive en fractions exactes."""
+    jetons, pos = [], 0
+    expr = expr.strip()
+    while pos < len(expr):
+        m = _JETON_CALCUL.match(expr, pos)
+        if not m:
+            raise ValueError("jeton inattendu")
+        jetons.append(m.group(1))
+        pos = m.end()
+    i = 0
+
+    def voir():
+        return jetons[i] if i < len(jetons) else ""
+
+    def prendre():
+        nonlocal i
+        j = voir()
+        i += 1
+        return j
+
+    def somme():
+        v = produit()
+        while voir() in ("+", "-"):
+            op = prendre()
+            d = produit()
+            v = v + d if op == "+" else v - d
+        return v
+
+    def produit():
+        v = unaire()
+        while voir() in ("*", "/", "//", "%"):
+            op = prendre()
+            d = unaire()
+            if op == "*":
+                v = v * d
+            elif d == 0:
+                raise ZeroDivisionError
+            elif op == "/":
+                v = v / d
+            elif op == "//":
+                v = Fraction(v // d)
+            else:
+                v = v % d
+        return v
+
+    def unaire():
+        if voir() in ("+", "-"):
+            op = prendre()
+            v = unaire()
+            return -v if op == "-" else v
+        return puissance()
+
+    def puissance():
+        base = atome()
+        if voir() == "**":
+            prendre()
+            exposant = unaire()
+            if exposant.denominator != 1 or abs(exposant) > 64:
+                raise ValueError("puissance hors limites")
+            return base ** int(exposant)
+        return base
+
+    def atome():
+        j = prendre()
+        if j == "(":
+            v = somme()
+            if prendre() != ")":
+                raise ValueError("parenthese fermante attendue")
+            return v
+        if not j or not j[0].isdigit():
+            raise ValueError("operande attendu")
+        return Fraction(j)
+
+    resultat = somme()
+    if i != len(jetons):
+        raise ValueError("jetons en surplus")
+    return resultat
+
+
+def _calculer(expr: str):
+    """AST garde + contre-verification independante (cf. ci-dessus)."""
+    v_ast = _evaluer(ast.parse(expr, mode="eval"))
+    v_ind = _evaluer_independant(expr)
+    if isinstance(v_ast, int):
+        accord = v_ind == v_ast
+    else:
+        accord = abs(float(v_ind) - float(v_ast)) <= 1e-9 * max(1.0, abs(float(v_ind)))
+    if not accord:
+        raise ValueError("evaluateurs en desaccord")
+    return v_ast
+
+
 def _calcul_direct(question: str) -> str | None:
     """Resout les maths directes par regex + AST. Aucun LLM, aucune erreur."""
     q = unicodedata.normalize("NFKD", question.lower())
@@ -162,8 +267,12 @@ def _calcul_direct(question: str) -> str | None:
     # le 1 de « un » est ramasse comme un operande et fait echouer l'AST.
     q = re.sub(r"\?\s*(?:reponds?|repondre|donne|ecris|affiche)\b.*$",
                "?", q)
-    q = q.replace(",", ".").replace("x", "*").replace("×", "*") \
-         .replace("÷", "/").replace("^", "**")
+    # « x » n'est un signe de multiplication QUE entre deux operandes
+    # (« 4583 x 921 », « 3x4 ») : remplace partout, il transformait « 2x+3 »
+    # en « 2*+3 » (= 6) et corrompait les mots contenant un x.
+    q = re.sub(r"(?<=[\d)])\s*x\s*(?=[\d(])", " * ", q)
+    q = q.replace(",", ".").replace("×", "*").replace("÷", "/") \
+         .replace("^", "**")
 
     # expression dictee en mots, AVANT les motifs simples : sur une
     # expression composee, « 4 puissance 2 » tout seul donnerait 16
@@ -172,7 +281,7 @@ def _calcul_direct(question: str) -> str | None:
         expr = _expression_en_mots(q)
         if expr:
             try:
-                return _fmt(_evaluer(ast.parse(expr, mode="eval")))
+                return _fmt(_calculer(expr))
             except (ValueError, SyntaxError, ZeroDivisionError, OverflowError):
                 pass
 
@@ -215,13 +324,20 @@ def _calcul_direct(question: str) -> str | None:
     # que si la question EST l'expression : il ne doit rester aucune lettre
     # une fois l'expression retiree. Les formes dictees (« combien fait »,
     # « calcule », « 3 fois 7 ») partent plus haut et ne dependent pas d'ici.
-    m = re.search(r"(-?\d+(?:\.\d+)?(?:\s*[\+\-\*/%]\s*\(?-?\d+(?:\.\d+)?\)?)+)", q)
-    if m and not re.search(r"[a-z]", q[:m.start()] + q[m.end():]):
-        try:
-            arbre = ast.parse(m.group(1), mode="eval")
-            return _fmt(_evaluer(arbre))
-        except (ValueError, SyntaxError, ZeroDivisionError, OverflowError):
-            return None
+    #
+    # FIX (12 oct. 2026) : le motif ne matchait pas les expressions commencant
+    # par une parenthese ouvrante comme « (4583 * 921) + 14582 ». Ajout d'un
+    # motif elargi acceptant le prefixe «(» et la verification du residus
+    # hors-expression (aucune lettre = la question EST l'expression).
+    m = re.search(
+        r"(\(?-?\d+(?:\.\d+)?\)?(?:\s*[\+\-\*/%]\s*\(?-?\d+(?:\.\d+)?\)?)+)", q)
+    if m:
+        avant, apres = q[:m.start()], q[m.end():]
+        if not re.search(r"[a-z]", avant + apres):
+            try:
+                return _fmt(_calculer(m.group(1)))
+            except (ValueError, SyntaxError, ZeroDivisionError, OverflowError):
+                pass
     return None
 
 
@@ -315,6 +431,23 @@ def _charger_cache():
                         _FICHIER.read_text(encoding="utf-8").splitlines() if l.strip()]
         except (OSError, json.JSONDecodeError):
             _entrees = []
+    # PURGE DES CALCULS (fix bug 2) : une question que le calcul exact sait
+    # resoudre n'a rien a faire en memoire approximative. Une entree ancienne
+    # et FAUSSE (ex : 1887823 pour (4583 * 921) + 14582) etait relue a vie.
+    if _entrees:
+        gardees = [e for e in _entrees
+                   if _calcul_direct(str(e.get("q", ""))) is None]
+        if len(gardees) != len(_entrees):
+            LOG.info("[niveau0] cache : %d entree(s) de calcul retiree(s)",
+                     len(_entrees) - len(gardees))
+            _entrees = gardees
+            try:
+                with _FICHIER.open("w", encoding="utf-8") as f:
+                    for e in _entrees:
+                        f.write(json.dumps(e, ensure_ascii=False) + "\n")
+                _fichier_vecteurs().unlink(missing_ok=True)
+            except OSError as e:
+                LOG.debug("[niveau0] purge des calculs non ecrite : %s", e)
     if _entrees:
         from sklearn.feature_extraction.text import TfidfVectorizer
         _vectoriseur = TfidfVectorizer(analyzer="char", ngram_range=(2, 4),
@@ -497,6 +630,8 @@ def enregistrer(question: str, reponse: str):
     q = question.lower().strip()
     if any(m in q for m in _MOTS_CONTEXTUELS):
         return  # reponse contextuelle : jamais en cache
+    if _calcul_direct(question) is not None:
+        return  # calcul exact : recalcule a chaque fois, jamais memorise
     _charger_cache()
     if _entrees and _similar(question) is not None:
         return  # deja connu

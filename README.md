@@ -28,9 +28,23 @@ everything (and hallucinate when it can't).</p>
 git clone https://github.com/Simonc44/rontogpt.git
 cd rontogpt
 uv sync
-uv run python scripts/telecharger_llama.py
-uv run rontogpt --chat
+uv run python scripts/telecharger_llama.py  # downloads the ~807 MB brain once
+uv run rontogpt                              # terminal UI (default)
+uv run rontogpt "combien font 12 fois 12 ?"  # one-shot question -> 144
+uv run rontogpt --console                    # plain text console
 ```
+
+The same CLI is importable as a module, without `uv`:
+
+```bash
+python -m rontogpt                           # terminal UI (default)
+python -m rontogpt "combien font 12 fois 12 ?"
+python -m rontogpt --console
+```
+
+The terminal UI is [OpenTUI](https://opentui.com)-based and lives in `tui/`.
+It needs Bun once: `cd tui && npm install` (installs Bun locally, nothing
+global). Without it, `rontogpt` prints why and falls back to the text console.
 
 That's it. Start talking to RontoGPT.
 

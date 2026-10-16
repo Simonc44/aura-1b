@@ -42,8 +42,13 @@ git clone https://github.com/Simonc44/rontogpt.git
 cd rontogpt
 uv sync
 uv run python scripts/telecharger_llama.py  # télécharge le cerveau (~807 Mo) une fois
-uv run rontogpt --chat
+uv run rontogpt                             # interface terminal (défaut)
+uv run rontogpt --console                   # console texte
 ```
+
+Sans `uv` : `python -m rontogpt` (même CLI — le paquet porte le nom du
+produit). Lance avec le Python global, la commande detecte les dependances
+manquantes et se relance toute seule dans `.venv`, en le disant.
 
 **Installeur Windows :** [télécharger l'archive ZIP](https://github.com/Simonc44/rontogpt/archive/refs/heads/main.zip), l'extraire, puis lancer `scripts/installer.ps1` depuis le dossier extrait.
 
@@ -115,8 +120,9 @@ télécharge le cerveau (807 Mo, une seule fois) et enregistre la commande
 uv sync                                        # dépendances (llama.cpp inclus)
 python scripts/telecharger_llama.py            # GGUF 807 Mo, une fois
 uv run rontogpt --demo                         # démo : formule X³ + actu physique
-uv run rontogpt "quelle est la capitale de la France ?"
-uv run rontogpt --chat                         # chat avec mémoire
+python -m rontogpt "quelle est la capitale de la France ?"   # question unique
+python -m rontogpt --console                   # console texte avec mémoire
+python -m rontogpt                            # interface terminal (défaut)
 ```
 
 ## 🏗️ Architecture

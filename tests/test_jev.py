@@ -111,16 +111,27 @@ class TestFanOutParallele:
         """2 taches de 0.3 s en parallele : < 0.58 s (sequentiel >= 0.6 s)."""
         ia = _ia_neutre(monkeypatch, analyse={"experts": {"web", "math"},
                                               "methodes": ["test"]})
-        monkeypatch.setattr(memoire_web, "chercher",
-                            lambda q, **k: (time.sleep(0.3), "FAIT")[1])
+        # 3 lignes pertinentes : chercher_iteratif s'arrete apres UN appel
+        # (cf. banc scripts/banc_latence.py : 1 question sur 20 en fait deux).
+        monkeypatch.setattr(
+            memoire_web, "chercher",
+            lambda q, **k: (time.sleep(0.3),
+                            "prix de l or FAIT\nprix aujourd hui A\n"
+                            "prix hui B")[1])
         monkeypatch.setattr(ia, "resoudre_numerique",
                             lambda X, y: (time.sleep(0.3), "mul(X0,X0)")[1])
+        # Chargement unique du modele d'embeddings (~1 s, une fois par processus)
+        # hors du chronometre : il ne doit pas masquer le recouvrement.
+        # Idem pour l'en-tete GGUF (famille, lu une fois par processus).
+        from aura import embeddings, llama_cerveau
+        embeddings.encoder(["amorce"])
+        llama_cerveau.famille()
         t0 = time.perf_counter()
         # question non-riche : chercher() appele une seule fois
         r = ia.executer_detaille("prix de l or aujourd hui", X=[[1.0], [2.0]],
                                  y=[1.0, 4.0])
         duree = time.perf_counter() - t0
-        assert r["contexte_web"] == "FAIT" and r["formule"] == "mul(X0,X0)"
+        assert "FAIT" in r["contexte_web"] and r["formule"] == "mul(X0,X0)"
         assert duree < 0.58
 
     def test_echec_web_nempeche_pas_pgs(self, monkeypatch):

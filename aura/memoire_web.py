@@ -14,18 +14,103 @@ import unicodedata
 
 LOG = logging.getLogger("aura.web")
 
+# BRIDAGE DU RAG (fix bug 1, 12 oct. 2026) : limite materielle stricte sur
+# le nombre de morceaux (chunks) injectes dans le prompt.
+# - RAG_MAX_DEFAUT : 3 morceaux pour les requetes classiques (suffisant,
+#   evite le bruit sur CPU). Configurable via AURA_RAG_MAX.
+# - RAG_MAX_ABSOLU : plafond absolu de 10 morceaux, quoi qu'il arrive.
+#   Plus jamais de prompts inondes a 154 morceaux qui etouffent le CPU
+#   et provoquent des fuites de metadonnees.
+RAG_MAX_ABSOLU = 10  # jamais plus, meme pour les grandes recherches
+
+
+def _entier_borne(valeur: str, defaut: int, bas: int, haut: int) -> int:
+    try:
+        return max(bas, min(haut, int(valeur)))
+    except (TypeError, ValueError):
+        return defaut
+
+
+# AURA_RAG_MAX est BORNE : une valeur folle (154, 0, "abc") ne peut ni
+# rouvrir la porte a l'inondation ni vider le contexte.
+RAG_MAX_DEFAUT = _entier_borne(os.environ.get("AURA_RAG_MAX", "3"), 3, 1,
+                               RAG_MAX_ABSOLU)
+
+# Recherche COMPLEXE (comparaison, dossier, synthese multi-sources) : seule
+# situation qui autorise plus que RAG_MAX_DEFAUT, jamais plus que le plafond.
+_RE_RECHERCHE_COMPLEXE = re.compile(
+    r"\b(compar\w+|synthese|dossier|rapport|etat des lieux|panorama|"
+    r"recherche approfondie|en detail|detaille\w*|exhaustif\w*|"
+    r"plusieurs sources|differentes sources|avantages et inconvenients|"
+    r"points de vue|chronologie|historique complet)\b")
+_LONGUEUR_QUESTION_COMPLEXE = 300
+
+
+def recherche_complexe(question: str) -> bool:
+    """Vrai si la demande justifie plus de contexte que le defaut."""
+    q = _normaliser(question)
+    return bool(_RE_RECHERCHE_COMPLEXE.search(q)
+                or len(q) >= _LONGUEUR_QUESTION_COMPLEXE)
+
+
+def limite_morceaux(question: str = "") -> int:
+    """Nombre MAXIMAL de morceaux injectables : 3 (classique) ou 10 (complexe)."""
+    return RAG_MAX_ABSOLU if recherche_complexe(question) else RAG_MAX_DEFAUT
+
+
+def limiter_morceaux(contexte: str, maximum: int | None = None,
+                     question: str = "") -> str:
+    """Coupe un contexte a `maximum` morceaux (lignes non vides, doublons
+    retires, ordre conserve). Dernier verrou materiel avant le prompt : meme
+    si un etage amont deborde, jamais plus de RAG_MAX_ABSOLU morceaux.
+    """
+    if not contexte:
+        return contexte
+    if maximum is None:
+        maximum = limite_morceaux(question)
+    maximum = max(1, min(int(maximum), RAG_MAX_ABSOLU))
+    lignes = list(dict.fromkeys(l.rstrip() for l in contexte.splitlines()
+                                if l.strip()))
+    if len(lignes) <= maximum:
+        return contexte
+    LOG.info("[rag] contexte borne : %d -> %d morceaux", len(lignes), maximum)
+    return "\n".join(lignes[:maximum])
+
 _MOTS_CLES_WEB = (
     "actualité", "actualite", "qui est", "qui est-ce", "quand", "dernier",
     "nouvelle", "découverte", "decouverte", "2024", "2025", "2026",
     "prix", "record", "match", "résultat", "resultat", "météo", "meteo",
+    "aujourd'hui", "en ce moment", "actuel", "actuelle", "récemment",
+    "recemment", "dernières nouvelles", "dernieres nouvelles",
+    "sur le web", "sur internet", "en ligne", "recherche web",
+    "cherche sur internet", "cherche sur le web", "recherche sur internet",
+    "recherche sur le web", "sources web", "search the web",
+    "search online", "look up online", "on the web",
+)
+_MOTS_DEMANDE_WEB = (
+    "sur le web", "sur internet", "en ligne", "recherche web",
+    "cherche sur internet", "cherche sur le web", "recherche sur internet",
+    "recherche sur le web", "sources web", "search the web",
+    "search online", "look up online", "on the web",
 )
 _URL_RE = re.compile(r"https?://[^\s<>\]\[\)\}\|]+", re.IGNORECASE)
 
 
 def a_besoin_web(question: str) -> bool:
     """Routeur : cette question a-t-elle besoin de faits externes ?"""
-    q = question.lower()
-    return any(mot in q for mot in _MOTS_CLES_WEB)
+    q = _normaliser(question)
+    return any(_normaliser(mot) in q for mot in _MOTS_CLES_WEB)
+
+
+def demande_explicite_web(question: str) -> bool:
+    """Vrai si la personne demande explicitement une recherche Internet."""
+    q = _normaliser(question)
+    return any(_normaliser(mot) in q for mot in _MOTS_DEMANDE_WEB)
+
+
+def _normaliser(texte: str) -> str:
+    texte = unicodedata.normalize("NFKD", (texte or "").lower())
+    return "".join(c for c in texte if not unicodedata.combining(c))
 
 
 def _chercher_google(requete: str, timeout: int) -> str:
@@ -119,12 +204,16 @@ def chercher(requete: str, max_resultats: int = 3,
     return "\n".join(morceaux)
 
 
-def chercher_iteratif(question: str, cible: str = "", max_resultats: int = 2,
+def chercher_iteratif(question: str, cible: str = "",
+                      max_resultats: int | None = None,
                       timeout: int | None = None, tours: int = 2) -> str:
     """Recherche une preuve en deux passes au plus, la seconde ciblant la cible.
 
     Le score est un filtre de pertinence lexical, pas une preuve de veracite.
     Les resultats restent a verifier par le modele avant de reviser sa reponse.
+
+    BRIDAGE (fix bug 1) : max_resultats est plafonne a RAG_MAX_ABSOLU (10),
+    et le reranker final est limite a RAG_MAX_DEFAUT (3) par defaut.
     """
     def mots(texte: str) -> set[str]:
         texte = unicodedata.normalize("NFKD", texte.lower())
@@ -134,10 +223,19 @@ def chercher_iteratif(question: str, cible: str = "", max_resultats: int = 2,
                              "estce", "comment", "what", "where", "when",
                              "the", "and", "for", "was", "are"}}
 
+    # BRIDAGE STRICT : 3 morceaux pour une requete classique, 10 au plus pour
+    # une recherche complexe. `plafond` s'impose meme a un appelant qui
+    # demande davantage.
+    plafond = limite_morceaux(question)
+    max_resultats = min(max_resultats or plafond, plafond)
     requetes = [question.strip()]
     cible_courte = " ".join(cible.strip().split()[:18])
     if cible_courte:
         requetes.append(f'{question.strip()} "{cible_courte}" source officielle')
+    else:
+        # Deuxième passe de secours : apporte un biais vers des sources
+        # documentées si les premiers extraits sont rares ou trop génériques.
+        requetes.append(f"{question.strip()} source fiable")
     contextes: list[str] = []
     urls: set[str] = set()
     for requete in requetes[:max(1, min(int(tours), 2))]:
@@ -161,12 +259,21 @@ def chercher_iteratif(question: str, cible: str = "", max_resultats: int = 2,
                 continue
             urls.update(urls_ligne)
             lignes.append(ligne)
+        if not lignes and resultat.strip():
+            # Un extrait pertinent peut utiliser des synonymes absents de la
+            # requête. Garder les premiers candidats permet au reranker
+            # sémantique de les sauver au lieu de perdre toute la recherche.
+            lignes = [l.strip() for l in resultat.splitlines() if l.strip()]
         if lignes:
             contextes.extend(lignes)
             # Une source directement pertinente suffit à éviter un appel reseau.
-            if any(mots(l) & termes_cible for l in lignes) or not cible_courte:
+            if (cible_courte and any(mots(l) & termes_cible for l in lignes)):
                 break
-    return _reranker_preuves(question, cible, contextes, maximum=3)
+            if not cible_courte and len(contextes) >= 3:
+                break
+    # BRIDAGE FINAL : meme apres deux passes (et leurs lignes cumulees), on
+    # ne renvoie jamais plus que le plafond de la requete (3 ou 10).
+    return _reranker_preuves(question, cible, contextes, maximum=plafond)
 
 
 def _reranker_preuves(question: str, cible: str,
@@ -175,7 +282,13 @@ def _reranker_preuves(question: str, cible: str,
 
     MiniLM partage l'encodeur ONNX deja utilise ailleurs par RontoGPT. S'il
     manque, une similarite lexicale sans dependance prend le relais.
+
+    BRIDAGE (fix bug 1) : le parametre maximum est plafonne a RAG_MAX_ABSOLU
+    pour empecher toute injection de plus de 10 morceaux, meme si l'appelant
+    passe une valeur superieure.
     """
+    # APPLICATION DU BRIDAGE : jamais plus de RAG_MAX_ABSOLU morceaux
+    maximum = min(maximum, RAG_MAX_ABSOLU)
     candidates = list(dict.fromkeys(l.strip() for l in lignes if l.strip()))
     if not candidates:
         return ""

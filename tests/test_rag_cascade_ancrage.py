@@ -199,3 +199,41 @@ class TestAncrageExtractif:
         assert appels, "un developpement doit passer par le cerveau"
         assert r["cerveau_choisi"] != "extraction-web"
         assert "Aucune source ne definit" not in r["reponse"]
+
+
+# ── 3. Canalisation : le 1B RECLAME le contexte au lieu de repondre ────
+
+
+class TestCanalisationParAncrage:
+    """Mesure du 12 oct. 2026 — contexte web de 3535 car. POURTANT joint :
+
+        « J'ai besoin des informations pour repondre a ta question. Dis-moi :
+          « Qu'est-ce qui est fourni ci-dessous et est pertinent » (WEB / BASE
+          DE FAITS) ... dis-moi ce que c'est. »
+
+    Question posee : « Qui a gagne le tournoi de tennis de Roland-Garros en
+    2025 ? ». 82 s de calcul pour RENDRE LA QUESTION a l'utilisateur, alors
+    que les extraits verifies etaient joints. Ici : le bavardage ne part pas,
+    et les extraits prennent sa place — zero generation, donc zero nouvelle
+    occasion d'inventer.
+    """
+
+    FUITE = ("J'ai besoin des informations pour repondre a ta question. "
+             "Dis-moi : « Qu'est-ce qui est fourni ci-dessous et est "
+             "pertinent » (WEB / BASE DE FAITS) ... dis-moi ce que c'est.")
+    CONTEXTE = ("Titre : Canberra | Extrait : Canberra est la capitale de "
+                "l'Australie | Source : https://exemple.fr/australie")
+
+    def test_bavardage_remplace_par_les_extraits(self, monkeypatch):
+        ia = _ia_neutre(monkeypatch)
+        monkeypatch.setattr(rag_binaire, "chercher", lambda q: None)
+        monkeypatch.setattr(orch.memoire_web, "chercher",
+                            lambda q, **k: self.CONTEXTE)
+        monkeypatch.setattr(orch.llama_cerveau, "generer",
+                            lambda *a, **k: self.FUITE)
+        r = ia.executer_detaille("qu'est-ce que la capitale de l'Australie ?")
+        rep = r["reponse"]
+        assert "dis-moi" not in rep.lower()
+        assert "BASE DE FAITS" not in rep
+        assert "Canberra" in rep          # les extraits, eux, partent bien
+        assert len(rep) > 20              # jamais une reponse vide en sortie

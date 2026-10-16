@@ -41,7 +41,8 @@ def _evaluer_expression(expr: str) -> float:
     filtre_instantane importe pal (branche du niveau 0), pal ne l'importe
     qu'au moment d'evaluer.
     """
-    return _f0._evaluer(ast.parse(expr, mode="eval"))
+    # AST garde + contre-verification independante (fix bug 2)
+    return _f0._calculer(expr)
 
 
 # ------------------------------------------------------------------

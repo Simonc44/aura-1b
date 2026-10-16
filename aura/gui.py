@@ -38,6 +38,8 @@ _SEC = "#D8D8D8"
 _POLICE = "Segoe UI"
 _POLICE_MONO = "Consolas"
 _NL = chr(10)  # saute le filtre shell sur "n" + "ul"
+import webbrowser
+import re as _re
 
 # marges d'affichage dans le journal (influence la largeur des bulles)
 _MARGE_TOI = 340
@@ -295,6 +297,36 @@ class FenetreRontoGPT(tk.Tk):
                                  lmargin1=_MARGE_AURA, lmargin2=_MARGE_AURA,
                                  rmargin=70)
         self._journal.tag_config("cache", elide=True)
+        # Blocs de code : fond sombre, police monospace
+        self._journal.tag_config(
+            "code_fond", background="#1E1E2E", foreground="#CDD6F4",
+            font=(_POLICE_MONO, 9),
+            lmargin1=_MARGE_AURA + 8, lmargin2=_MARGE_AURA + 8,
+            rmargin=70, spacing1=6, spacing3=6)
+        self._journal.tag_config(
+            "code_etiq", background="#313244", foreground="#89DCEB",
+            font=(_POLICE_MONO, 8, "bold"),
+            lmargin1=_MARGE_AURA + 8, lmargin2=_MARGE_AURA + 8,
+            rmargin=70, spacing1=2, spacing3=0)
+        # Sources : pastille coloree cliquable
+        self._journal.tag_config(
+            "source_puce", background="#E8F0FE", foreground="#1A73E8",
+            font=(_POLICE, 8, "bold"),
+            lmargin1=_MARGE_AURA + 4, lmargin2=_MARGE_AURA + 4,
+            rmargin=70, spacing1=4, spacing3=2)
+        self._journal.tag_config(
+            "source_titre", background="#E8F0FE", foreground="#174EA6",
+            font=(_POLICE, 8),
+            lmargin1=_MARGE_AURA + 4, lmargin2=_MARGE_AURA + 4,
+            rmargin=70, spacing1=0, spacing3=2)
+        # Ligne de titre de section Sources
+        self._journal.tag_config(
+            "source_header", foreground="#5F6368",
+            font=(_POLICE, 8, "bold"),
+            lmargin1=_MARGE_AURA + 4, lmargin2=_MARGE_AURA + 4,
+            rmargin=70, spacing1=6, spacing3=2)
+        # registre des URLs pour les clics
+        self._urls: dict[str, str] = {}
         # trace permanent et invisible de l'indicateur « ecrit » (le
         # temoin lui-meme est efface a chaque reponse)
         self._journal.config(state="normal")
@@ -476,19 +508,119 @@ class FenetreRontoGPT(tk.Tk):
         if qui == "toi":
             corps, bord = "toi", "toi.bord"
             enveloppe = _envelopper(texte, _LARGEUR_MSG_TOI)
+            enveloppe = " " + enveloppe + " "
+            self._compteur_msg += 1
+            self._journal.config(state="normal")
+            self._journal.insert("end", _NL, "cache")
+            self._journal.insert(
+                "end", enveloppe,
+                (corps, bord, f"msg{self._compteur_msg}"))
+            self._journal.insert("end", _NL, "cache")
+            self._journal.config(state="disabled")
+            self._journal.see("end")
         else:
-            corps, bord = "aura", "aura.bord"
-            enveloppe = _envelopper(texte, _LARGEUR_MSG_AURA)
-        # un caractere de chaque cote + une ligne vide au-dessus/en dessous :
-        # le rect issu du tag ".bord" fait office de bulle arrondie
-        enveloppe = " " + enveloppe + " "
+            self._bulle_aura(texte)
+
+    # RE utilitaires (precompiles une seule fois) pour le rendu riche
+    _RE_CODE_FENCE = _re.compile(
+        r"```(\w*)\s*\n(.*?)```", _re.DOTALL)
+    _RE_SOURCE_MD = _re.compile(
+        r"\[([^\]]+)\]\((https?://[^\)]+)\)")
+    _RE_SOURCE_TEXTE = _re.compile(
+        r"(?:Source|Sources)\s*:\s*(.+)", _re.IGNORECASE)
+
+    def _bulle_aura(self, texte: str) -> None:
+        """Affiche une bulle RontoGPT avec rendu riche:
+        - blocs de code ```python...``` en fond sombre monospace
+        - sources [titre](url) en pastilles bleues cliquables
+        """
         self._compteur_msg += 1
-        self._journal.config(state="normal")
-        self._journal.insert("end", _NL, "cache")
-        self._journal.insert("end", enveloppe, (corps, bord, f"msg{self._compteur_msg}"))
-        self._journal.insert("end", _NL, "cache")
-        self._journal.config(state="disabled")
-        self._journal.see("end")
+        tag_msg = f"msg{self._compteur_msg}"
+        jnl = self._journal
+        jnl.config(state="normal")
+        jnl.insert("end", _NL, "cache")
+
+        # Separer les blocs de code du texte normal
+        segments: list[tuple[str, str]] = []  # (type, contenu)
+        dernier = 0
+        for m in self._RE_CODE_FENCE.finditer(texte):
+            if m.start() > dernier:
+                segments.append(("texte", texte[dernier:m.start()]))
+            lang = m.group(1).strip() or "code"
+            segments.append(("code", lang + "\n" + m.group(2)))
+            dernier = m.end()
+        if dernier < len(texte):
+            segments.append(("texte", texte[dernier:]))
+
+        for typ, contenu in segments:
+            if typ == "code":
+                # Extraire l'etiquette de langage de la premiere ligne
+                lignes_code = contenu.split("\n", 1)
+                lang_label = lignes_code[0].strip() if lignes_code else "code"
+                corps_code = lignes_code[1] if len(lignes_code) > 1 else ""
+                # Etiquette de langage
+                etiq = f" {lang_label.upper()} "
+                jnl.insert("end", etiq + _NL,
+                           ("code_etiq", "aura.bord", tag_msg))
+                # Corps du code
+                jnl.insert("end", " " + corps_code.rstrip() + " " + _NL,
+                           ("code_fond", tag_msg))
+            else:
+                # Texte normal : chercher les sources en fin de segment
+                # et les rendre en pastilles ; le reste en bulle normale
+                m_src_header = self._RE_SOURCE_TEXTE.search(contenu)
+                if m_src_header:
+                    texte_avant = contenu[:m_src_header.start()].rstrip()
+                    suite_sources = contenu[m_src_header.start():]
+                else:
+                    texte_avant = contenu.rstrip()
+                    suite_sources = ""
+
+                if texte_avant.strip():
+                    enveloppe = " " + _envelopper(
+                        texte_avant, _LARGEUR_MSG_AURA) + " "
+                    jnl.insert("end", enveloppe,
+                               ("aura", "aura.bord", tag_msg))
+                    jnl.insert("end", _NL, "cache")
+
+                if suite_sources.strip():
+                    # Titre de section
+                    jnl.insert("end", " 🔗 Sources  ",
+                               ("source_header", tag_msg))
+                    jnl.insert("end", _NL, "cache")
+                    # Chaque lien [titre](url) sur sa propre ligne
+                    nb_src = 0
+                    for lm in self._RE_SOURCE_MD.finditer(suite_sources):
+                        titre, url = lm.group(1), lm.group(2)
+                        nb_src += 1
+                        tag_url = f"url_{self._compteur_msg}_{nb_src}"
+                        self._urls[tag_url] = url
+                        label = f" [{nb_src}] "
+                        jnl.insert("end", label,
+                                   ("source_puce", tag_url, tag_msg))
+                        jnl.insert("end", f" {titre[:55]}  ",
+                                   ("source_titre", tag_url, tag_msg))
+                        jnl.insert("end", _NL, "cache")
+                        # Clic => ouvre le lien dans le navigateur
+                        jnl.tag_bind(
+                            tag_url, "<Button-1>",
+                            lambda _e, u=url: webbrowser.open(u))
+                        jnl.tag_bind(
+                            tag_url, "<Enter>",
+                            lambda _e: jnl.config(cursor="hand2"))
+                        jnl.tag_bind(
+                            tag_url, "<Leave>",
+                            lambda _e: jnl.config(cursor="arrow"))
+                    if nb_src == 0:
+                        # Pas de liens markdown : afficher la ligne brute
+                        jnl.insert("end",
+                                   " " + suite_sources.strip()[:120] + " ",
+                                   ("source_titre", tag_msg))
+                        jnl.insert("end", _NL, "cache")
+
+        jnl.insert("end", _NL, "cache")
+        jnl.config(state="disabled")
+        jnl.see("end")
 
     def _effacer_ecrit(self) -> None:
         """Retire l'indicateur, sans erreur s'il n'est pas affiche."""

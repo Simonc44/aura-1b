@@ -212,8 +212,16 @@ _SYSTEME = (
     "Tu es RontoGPT, une IA hybride locale specialisee en maths exactes et faits temps reel. "
     "Reponds toujours a la question posee, en francais si la question est en francais, "
     "en anglais sinon. Sois concise et utile. "
-    "Si des FAITS WEB ou une FORMULE sont fournis ci-dessous et sont pertinents, "
-    "appuie-toi dessus. Sinon, reponds avec tes propres connaissances. "
+    # CANALISATION (mesure du 12 oct. 2026, question « Qui a gagne le tournoi de
+    # Roland-Garros en 2025 ? », contexte web de 3535 car. pourtant present) : la
+    # phrase conditionnelle ci-dessous etait RECOPIEE telle quelle par le 1B —
+    # « ... fourni ci-dessous et est pertinent (WEB / BASE DE FAITS) ... dis-moi
+    # ce que c'est » — au lieu de rediger (82 s pour rendre la question). Regle
+    # desormais INCONDITIONNELLE : plus rien a reciter, et demander l'information
+    # a l'utilisateur est explicitement interdit.
+    "Les donnees jointes a la conversation font foi : reponds avec elles, sans les annoncer. "
+    "N'ecris ni consigne, ni etiquette, ni commentaire sur ta methode, et ne demande "
+    "jamais a l'utilisateur une information que tu peux trouver toi-meme. "
     "Si on te demande qui tu es, presente-toi comme RontoGPT."
 )
 
@@ -423,6 +431,99 @@ def _sans_libelles(texte: str) -> str:
             break
         lignes.append(ligne)
     return "\n".join(lignes).strip()
+
+# ── CANALISATION : quand le 1B RECLAME son contexte au lieu de repondre ──
+# Mesure du 12 oct. 2026, question « Qui a gagne le tournoi de tennis de
+# Roland-Garros en 2025 ? » avec un contexte web de 3535 car. POURTANT
+# present (3 extraits verifies) :
+#   « J'ai besoin des informations pour repondre a ta question. Dis-moi :
+#     "Qu'est-ce qui est fourni ci-dessous et est pertinent" (WEB / BASE DE
+#     FAITS) ... dis-moi ce que c'est. »
+# 82 s de calcul pour rendre la question a l'utilisateur. Des que le bloc
+# joint ne ressemble pas a ce que le 1B attend, il recite son prompt
+# systeme. Deux degats, deux remedes distincts :
+#   1. les ETIQUETTES du prompt (WEB / BASE DE FAITS, FAITS WEB, DONNEES
+#      WEB, FORMULE EXACTE, SOURCES WEB, SECTION A REDIGER) fuient en clair,
+#      souvent en majuscules : elles partent MEME au milieu d'une phrase qui,
+#      elle, reste ;
+#   2. la PHRASE ENTIERE qui demande les informations au lecteur ne repond a
+#      rien : elle saute.
+# Si tout le texte etait du bavardage, on rend "" — c'est volontaire :
+# l'appelant sait qu'il doit servir autre chose (les extraits verifies)
+# plutot qu'une non-reponse.
+_RE_ETIQUETTE_PROMPT = re.compile(
+    r"\s*\(?\b(?:WEB\s*/\s*BASE DE FAITS|FAITS WEB|BASE DE FAITS|"
+    r"DONNEES WEB|FORMULE EXACTE|SOURCES WEB|SECTION A REDIGER)\b\)?\s*",
+    re.IGNORECASE)
+_RE_RECITATION_PROMPT = re.compile(
+    r"ci-dessous et (?:est|sont) pertinent|appuie[- ]toi dessus|"
+    r"j'utiliserai ce bloc comme contexte", re.IGNORECASE)
+#: tournures de DEMANDE : elles n'ont de sens que dans un prompt
+#: systeme (« Dis-moi X »), jamais dans une reponse rendue a l'utilisateur.
+_RE_DEMANDE_CONTEXTE = re.compile(
+    r"\bdis[- ]moi\b|\bdites[- ]moi\b|\bindique[- ]moi\b|"
+    r"\bfournis[- ]moi\b|\bdonne[- ]moi\b|"
+    r"\bpeux[- ]tu me (?:fournir|donner|preciser|dire|indiquer)\b|"
+    r"\bpouvez[- ]vous me (?:fournir|donner|preciser|dire|indiquer)\b|"
+    # « J'ai besoin des informations / des sources / du titre ... pour
+    # repondre » : la 2e mesure (12 oct. 2026) a produit la variante
+    # « J'ai besoin des SOURCES pour repondre » — le nom du besoin change,
+    # la tournure reste, donc on la reconnait sur la tournure.
+    r"j'ai besoin\s+[^.\n]{0,40}?pour\s+(?:te\s+|vous\s+)?r[eé]pondre|"
+    r"\bquelle est (?:ta|la|votre) question\b", re.IGNORECASE)
+#: constat d'absence : la phrase ne saute QUE s'il porte sur des donnees
+#: (« je ne vois pas d'autre solution » est une reponse, pas du bavardage).
+_RE_ABSENCE_DONNEE = re.compile(
+    r"je ne vois pas|je n'ai pas|il n'y a pas|\baucun", re.IGNORECASE)
+_RE_MOT_DONNEE = re.compile(
+    r"\b(?:contexte|information|donn[ée]e|source|extrait|document|preuve|"
+    r"r[ée]sultat)s?\b", re.IGNORECASE)
+#: LA SUITE D'UNE PHRASE RECITEE n'est souvent qu'un reliquat de citation
+#: (« ... le recap des champions ! | Source : https://... ») : quand une
+#: demande d'information vient d'etre retiree, ce qui la suit immediatement
+#: et ressemble a une etiquette de source ou a une URL part avec elle.
+_RE_RELIQUAT = re.compile(r"^\s*[|;•·:\-–—]|^\s*Source\s*:|https?://",
+                         re.IGNORECASE)
+
+
+def _parrotage(phrase: str) -> bool:
+    """Vrai si la phrase RECLAME le contexte au lieu de repondre."""
+    if _RE_DEMANDE_CONTEXTE.search(phrase):
+        return True
+    if _RE_RECITATION_PROMPT.search(phrase):
+        return True
+    return bool(_RE_ABSENCE_DONNEE.search(phrase)
+                and _RE_MOT_DONNEE.search(phrase))
+
+
+def _sans_parrotage(texte: str) -> str:
+    """Retire les recitations de prompt et les demandes d'information.
+
+    Rend le texte INCHANGE (au caractere pres) quand il ne contient rien de
+    tel : ce filtre ne doit jamais abimer une reponse normale. Rend ""
+    quand tout le texte etait du bavardage — l'appelant sert alors les
+    extraits verifies (cf. `orchestrateur._repli_extractif`).
+    """
+    if not texte:
+        return texte
+    if not (_RE_ETIQUETTE_PROMPT.search(texte)
+            or any(_parrotage(p) for p in _phrases(texte))):
+        return texte
+    propre = re.sub(r"[ \t]{2,}", " ", _RE_ETIQUETTE_PROMPT.sub(" ", texte))
+    lignes = []
+    for ligne in propre.split("\n"):
+        gardees = []
+        fuite_vue = False
+        for piece in _phrases(ligne):
+            if _parrotage(piece):
+                fuite_vue = True                  # sa suite peut etre un reliquat
+                continue
+            if fuite_vue and _RE_RELIQUAT.search(piece):
+                continue
+            gardees.append(piece)
+        lignes.append(" ".join(gardees).strip())
+    return "\n".join(lignes).strip()
+
 
 def flux_demande() -> bool:
     """Quelqu'un regarde-t-il le flux, dans N'IMPORTE QUELLE phase ?"""
@@ -758,6 +859,17 @@ def _ajouter_contextes(messages: list[dict], contexte_web: str,
                        formule: str, contexte_faits: str) -> None:
     """Ajoute les preuves comme blocs distincts, clairement etiquetes."""
     blocs = []
+    # VERROU MATERIEL (fix bug 1) : quoi qu'ait fait l'amont, jamais plus de
+    # RAG_MAX_ABSOLU (10) morceaux de web ni de faits dans le prompt — un
+    # prompt inonde (154 morceaux) etouffe le CPU et fait fuir les metadonnees.
+    try:
+        from . import memoire_web
+        contexte_web = memoire_web.limiter_morceaux(
+            contexte_web, memoire_web.RAG_MAX_ABSOLU)
+        contexte_faits = memoire_web.limiter_morceaux(
+            contexte_faits, memoire_web.RAG_MAX_ABSOLU)
+    except Exception as e:      # noqa: BLE001 - jamais bloquant
+        LOG.debug("verrou de contexte indisponible : %s", e)
     if contexte_web:
         blocs.append(_formater_contexte(contexte_web, "").strip())
     if contexte_faits:
@@ -776,6 +888,12 @@ def _ajouter_contextes(messages: list[dict], contexte_web: str,
 # question. 320 couvre une reponse d'environ 1 200 caracteres, ce qui est
 # l'ordre de grandeur des reponses longues reellement demandees ici.
 _TOKENS_DEVELOPPE = int(os.environ.get("AURA_TOKENS_DEVELOPPE", "320"))
+_TOKENS_PAGE = int(os.environ.get("AURA_TOKENS_PAGE", "850"))
+_TOKENS_CODE = int(os.environ.get("AURA_TOKENS_CODE", "700"))
+_RE_LONGUEUR_EXPLICITE = re.compile(
+    r"\b(?:une|un|[1-9]\d*)\s+pages?\b|\b(\d{2,4})\s+mots?\b|"
+    r"\bplusieurs paragraphes\b|\breponse tres detaillee\b",
+    re.IGNORECASE)
 
 # Budget d'un PROBLEME A ETAPES quand le cerveau SAIT raisonner.
 # Plus long que _TOKENS_DEVELOPPE : un raisonneur ecrit sa chaine
@@ -925,6 +1043,23 @@ def _max_tokens_adaptatif(question: str) -> int:
     etait tronquee avant d'avoir commence.
     """
     q = question.lower()
+    demande_longue = _RE_LONGUEUR_EXPLICITE.search(q)
+    if demande_longue:
+        page = re.search(r"\b(?:une|un|[1-9]\d*)\s+pages?\b", q)
+        if page:
+            nb = re.search(r"\b([1-9]\d*)\s+pages?\b", q)
+            pages = min(int(nb.group(1)), 4) if nb else 1
+            return max(_TOKENS_DEVELOPPE, min(3000, _TOKENS_PAGE * pages))
+        mots = demande_longue.group(1)
+        if mots:
+            # En français, le nombre de tokens dépend du vocabulaire ; cette
+            # marge donne un budget plausible, sans promettre un compte exact.
+            return max(_TOKENS_DEVELOPPE,
+                       min(3000, int(int(mots) * 1.6 + 80)))
+        return max(_TOKENS_DEVELOPPE, 600)
+    if any(m in q for m in ("code", "python", "javascript", "typescript",
+                            "html", "css", "script", "programme", "sql")):
+        return max(_TOKENS_DEVELOPPE, _TOKENS_CODE)
     if any(m in q for m in ("explique", "raconte", "pourquoi", "compare",
                             "difference", "resume", "comment", "analyse",
                             "redige", "dissertation", "essai")):
@@ -1077,6 +1212,13 @@ PHASE_PENSEE = "pensee"
 PHASE_REPONSE = "reponse"
 #: Les deux phases, dans l'ordre ou l'utilisateur les lit.
 LES_DEUX_PHASES = (PHASE_PENSEE, PHASE_REPONSE)
+#: Etapes de traitement (« Recherche sur le web… ») : canal SEPARE des
+#: morceaux de texte, jamais melange a la reponse. Publie via publier_flux.
+PHASE_ETAPE = "etape"
+#: Vrai sur le fil d'une generation INTERNE (reformulation de requete) : ses
+#: morceaux ne doivent jamais atteindre l'utilisateur.
+_SILENCIEUX: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "silencieux", default=False)
 
 _verrou_flux = threading.Lock()
 #: phase -> liste d'abonnes. Un abonne qui prend les deux phases figure
@@ -1246,6 +1388,8 @@ class _FluxTour:
                 self._retro(texte)
         else:
             self.reponse += texte
+        if _SILENCIEUX.get():
+            return                  # generation interne (ex. reformulation)
         publier_flux(texte, PHASE_PENSEE if self._dans_pensee
                      else PHASE_REPONSE)
 

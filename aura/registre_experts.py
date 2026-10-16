@@ -109,6 +109,16 @@ EXPERTS: tuple[Expert, ...] = (
            "tri-transitif, SAT (logique), sandbox (potcode). En dernier des "
            "exacts car la formalisation SAT et potcode appellent le 1B : "
            "c'est le seul « exact » dont le cout est generatif."),
+    Expert("titulaires", VERIFIE, "~0,3 a 2 s (reseau)",
+           "titulaires.resoudre",
+           "« Qui est le president de la France ? » : le NOM vient de Wikidata "
+           "(donnee structuree, mandat en cours), jamais d'un extrait web que "
+           "le 1B recopie sans nom (bug reel du 11 oct. 2026). Forme de "
+           "question tres etroite et abstention sur tout doute : hors forme, "
+           "hors ligne ou ambigu, la cascade continue comme avant. AVANT "
+           "rag-binaire et cache-semantique : un titulaire change avec les "
+           "elections, aucune memoire (meme verifiee) ne doit passer devant "
+           "une lecture a jour."),
     Expert("rag-binaire", VERIFIE, "~5 ms", "rag_binaire.chercher",
            "Index local de faits relus. Exclu sur un puzzle : un puzzle se "
            "DEDUIT (PoT + AST), il ne se documente pas — sinon l'index sert "

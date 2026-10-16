@@ -80,27 +80,37 @@ class TestLogique:
         assert r["solutions"][0]["Marie"] == "chevalier"
 
     def test_pipeline_logique_complet(self, monkeypatch):
-        """Le 1B formalise, le solveur tranche, la synthese ancre."""
+        """Le 1B ne fait QUE formaliser ; le solveur tranche ET redige.
+
+        Contrat du 12 oct. 2026 : le 1B ne recoit jamais la consigne brute
+        pour repondre (il begayait/reformulait) — un seul usage, l'extraction
+        ENTITES/DOMAINE/CONDITION, et la reponse sort du solveur.
+        """
         from aura import llama_cerveau
         formalisme = ("ENTITES : Anna, Bob, Cal\n"
                       "DOMAINE : rouge, vert, bleu\n"
                       "TOUS DIFFERENTS\n"
                       "CONDITION : Anna == rouge\n"
                       "CONDITION : Bob != vert")
+        question = ("Anna, Bob et Cal portent chacun une couleur differente : "
+                    "rouge, vert ou bleu. Anna porte du rouge. Bob ne porte "
+                    "pas de vert. Qui porte quoi ?")
         appels = {"n": 0}
 
         def faux_generer(q, **kw):
             appels["n"] += 1
-            if kw.get("systeme") == logique._SYSTEME_LOGIQUE:
-                return formalisme
-            return "Paul est chevalier et Marie est menteur."
+            assert kw.get("systeme") == logique._SYSTEME_LOGIQUE, (
+                "le 1B ne doit servir qu'a extraire le formalisme")
+            return formalisme
 
         monkeypatch.setattr(llama_cerveau, "generer", faux_generer)
-        rep = RontoGPT()._resoudre_par_logique("enigme quelconque")
-        assert rep == "Paul est chevalier et Marie est menteur."
-        # majorite : 3 formalisations votees (identiques ici -> 3/3) +
-        # 1 synthese ancree par la verification du solveur
-        assert appels["n"] == 4
+        rep = RontoGPT()._resoudre_par_logique(question)
+        assert "Anna : rouge" in rep
+        assert "Bob : bleu" in rep
+        assert "Cal : vert" in rep
+        # majorite : 3 formalisations votees (identiques ici -> 3/3), et
+        # AUCUN appel de synthese
+        assert appels["n"] == 3
 
 
 # ── 2. PoT-code (sandbox a builtins restreints) ─────────────────────────

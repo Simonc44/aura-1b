@@ -175,6 +175,72 @@ class TestLibellesDePlan:
         assert "La these se pose" in r["reponse"]
 
 
+class TestCanalisationDu1B:
+    """Le 1B RECLAME son contexte au lieu de repondre.
+
+    Mesure du 12 oct. 2026, question « Qui a gagne le tournoi de tennis de
+    Roland-Garros en 2025 ? » avec un contexte web de 3535 car. POURTANT
+    joint : le modele a recite son prompt systeme — « J'ai besoin des
+    informations pour repondre a ta question. Dis-moi : « Qu'est-ce qui est
+    fourni ci-dessous et est pertinent » (WEB / BASE DE FAITS) ... dis-moi ce
+    que c'est. » — soit 82 s de calcul pour rendre la question a
+    l'utilisateur.
+    """
+
+    FUITE = ("J'ai besoin des informations pour repondre a ta question. "
+             "Dis-moi : « Qu'est-ce qui est fourni ci-dessous et est "
+             "pertinent » (WEB / BASE DE FAITS) ... dis-moi ce que c'est.")
+
+    def test_fuite_mesuree_retiree(self):
+        propre = llama_cerveau._sans_parrotage(self.FUITE)
+        assert propre == ""                  # rien de livrable dedans
+        assert "BASE DE FAITS" not in propre
+        assert "dis-moi" not in propre.lower()
+
+    def test_variante_sources_retiree(self):
+        # 2e mesure (12 oct. 2026), apres le 1er correctif : le 1B a change
+        # de nom pour son besoin — « J'ai besoin des SOURCES pour repondre »
+        # — et collait le titre de la source dans sa demande. La tournure
+        # est donc reconnue sur sa FORME, pas sur le nom du besoin.
+        variante = ("J'ai besoin des sources pour repondre : « Titre : "
+                    "Roland-Garros 2025 : le recap des champions ! | Source : "
+                    "https://www.rolandgarros.com/fr-fr/article/recap")
+        propre = llama_cerveau._sans_parrotage(variante)
+        assert "besoin des sources" not in propre
+        assert "rolandgarros.com" not in propre
+
+    def test_etiquette_au_milieu_dune_phrase(self):
+        propre = llama_cerveau._sans_parrotage(
+            "Le match a offert (WEB / BASE DE FAITS) un niveau de jeu rare.")
+        assert "BASE DE FAITS" not in propre
+        assert "Le match a offert" in propre
+        assert "un niveau de jeu rare" in propre
+
+    def test_phrase_de_demande_isolee_retiree(self):
+        propre = llama_cerveau._sans_parrotage(
+            "Canberra est la capitale. Dis-moi ce que tu veux savoir.")
+        assert "Canberra est la capitale." in propre
+        assert "Dis-moi" not in propre
+
+    def test_reponse_saine_intacte(self):
+        t = ("La diffusion de Rayleigh explique le bleu du ciel. La lumiere "
+             "est diffusee par les molecules de l'atmosphere.")
+        assert llama_cerveau._sans_parrotage(t) == t
+
+    def test_absence_dautre_solution_gardee(self):
+        # « je ne vois pas » n'est PAS du bavardage quand il porte sur une
+        # SOLUTION : la phrase doit rester (sinon on ampute une vraie
+        # reponse en croyant nettoyer une fuite).
+        t = "Je ne vois pas d'autre solution que de comparer les couts totaux."
+        assert llama_cerveau._sans_parrotage(t) == t
+
+    def test_systeme_sans_la_phrase_recopiee(self):
+        # la CAUSE est traitee : plus rien a reciter dans le prompt systeme
+        assert "fournis ci-dessous" not in llama_cerveau._SYSTEME
+        assert "FAITS WEB ou une FORMULE" not in llama_cerveau._SYSTEME
+        assert llama_cerveau._SYSTEME.startswith("Tu es RontoGPT")
+
+
 class TestAntiCopieProche:
     """Copie avec un premier mot different : la comparaison exacte rate
     (vu au banc), le fragment de 45+ signes la attrape.

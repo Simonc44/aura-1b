@@ -13,6 +13,19 @@ def _apis_publiques_coupees(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _gemini_coupe(monkeypatch):
+    """Aucun appel reseau vers Google, meme si ta cle est dans ton shell/.env.
+
+    Le repli Gemini (aura/gemini.py) s'active des que GOOGLE_API_KEY (ou
+    GEMINI_API_KEY) existe — y compris dans le `.env` de la racine. Sans cette
+    fixture, les tests qui font rendre une reponse locale VIDE l'appelleraient
+    pour de vrai. Les tests de aura/gemini.py re-activent la brique avec
+    monkeypatch.setenv("AURA_GEMINI", "1") + un urllib mocke.
+    """
+    monkeypatch.setenv("AURA_GEMINI", "0")
+
+
+@pytest.fixture(autouse=True)
 def _cache_reponses_isole(monkeypatch, tmp_path):
     """Cache de reponses ISOLE pour TOUS les tests.
 

@@ -256,6 +256,31 @@ class MemoireConversation:
         with self._verrou:
             return list(self._tours)
 
+    def remplacer_derniere_reponse(self, contenu: str) -> bool:
+        """Corrige la derniere reponse de l'assistant (repli vers un autre cerveau).
+
+        Quand une reponse de repli remplace une reponse locale faible, la
+        fenetre ne doit pas garder l'ancienne : la question suivante (« et
+        lui ? ») s'appuierait dessus. Si la fenetre se termine par une question
+        SANS reponse (la reponse locale etait vide, et `ajouter` ignore le
+        vide), la reponse est ajoutee. Le fichier RLM reste en ajout seul : une
+        reponse remplacee y garde sa trace, seul le cas « ajoutee » y ecrit.
+        Renvoie False s'il n'y a rien a corriger.
+        """
+        contenu = (contenu or "").strip()
+        if not contenu:
+            return False
+        with self._verrou:
+            if not self._tours:
+                return False
+            if self._tours[-1]["role"] == "assistant":
+                self._tours[-1]["content"] = contenu
+                return True
+            if self._tours[-1]["role"] != "user":
+                return False
+        self.ajouter("assistant", contenu)      # hors verrou : ajouter() le prend
+        return True
+
     # -- 3. etat pilote par evenements --------------------------------------
 
     # declarations sur soi : « je m'appelle X », « je m appelle X », « je suis X »

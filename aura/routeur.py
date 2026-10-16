@@ -456,7 +456,17 @@ class RouteurIntelligent:
         if pred == best_proto:
             experts = {pred}
 
+        # AIGUILLAGE PAR REGLES (fix bugs 3 et 4) : le flou (TF-IDF/MiniLM) ne
+        # voit que math/web/general ; une demande de code partait au web, une
+        # enigme d'attribution au 1B brut. Ces deux familles ont des
+        # signatures lexicales sures : la regle l'emporte sur le flou.
+        voie = self.aiguiller(question)
+        if voie is not None:
+            experts = {"general"}
+            methodes = methodes + ["regles-" + voie]
+
         return {
+            "aiguillage": voie,
             "methodes": methodes,
             "scores": {k: round(v, 3) for k, v in probas.items()},
             "proto_score": round(score_proto, 3),
@@ -465,8 +475,34 @@ class RouteurIntelligent:
             "experts": experts,
         }
 
+    @staticmethod
+    def aiguiller(question: str) -> str | None:
+        """'code' | 'logique' | None. Regles pures, sans modele ni reseau.
+
+        - 'code'    : demande d'ecriture de code -> sandbox locale (potcode),
+                      JAMAIS la recherche web (memoire_web) ;
+        - 'logique' : enigme (chevaliers/menteurs, attribution, contraintes
+                      sans chiffres) -> mini-SAT (logique.py) ; le 1B ne fait
+                      qu'extraire ENTITES/DOMAINE/CONDITION.
+        Le code est teste en premier (« ecris un programme qui resout une
+        enigme » est une demande de code).
+        """
+        try:
+            from . import logique, potcode
+            if potcode.est_demande_code(question):
+                return "code"
+            if logique.est_enigme(question):
+                return "logique"
+        except Exception as e:      # noqa: BLE001 - le routage ne doit pas casser
+            LOG.debug("aiguillage par regles indisponible : %s", e)
+        return None
+
     def routeur_classique(self, question: str) -> dict:
         """Fallback : mots-clés simples (aucune dependance ML)."""
+        voie = self.aiguiller(question)
+        if voie is not None:
+            return {"methodes": ["regles-" + voie], "scores": {},
+                    "experts": {"general"}, "aiguillage": voie}
         q = question.lower()
         mots_math = ("calcule", "resous", "equation", "puissance", "carre",
                      "racine", "formule", "données", "donnees", "loi",

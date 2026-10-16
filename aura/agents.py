@@ -79,8 +79,10 @@ _PERSONNALITES = {
             "dis-le franchement. Cite chiffres et dates."),
     "math": ("Tu es un expert en calcul et raisonnement numerique. "
              "Reponds droit au but, montre le calcul en une ligne."),
-    "code": ("Tu es un expert Python. Donne du code propre et commente, "
-             "avec un exemple d'utilisation en commentaire."),
+    "code": ("Tu es un assistant de programmation. Fournis le code demandé "
+             "dans le langage précisé ; si aucun langage n'est précisé, utilise "
+             "Python. Donne un exemple d'utilisation bref. N'affirme pas que le "
+             "code a été exécuté ou testé si ce n'est pas le cas."),
     "general": ("Tu es un assistant clair et precis. Structure ta reponse, "
                 "va a l'essentiel, n'invente aucun fait precis."),
 }
@@ -172,7 +174,14 @@ def compresser(texte: str, question: str) -> str:
     # Une source courte ne mérite pas de troncature, mais on exclut quand
     # même les lignes sans signal lexical. Les contextes longs sont limités
     # aux trois unités les mieux notées pour préserver la fenêtre du modèle.
-    limites = 3 if len(texte) > 320 else len(pertinents)
+    # BRIDAGE (fix bug 1) : jamais plus de 3 morceaux (10 pour une
+    # recherche complexe), meme sur un contexte court.
+    try:
+        from . import memoire_web
+        plafond = memoire_web.limite_morceaux(question)
+    except Exception:       # noqa: BLE001 - le compresseur ne doit pas casser
+        plafond = 3
+    limites = min(len(pertinents), plafond)
     garde = {p for _, p in sorted(pertinents,
                                   key=lambda x: -x[0])[:limites]}
     gardees = [p for p in morceaux if p in garde]

@@ -94,6 +94,7 @@ def test_message_actionnable_si_lm_eval_absent(monkeypatch, capsys):
 
 
 def test_refus_des_taches_a_loglikelihood(monkeypatch, capsys):
+    monkeypatch.setattr(le, "lm_eval_installe", lambda: True)
     monkeypatch.setattr(le, "taches_loglikelihood", lambda _t: ["arc_easy"])
     assert le.main(["--taches", "arc_easy"]) == 2
     err = capsys.readouterr().err
@@ -101,6 +102,7 @@ def test_refus_des_taches_a_loglikelihood(monkeypatch, capsys):
 
 
 def test_loglikelihood_force_avertit_mais_poursuit(monkeypatch, capsys):
+    monkeypatch.setattr(le, "lm_eval_installe", lambda: True)
     monkeypatch.setattr(le, "taches_loglikelihood", lambda _t: ["arc_easy"])
     monkeypatch.setattr(le, "subprocess", types.SimpleNamespace(
         run=lambda *a, **k: types.SimpleNamespace(returncode=0)))

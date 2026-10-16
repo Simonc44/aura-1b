@@ -260,6 +260,92 @@ def resoudre(puzzle: dict, max_solutions: int = 3) -> dict:
                        else "multiple" if solutions else "aucune")}
 
 
+# ---------------------------------------------------------------------------
+# AIGUILLAGE DES ENIGMES (fix bug 4, 12 oct. 2026)
+# ---------------------------------------------------------------------------
+# Le routeur semantique (math / web / general) ne voit pas une enigme
+# d'attribution sans chiffres (« Pierre, Jeanne et Loic occupent trois
+# postes... ») : elle partait au 1B brut, qui begayait/reformulait. Detecteur
+# PUR (regex), conservateur, qui bascule vers ce solveur : le 1B ne sert plus
+# qu'a EXTRAIRE le triplet ENTITES / DOMAINE / CONDITION.
+
+def _norm(texte: str) -> str:
+    t = unicodedata.normalize("NFKD", (texte or "").lower().replace("’", "'"))
+    return "".join(c for c in t if not unicodedata.combining(c))
+
+
+_SIGNAL_CHEVALIERS = re.compile(
+    r"\b(?:chevaliers?|menteurs?|menteuses?|mentent|ment toujours|"
+    r"ne ment jamais|dit toujours (?:la verite|vrai)|dit la verite|"
+    r"disent la verite|enigme de logique|puzzle de logique|"
+    r"devinette de logique|probleme de logique)\b")
+_INDICE_ATTRIBUTION = re.compile(
+    r"\b(?:occupe|occupent|poste|postes|metier|metiers|profession|professions|"
+    r"role|roles|couleur|couleurs|maison|maisons|voisin|voisins|rang|rangs|"
+    r"place|places|classement|chacun|chacune|attribu\w*|affect\w*|"
+    r"different\w*|distinct\w*|ordre|etage|etages|habite|habitent|possede|"
+    r"possedent|porte|portent|joue|jouent)\b")
+_INDICE_CONTRAINTE = re.compile(
+    r"\b(?:n'est pas|n'etait pas|n'a pas|n'occupe pas|ne sont pas|"
+    r"ne [\w']+ pas|ni|aucun|aucune|avant|apres|juste a cote|a cote|"
+    r"plus [\w]+ que|moins [\w]+ que|pas le|pas la|pas les)\b")
+_PAS_UN_NOM = frozenset((
+    "qui", "quel", "quelle", "quels", "quelles", "sachant", "si", "les", "le",
+    "la", "un", "une", "des", "il", "elle", "ils", "elles", "chacun",
+    "chacune", "aucun", "aucune", "lequel", "laquelle", "combien", "comment",
+    "pourquoi", "que", "quand", "ou", "et", "donc", "alors", "mais", "or",
+    "ni", "on", "nous", "vous", "je", "tu", "trois", "deux", "quatre", "cinq",
+    "six", "voici", "voila", "dans", "pour", "enigme", "parmi", "entre",
+    "ces", "ce", "cette", "son", "sa", "ses", "leur", "leurs", "indice",
+    "indices", "reponse", "question", "apres", "avant", "puis", "ensuite",
+    "premier", "deuxieme", "troisieme", "dernier"))
+_MOT_CAPITALE = re.compile(r"\b[A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ'’-]{2,}\b")
+
+
+def _noms_propres(question: str) -> list[str]:
+    """Mots a majuscule (hors mots outils) : candidats prenoms, sans doublon."""
+    vus: list[str] = []
+    for m in _MOT_CAPITALE.finditer(question or ""):
+        n = _norm(m.group(0))
+        if n not in _PAS_UN_NOM and n not in vus:
+            vus.append(n)
+    return vus
+
+
+def est_enigme(question: str) -> bool:
+    """Vrai pour une enigme de logique a resoudre par deduction.
+
+    - chevaliers/menteurs : mots-cles explicites ;
+    - attribution/ordonnancement : >= 3 noms propres + un indice
+      d'attribution (postes, couleurs, rangs, chacun...) + un indice de
+      contrainte (« n'est pas », « avant », « a cote »...), et pas un
+      probleme chiffre (>= 3 nombres = arithmetique, pas ce solveur).
+    """
+    q = _norm(question)
+    if _SIGNAL_CHEVALIERS.search(q):
+        return True
+    if len(re.findall(r"\d+", q)) >= 3:
+        return False
+    if len(_noms_propres(question)) < 3:
+        return False
+    return bool(_INDICE_ATTRIBUTION.search(q) and _INDICE_CONTRAINTE.search(q))
+
+
+def entites_dans_question(puzzle: dict, question: str) -> bool:
+    """Garde anti-recopie : chaque entite formalisee figure dans l'enonce."""
+    q = _norm(question)
+    return all(re.search(rf"(?<![a-z0-9]){re.escape(_norm(e))}(?![a-z0-9])", q)
+               for e in puzzle["entites"])
+
+
+def phrase_solution(puzzle: dict, solutions: list[dict]) -> str:
+    """Reponse finale rendue par le SOLVEUR (jamais redigee par le 1B)."""
+    s = solutions[0]
+    lignes = ["Solution déduite exactement par le solveur logique :"]
+    lignes += [f"- {e} : {s[e]}" for e in puzzle["entites"]]
+    return "\n".join(lignes)
+
+
 def bloc_verification(puzzle: dict, solutions: list[dict]) -> str:
     """Bloc injecte au modele : LA solution deduite exactement."""
     lignes = ["SOLUTION DEDUITE EXACTEMENT PAR LE RESOLVEUR LOGIQUE :"]
@@ -281,5 +367,9 @@ _SYSTEME_LOGIQUE = (
     "Regles absolues :\n"
     "- recopie les noms et valeurs TELS QUELS depuis l'enigme\n"
     "- N'INVENTE aucune contrainte qui n'est pas dans l'enigme\n"
-    "- chaque ligne commence par son mot-cle (ENTITES, DOMAINE, CONDITION...)"
+    "- chaque ligne commence par son mot-cle (ENTITES, DOMAINE, CONDITION...)\n"
+    "- ne resous PAS l'enigme, ne l'explique PAS, ne reformule PAS : "
+    "traduis seulement les indices en lignes\n"
+    "- attribution (qui a quel poste/couleur/rang) : ecris TOUS DIFFERENTS "
+    "puis un indice negatif par ligne, ex. « CONDITION : Nom != valeur »"
 )

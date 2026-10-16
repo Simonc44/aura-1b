@@ -35,6 +35,8 @@ raison (`famille`, `manque`, `questions`).
     POST /v1/learn   {"sujet","relation","objet"} -> edite un FAIT verifie
                      ou {"question","correcte"} -> enregistre une correction
                      (edition de connaissance SANS reentrainement)
+    POST /v1/reset   -> oublie la conversation en cours {ok, oublie, raison}
+                     (pour le TUI : le `reset` du CLI, sans relancer le processus)
 
 Securite : bind 127.0.0.1 par defaut (jamais expose sur le reseau). Si
 AURA_API_CLE est posee, chaque appel doit fournir l'entete X-RontoGPT-Cle.
@@ -56,9 +58,33 @@ _config.appliquer()
 
 _LOG_COURT = 60_000          # corps de requete acceptes (60 Ko)
 
+
+def build() -> str:
+    """Empreinte du CODE charge dans ce processus (noms, tailles, dates).
+
+    Sert a detecter une API ANCIENNE restee ouverte sur le port : le TUI se
+    connectait a elle en silence et on testait des correctifs qui n'etaient
+    pas charges (symptome : le code partait toujours sur le web).
+    """
+    import hashlib
+    from pathlib import Path
+    h = hashlib.sha1()
+    for f in sorted(Path(__file__).resolve().parent.glob("*.py")):
+        try:
+            s = f.stat()
+        except OSError:
+            continue
+        h.update(f"{f.name}:{s.st_size}:{s.st_mtime_ns}".encode())
+    return h.hexdigest()[:10]
+
+
+_BUILD_DEMARRAGE = build()   # figee au demarrage : ce que CE processus execute
+
 # Le flux de tokens est GLOBAL (un seul cerveau) : une seule requete streamee
 # a la fois, sinon les morceaux de deux questions se melangeraient.
 _FLUX_LIBRE = threading.Lock()
+_VERROU_FEEDBACK = threading.Lock()
+_FICHIER_FEEDBACK = os.path.join(os.path.dirname(__file__), "feedback.jsonl")
 
 
 def _reponse_detaille(ia, question: str) -> dict:
@@ -102,6 +128,10 @@ class _Etat:
             try:
                 from .orchestrateur import RontoGPT
                 self.ia = RontoGPT()
+                # Prechauffage MiniLM : sa session ONNX (~1 s) est payee ici,
+                # hors de la premiere question de l'utilisateur.
+                from . import embeddings
+                embeddings.encoder(["prechauffage"])
             except Exception as e:               # jamais de 500 silencieux
                 self.erreur = str(e)
             finally:
@@ -145,12 +175,14 @@ class _Handler(BaseHTTPRequestHandler):
             return self._json({"ok": False, "erreur": "cle invalide"}, 401)
         if self.path == "/v1/health":
             return self._json({"status": "ok",
-                               "version": _config.version()})
+                               "version": _config.version(),
+                               "build": _BUILD_DEMARRAGE})
         if self.path == "/v1/status":
             from . import serveur_lora
             e = self.etat
             return self._json({
                 "version": _config.version(),
+                "build": _BUILD_DEMARRAGE,
                 "profil": os.environ.get("AURA_PROFIL", "equilibre"),
                 "prete": e.ia is not None,
                 "chargement": e.chargement,
@@ -179,11 +211,32 @@ class _Handler(BaseHTTPRequestHandler):
             return self._notify()
         if self.path == "/v1/learn":
             return self._learn()
+        if self.path == "/v1/reset":
+            return self._reset()
         if self.path == "/v1/ask/stream":
             return self._ask_stream()
+        if self.path == "/v1/feedback":
+            return self._feedback()
         if self.path != "/v1/ask":
             return self._json({"ok": False, "erreur": "route inconnue"}, 404)
         return self._ask()
+
+    def _feedback(self) -> None:
+        """Vote utilisateur (pouce haut/bas) : consigne seulement, sans effet
+        sur le cache ni le routage (a exploiter plus tard, apres mesure)."""
+        corps = self._corps()
+        vote = str(corps.get("vote") or "")
+        if vote not in ("up", "down"):
+            return self._json({"ok": False,
+                               "erreur": "vote attendu : 'up' ou 'down'"}, 400)
+        entree = {"t": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                  "vote": vote,
+                  "question": str(corps.get("question") or "")[:500],
+                  "reponse": str(corps.get("reponse") or "")[:2000]}
+        with _VERROU_FEEDBACK:
+            with open(_FICHIER_FEEDBACK, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entree, ensure_ascii=False) + "\n")
+        return self._json({"ok": True})
 
     def _ask(self) -> None:
         question = str(self._corps().get("question") or "").strip()
@@ -242,6 +295,11 @@ class _Handler(BaseHTTPRequestHandler):
         desabonner = llama_cerveau.abonner_flux_phase(
             lambda texte, phase: self._sse({"type": "morceau",
                                             "texte": texte, "phase": phase}))
+        # ETAPES (« Recherche sur le web… ») : canal a part, jamais melange
+        # aux morceaux de la reponse.
+        desabonner_etapes = llama_cerveau.abonner_flux(
+            lambda libelle: self._sse({"type": "etape", "libelle": libelle}),
+            phases=(llama_cerveau.PHASE_ETAPE,))
         try:
             resultat = _reponse_detaille(ia, question)
             self._sse({"type": "final", **resultat})
@@ -249,6 +307,7 @@ class _Handler(BaseHTTPRequestHandler):
             self._sse({"type": "erreur", "erreur": str(e)})
         finally:
             desabonner()
+            desabonner_etapes()
             _FLUX_LIBRE.release()
             self._sse({"type": "fin"})
             try:
@@ -256,6 +315,24 @@ class _Handler(BaseHTTPRequestHandler):
                 self.wfile.flush()
             except (BrokenPipeError, ConnectionResetError, OSError):
                 pass
+
+    # -- remise a zero de la conversation (/v1/reset) ----------------
+    def _reset(self) -> None:
+        """Oublie la conversation en cours (equivalent du `reset` en CLI).
+
+        Ajoute pour le TUI (tui/) : sans cette route, la seule facon d'oublier
+        la conversation etait de relancer le processus.
+        """
+        ia = self.etat.ia
+        if ia is None:
+            return self._json({"ok": True, "oublie": False,
+                               "raison": "aucune conversation en memoire"})
+        try:
+            ia.reinitialiser_conversation()
+        except Exception as e:                       # noqa: BLE001
+            return self._json({"ok": False, "erreur": str(e)}, 500)
+        return self._json({"ok": True, "oublie": True,
+                           "raison": "conversation oubliee"})
 
     # -- edition de connaissance (/v1/learn) --------------------------
     def _learn(self) -> None:
@@ -339,6 +416,28 @@ def _smoke(port: int) -> int:
     for nom, v in checks:
         print(f"  [{'OK' if v else 'KO'}] {nom}")
     return 0 if ok else 1
+
+
+def demarrer_en_tache(host: str = "127.0.0.1", port: int | None = None,
+                      precharger: bool = True):
+    """Demarre l'API dans un fil daemon : rend (serveur, fil, port).
+
+    Utilise par l'interface terminal (`aura/tui.py`) : un SEUL processus
+    RontoGPT porte le cerveau ET l'API que le TUI interroge, au lieu de
+    lancer un second interpreteur Python qui rechargerait le modele.
+    `OSError` si le port est deja pris — un autre RontoGPT tourne alors :
+    le TUI s'y connectera, ce n'est pas une erreur.
+    """
+    if port is None:
+        port = int(os.environ.get("AURA_API_PORT", "8760"))
+    etat = _Etat()
+    serveur = ThreadingHTTPServer((host, port), _creer_handler(etat))
+    serveur.daemon_threads = True
+    fil = threading.Thread(target=serveur.serve_forever, daemon=True)
+    fil.start()
+    if precharger:
+        threading.Thread(target=etat.charger, daemon=True).start()
+    return serveur, fil, port
 
 
 def main(argv=None) -> int:

@@ -33,6 +33,14 @@ flowchart TD
    contrôles bornent certains formats, refus et réponses douteuses. Si un fait
    demandé ne peut pas être ancré, RontoGPT peut s'abstenir plutôt que l'inventer.
 
+Parmi les experts exacts ou vérifiés, `titulaires` répond aux questions de la
+forme « qui est le président de la France ? » : le nom vient d'un mandat en cours
+lu dans Wikidata, jamais d'un extrait web recopié par le modèle (cf.
+`aura/titulaires.py`). Il s'abstient dès que la question sort de cette forme,
+qu'elle est historique (« en 2012 »), ambiguë ou hors ligne, et la cascade
+continue alors comme avant. Sa réponse n'est volontairement pas mise en cache :
+un titulaire change avec les élections.
+
 Ce schéma résume le chemin principal : des requêtes spéciales (historique,
 lecture de fichier, mémoire de conversation, recherche web) ont leurs propres
 branches. Le routeur ne garantit pas la justesse d'une interprétation; la

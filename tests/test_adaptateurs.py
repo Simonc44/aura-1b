@@ -152,11 +152,12 @@ class TestIntegration:
         """Cache niveau 0 OFF (sinon la question ne quitte jamais le N0
         et n'atteint jamais le hot-swap). RAG OFF aussi (sinon une
         question connue du RAG n'atteint jamais le cerveau)."""
-        from aura import filtre_instantane, rag_binaire
+        from aura import filtre_instantane, memoire_web, rag_binaire
         monkeypatch.setattr(filtre_instantane, "repondre", lambda q: None)
         monkeypatch.setattr(filtre_instantane, "enregistrer",
                             lambda q, r: None)
         monkeypatch.setattr(rag_binaire, "chercher", lambda q: None)
+        monkeypatch.setattr(memoire_web, "chercher", lambda q, **k: "")
 
     def test_generer_bascule_vers_la_categorie(self, monkeypatch,
                                                tmp_path, lib_fake):
@@ -197,6 +198,7 @@ class TestIntegration:
         assert ia.executer("combien fait 12 fois 12") == "ok"
 
     def test_off_chemin_inchange(self, monkeypatch):
+        self._neutraliser(monkeypatch)
         from aura import llama_cerveau
         monkeypatch.setattr(llama_cerveau, "generer",
                             lambda *a, **k: "ok")

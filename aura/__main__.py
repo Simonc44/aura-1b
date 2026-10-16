@@ -1,7 +1,9 @@
 """CLI RontoGPT : cerveau Llama 3.2 1B (Q4_K_M) + experts symboliques.
 
 Usage :
-  python -m aura "question"
+  python -m aura                 # interface terminal OpenTUI (defaut)
+  python -m aura "question"      # une question, reponse sur la sortie standard
+  python -m aura --console       # ancienne console texte
   python -m aura --demo
   python -m aura "question" --x "[[1],[2],[3]]" --y "[1,8,27]"
 """
@@ -62,6 +64,11 @@ def main(argv=None) -> int:
     p.add_argument("--x", help="liste JSON de vecteurs, ex. '[[1],[2],[3]]'")
     p.add_argument("--y", help="liste JSON de valeurs, ex. '[1,8,27]'")
     p.add_argument("--chat", action="store_true", help="mode conversationnel multi-tours")
+    p.add_argument("--tui", action="store_true",
+                   help="interface terminal OpenTUI (defaut quand aucune "
+                        "question n'est donnee)")
+    p.add_argument("--console", action="store_true",
+                   help="console texte brute, sans interface")
     p.add_argument("--demo", action="store_true")
     p.add_argument("--notify", action="store_true",
                    help="pousse le resultat vers l'ile Coucou (Mochi), "
@@ -81,8 +88,23 @@ def main(argv=None) -> int:
                          ensure_ascii=False, indent=2))
         return 0
 
+    # INTERFACE PAR DEFAUT : le TUI. Tout ce qui demande un chemin TEXTE
+    # (question, --x/--y, --demo, --chat, --console) garde la console :
+    # une question ponctuelle ne doit pas ouvrir un ecran.
+    chemin_texte = bool(args.question or args.x or args.y or args.demo
+                        or args.chat or args.console)
+    if args.tui or not chemin_texte:
+        from . import tui as _tui
+        code = _tui.lancer()
+        if code != _tui.INDISPONIBLE:
+            return code
+        # Interface non installable : on ne bloque pas, on continue en texte.
+        print("[tui] repli sur la console texte.", file=sys.stderr)
+
     ia = RontoGPT()
-    if args.chat:
+    # --console (ou --chat) SANS question ouvre la conversation : c'est le
+    # sens de l'option. Avec une question, elle reste une question ponctuelle.
+    if args.chat or (args.console and not (args.question or args.x or args.y)):
         return _chat(ia)
     if args.demo or (not args.question and not (args.x and args.y)):
         return _demo(ia)

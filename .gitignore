@@ -10,6 +10,10 @@ build/
 # Local
 *.log
 uv.lock
+
+# Interface terminal (tui/) : Bun et @opentui/core s'installent localement
+# (le package-lock.json, lui, reste versionnable : il fige les versions)
+node_modules/
 aura/.cache_routeur/
 
 # Modeles (trop gros pour git : telecharge via scripts/telecharger_llama.py)
@@ -55,3 +59,12 @@ assets_hf/aura.png
 # Donnees locales / privees de l'utilisateur (jamais dans git)
 aura/.conversation.etat.json
 aura/.graphe_faits.jsonl
+
+# Sauvegardes locales
+*.bak*
+
+# Votes utilisateur locaux
+aura/feedback.jsonl
+
+# Secrets locaux
+.env

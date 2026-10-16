@@ -250,7 +250,14 @@ class TestOrchestrateur:
                           filtre_instantane, llama_cerveau, memoire_web,
                           rag_binaire)
         from aura.orchestrateur import RontoGPT
+        from aura import cache_reponses
+        # Cache de reponses en memoire (global) : une reponse d'un test precedent
+        # (meme question) ne doit jamais court-circuiter le pipeline teste.
+        monkeypatch.setattr(cache_reponses, "_CACHE_REPONSES", {})
         monkeypatch.setattr(filtre_instantane, "repondre", lambda q: None)
+        # Le cache semantique disque ne doit pas resservir une reponse d'un autre
+        # test (sinon le resultat depend de l'ordre d'execution).
+        monkeypatch.setattr(filtre_instantane, "repondre_cache", lambda q: None)
         monkeypatch.setattr(filtre_instantane, "enregistrer", lambda q, r: None)
         monkeypatch.setattr(rag_binaire, "chercher", lambda q: None)
         monkeypatch.setattr(fast_lang.moteur, "repondre", lambda q: None)
@@ -337,6 +344,14 @@ class TestOrchestrateur:
         from aura import agents, llama_cerveau
         from aura.orchestrateur import RontoGPT
         self._isole_pipeline(monkeypatch)
+        # Reseau coupe : les API publiques ne doivent jamais repondre a la place
+        # du contexte fourni par le faux fan-out (test deterministe).
+        monkeypatch.setattr(apis_publiques, "detecte", lambda q: False)
+        monkeypatch.setattr(apis_publiques, "chercher", lambda q: "")
+        # L'expert « titulaires » interroge aussi le reseau et peut repondre
+        # directement : on le coupe pour que le pipeline soit seul en jeu.
+        from aura import titulaires
+        monkeypatch.setattr(titulaires, "resoudre", lambda q: None)
         captures: list = []
 
         def _faux_experts(self, experts, question, X, y):

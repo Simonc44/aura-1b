@@ -1,0 +1,21 @@
+{
+  "name": "rontogpt-tui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Interface terminal (OpenTUI) de RontoGPT : parle au cerveau Python via l'API locale aura/api.py.",
+  "scripts": {
+    "start": "bun src/index.ts",
+    "check": "tsc --noEmit",
+    "smoke": "bun src/smoke.ts",
+    "smoke:design": "bun src/smoke_design.ts"
+  },
+  "dependencies": {
+    "@opentui/core": "^0.6.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.0",
+    "bun": "^1.4.3",
+    "typescript": "^5.9.0"
+  }
+}

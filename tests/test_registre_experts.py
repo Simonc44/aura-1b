@@ -171,7 +171,8 @@ class TestOrdreReel:
         """L'ORDRE EXECUTE doit etre l'ordre DECLARE (les gardes a part)."""
         from aura import (calcul_achat, calcul_verbal, calcul_taux,
                           chaines_numeriques, fast_lang, filtre_instantane,
-                          micro_faits, problemes_arithmetiques, rag_binaire)
+                          micro_faits, problemes_arithmetiques, rag_binaire,
+                          titulaires)
 
         vus: list[str] = []
 
@@ -191,6 +192,7 @@ class TestOrdreReel:
                             _trace("problemes-arithmetiques"))
         monkeypatch.setattr(micro_faits, "resoudre", _trace("micro-faits"))
         monkeypatch.setattr(RontoGPT, "_expert_special", _trace("experts-speciaux"))
+        monkeypatch.setattr(titulaires, "resoudre", _trace("titulaires"))
         monkeypatch.setattr(rag_binaire, "chercher", _trace("rag-binaire"))
         monkeypatch.setattr(filtre_instantane, "repondre_cache",
                             _trace("cache-semantique"))
