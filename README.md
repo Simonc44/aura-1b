@@ -32,6 +32,8 @@ uv run python scripts/telecharger_llama.py  # downloads the ~807 MB brain once
 uv run rontogpt                              # terminal UI (default)
 uv run rontogpt "combien font 12 fois 12 ?"  # one-shot question -> 144
 uv run rontogpt --console                    # plain text console
+uv run rontogpt --superviser                 # supervised API (auto-restart) + UI
+uv run rontogpt --superviser --api           # API alone, still supervised
 ```
 
 The same CLI is importable as a module, without `uv`:
@@ -45,6 +47,11 @@ python -m rontogpt --console
 The terminal UI is [OpenTUI](https://opentui.com)-based and lives in `tui/`.
 It needs Bun once: `cd tui && npm install` (installs Bun locally, nothing
 global). Without it, `rontogpt` prints why and falls back to the text console.
+
+`--superviser` keeps the local API under watch: health on `/v1/health`, restart
+with growing backoff if it dies, capped at 5 attempts. That supervisor used to
+live in a root `main.py` that no doc mentioned and no test covered; it is now
+part of the single entry point (`rontogpt` / `python -m aura`).
 
 That's it. Start talking to RontoGPT.
 
@@ -62,6 +69,10 @@ That's it. Start talking to RontoGPT.
 ```powershell
 .\scripts\installer.ps1
 ```
+
+4. Working on the code? `\relancer.ps1` is the convenience script used during
+development: it frees port 8760, smoke-tests the UI design, then relaunches the
+current code.
 
 </details>
 
@@ -433,9 +444,9 @@ Two more constraints, by design:
 ## 🧪 Tests & quality
 
 ```bash
-uv run pytest -q        # 1132 tests collected (1131 pass; 1 self-skips: the adapters
+uv run pytest -q        # 1146 tests collected (1145 pass; 1 self-skips: the adapters
                         # on disk are no longer Llama deltas — cf. test_couplage)
-uv run mypy aura/       # 0 error (71 files)
+uv run mypy aura/       # 0 error (73 files)
 ```
 
 Test counts go stale the moment a test is added, so the number above is the

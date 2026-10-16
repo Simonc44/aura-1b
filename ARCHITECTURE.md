@@ -33,7 +33,7 @@
 └──────────────────────────────────────────────────────────────────────────────┘
                                     │ HTTP 127.0.0.1:8757
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ INTELLIGENCE  ── cascade de executer_detaille (orchestrateur.py) ──          │
+│ INTELLIGENCE  ── cascade de executer_detaille (orchestrateur.py + 5 mixins) ─│
 │                                                                              │
 │  ① routeur (SVM/TF-IDF)  classifie la question                               │
 │  ② niveau0 ── filtre_instantane  [SOUMIS EN PARALLÈLE, consommé le 1er]      │
@@ -59,6 +59,11 @@
 │           (mode riche supprime : plus de plan ni de sections)                │
 │           flux typé : PHASE_PENSEE (le  thinking) puis PHASE_REPONSE         │
 │  ⑪ filtre_instantane.enregistrer  écrit la réponse au cache                  │
+│  ⑫ AIGUILLEUR (opt-in, GOOGLE_API_KEY) — aura/aiguilleur.py                  │
+│        lit la TÂCHE demandée (dissertation, traduction) ET la RÉPONSE        │
+│        rendue (vide, refus, boucle, langue, fait deviné sans source) et      │
+│        décide : garder le 1B, ou passer la main à Gemini (aura/gemini.py     │
+│        ne garde que l'appel HTTP). Un tier exact/vérifié n'est jamais rejugé │
 │                                                                              │
 │  transversal : budget/échéance 45 s · disjoncteur anti-boucle · 4 LoRA       │
 │  entrées : api.py :8760 · GUI · Coucou/MacTheme                              │
@@ -134,7 +139,8 @@ pas sa source : le lire pour connaître l'ordre exact.
 | **Budget 45 s / échéance** | Cadre la latence | **« riche » fait 37–40 s / 250 mots** → les KO « court » viennent de là | Arbitrage produit explicite : longueur vs latence, par catégorie |
 | **Disjoncteur anti-boucle** | Coupe une boucle pendant le flux | N'existe que sur le chemin in-process (corrigé côté serveur par DRY) | Unifier |
 | **`banc_100`** | 8 catégories, contrôle strict par nombre/mots | **13,7 h**, variance ±1-2, latences corrompues (`21675 s`), attribution manuelle | Sous-banc déterministe (~60 q, secondes) en garde-fou + banc long manuel |
-| **`pytest` 626 + `mypy`** | Filet réel, 46 modules typés | `mypy` passe mais **ne vérifie pas les corps non typés** (`annotation-unchecked`) | Activer `--check-untyped-defs` sur le cœur |
+| **`pytest` 1146 + `mypy`** | Filet réel, **73 modules typés, 0 erreur** [`§3septies`](#3septies-orchestrateur-éclaté-aiguilleur-nommé-et-ci-qui-vérifie-16-oct-2026) | `mypy` passe mais **ne vérifie pas les corps non typés** (`annotation-unchecked`) | Activer `--check-untyped-defs` sur le cœur |
+| **Ordre des tests aléatoire** | Un état partagé entre tests ne peut plus se cacher dans l'ordre alphabétique des fichiers | Latence de suite plus variable ; le seed n'est pas figé (on ne rejoue pas le même ordre) | — |
 | **`.aef` scellé** | Distribution en un fichier, intègre config, code et GGUF | Le GGUF reste aussi extrait dans `.cache_aef/cerveau.gguf` : le `.aef` et le cache occupent chacun l'espace des poids | Le format ne compresse pas les poids ; choisir le cerveau et quantifier le GGUF déterminent la taille |
 | **Python 3.12 + uv** | Dépendances propres, venv rapide | — | Aucun : les solveurs sont à 0–5 ms, Rust n'apporterait rien |
 
@@ -421,6 +427,113 @@ Ce n'est pas un compteur de requetes, c'est un identifiant interne de tache. Le
 contre-controle etait **invalide**, pas les donnees : la part generee repose uniquement sur
 l'etiquette `cerveau`. Lecon a garder : un temoin exterieur ne vaut que si sa semantique est
 verifiee sur un cas connu avant le run.
+
+---
+
+## 3septies. Orchestrateur éclaté, aiguilleur nommé et CI qui vérifie (16 oct. 2026)
+
+Le dépôt partait d'un `main` **rouge** : 12 tests échoués et un badge « mypy : 0 »
+contredit par **57 erreurs**. Les deux sont réparés à la cause, et l'invariant est
+désormais **vérifié par la CI** au lieu d'être annoncé.
+
+### L'orchestrateur est éclaté en étages, avec un contrat typé
+
+`aura/orchestrateur.py` (178 lignes) est maintenant une **façade** :
+
+| Module | Rôle |
+|---|---|
+| `pipeline_rontogpt.py` | `executer` / `executer_detaille`, cache de réponses, branchement de l'aiguilleur |
+| `experts_rontogpt.py` | validation avant exécution, fan-out parallèle, routage des experts |
+| `raisonnement_rontogpt.py` | logique (mini-SAT + vote), PoT/arbre de réflexion, code |
+| `synthese_rontogpt.py` | prompt système, garde-fous de contamination, `_generer` |
+| `verification_rontogpt.py` | vérification outillée (pattern CRITIC) |
+
+Ces mixins s'appellent entre eux et partagent l'état porté par
+`RontoGPT.__init__` : chacun déclare ce contrat sous `if TYPE_CHECKING` (état de
+l'instance et méthodes des mixins frères, en `Callable`). Le bloc **disparaît à
+l'exécution** — aucun import circulaire, aucune dépendance au runtime — et c'est
+ce qui ramène `mypy aura/` à **0 erreur sur 73 modules**.
+
+### L'aiguilleur est un module, pas un `if` dans l'appel HTTP
+
+La décision d'escalade vivait dans `aura/gemini.py`, mélangée à l'appel réseau.
+Elle est maintenant dans **`aura/aiguilleur.py`** : un composant qui ne parle à
+personne et rend une `Decision` (`escalader`, `raison`, `moment`, `fournisseur`).
+Il lit, dans cet ordre : la **tâche demandée** (rédaction longue, traduction —
+compétences que le 1B n'a pas, donc escalade même si sa réponse est longue et
+bien formée), puis la **réponse rendue** (vide, erreur, refus, aveu, boucle,
+écho, trop court, mauvaise langue, problème, fait deviné sans source, hors
+domaine). Un **tier exact ou vérifié n'est jamais rejugé** : une preuve ne se
+remplace pas par une réponse probable. `gemini.py` ne garde que l'appel, plus
+un `disponible()` (clé présente, pas en pause) que l'aiguilleur consulte — sans
+cible disponible, **rien ne part**.
+
+### Les 12 échecs : 4 bugs, 8 fantômes
+
+* **8 échecs n'existaient que dans la suite complète.** Cause unique :
+  `cache_reponses._CACHE_REPONSES`, un dict **de module**, resservait au test
+  suivant la réponse mémorisée par le précédent dès que deux tests posaient la
+  même question. Une fixture autouse le vide (et l'isolation de
+  `filtre_instantane` était déjà en place) : *le pipeline n'était pas en cause*.
+* **4 échecs réels** : le compresseur RAG n'appliquait son plafond de morceaux
+  qu'aux sources **longues** (8 lignes courtes tenaient encore 8 extraits dans
+  la fenêtre du 1B) ; et trois tests contredisaient le contrat **courant** du
+  code (le solveur rédige la solution logique, le 1B ne fait que formaliser ;
+  un calcul n'est plus chargé depuis le cache) — ce sont les tests qui ont été
+  réalignés, pas le pipeline.
+* **Ordre aléatoire** (`pytest-randomly`, dans le groupe `dev` et donc en CI) :
+  la suite est verte sur plusieurs seeds, et cette classe de régression ne peut
+  plus revenir en silence.
+
+### La CI installe les MÉTADONNÉES, pas une liste recopiée
+
+Quatre jobs : `tests` (Ubuntu + Windows × Python 3.11/3.12), `chaine-aef`
+(forge → signature Ed25519 → boot → altération), **`typage`** (`mypy aura/`) et
+`installateur` (syntaxe PowerShell). Les dépendances viennent de
+`[project].dependencies` via **`uv sync --frozen`**, et `uv lock --check`
+refuse un `pyproject.toml` désynchronisé du verrou. La liste écrite à la main
+qui vivait dans le workflow est supprimée : c'est elle qui avait laissé
+**`google-adk`** (dépendance déclarée du projet) hors de la CI, où
+`tests/test_agents_adk.py` échouait à l'import. `uv.lock` est versionné, donc
+les versions sont reproductibles.
+
+**Le fichier de workflow ne se lisait même pas.** Le libellé d'une étape
+contenait un « `: ` » dans un scalaire non quoté (`Tests (ordre ALEATOIRE : …)`) :
+en YAML, un deux-points suivi d'une espace termine une clé, donc le fichier
+était **invalide** et GitHub rejetait le workflow ENTIER — les quatre jobs
+faisaient semblant d'exister. Réparé (libellé quoté) et vérifié en le
+**chargeant** (`yaml.safe_load`), pas en le relisant : la syntaxe d'un YAML ne
+se juge pas à l'œil.
+
+### Le paquet livré contient enfin ses données
+
+La wheel ne déclarait que `aura` + `rontogpt` : ni `concepts.toml`, ni
+`adaptateurs/`, ni `tui/`, alors que le code les lit **par le parent du paquet**
+(`Path(__file__).parent.parent`). `pip install` livrait donc un RontoGPT
+dégradé. `only-include` + `exclude` les embarquent à la racine de la wheel
+(vérifié : la wheel extraite résout les trois chemins), en écartant
+`tui/node_modules` et les adaptateurs Llama archivés.
+
+### Un seul point d'entrée produit
+
+Le superviseur vivait dans un `main.py` **hors paquet**, sans test ni
+référence : il est fusionné dans la CLI (`python -m aura --superviser`,
+`--superviser --api` pour l'API seule) et couvert par
+tests/test_superviseur.py. `relancer.ps1` reste ce qu'il est — une commodité de
+**développement Windows** (libère le port, vérifie le design, relance), et il
+est enfin **documenté** au lieu d'être un fichier que personne ne cite.
+
+### Et le plus gros module a perdu son post-traitement
+
+`llama_cerveau.py` (1 885 lignes) mêlait le **chargement du modèle** à deux
+garde-fous de **texte** : le disjoncteur anti-répétition et la canalisation
+(le 1B récitait son prompt). Ces ~290 lignes sont **pures** (`texte -> texte`
+ou `texte -> bool`, aucun état de module) : elles vivent dans
+`aura/post_traitement.py` et sont **ré-exportées** par `llama_cerveau`, dont
+l'espace de noms reste l'API historique — `llama_cerveau._en_boucle(...)` et
+les monkeypatches des tests continuent de fonctionner. Le module de cerveau
+est passé de 1 885 à 1 612 lignes, sans une ligne réécrite (le bloc déplacé
+est **verbatim**, ce qui est vérifiable dans le diff).
 
 ---
 

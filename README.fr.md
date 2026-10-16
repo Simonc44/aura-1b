@@ -44,6 +44,8 @@ uv sync
 uv run python scripts/telecharger_llama.py  # télécharge le cerveau (~807 Mo) une fois
 uv run rontogpt                             # interface terminal (défaut)
 uv run rontogpt --console                   # console texte
+uv run rontogpt --superviser                # API surveillée (relance auto) + interface
+uv run rontogpt --superviser --api          # API seule, toujours surveillée
 ```
 
 Sans `uv` : `python -m rontogpt` (même CLI — le paquet porte le nom du
@@ -51,6 +53,13 @@ produit). Lance avec le Python global, la commande detecte les dependances
 manquantes et se relance toute seule dans `.venv`, en le disant.
 
 **Installeur Windows :** [télécharger l'archive ZIP](https://github.com/Simonc44/rontogpt/archive/refs/heads/main.zip), l'extraire, puis lancer `scripts/installer.ps1` depuis le dossier extrait.
+
+**`--superviser`** garde l'API locale sous surveillance (santé sur `/v1/health`,
+relance avec délai croissant si elle plante, 5 essais au plus). Ce superviseur
+vivait dans un `main.py` racine qu'aucun doc ne citait et qu'aucun test ne
+couvrait : il fait maintenant partie du point d'entrée unique (`rontogpt` /
+`python -m aura`). En développement Windows, `\relancer.ps1` libère le port
+8760, vérifie le design de l'interface puis relance le code courant.
 
 <p align="center"><a href="https://github.com/Simonc44/rontogpt/stargazers"><strong>⭐ Ajouter une étoile à RontoGPT</strong></a></p>
 
@@ -485,9 +494,9 @@ Deux contraintes supplémentaires, par conception :
 ## 🧪 Tests & qualité
 
 ```bash
-uv run pytest -q        # 1132 tests collectés (1131 passent ; 1 se saute seul : les
+uv run pytest -q        # 1146 tests collectés (1145 passent ; 1 se saute seul : les
                         # adaptateurs du disque ne sont plus des deltas Llama)
-uv run mypy aura/       # 0 erreur (71 fichiers)
+uv run mypy aura/       # 0 erreur (73 fichiers)
 ```
 
 Un décompte de tests devient faux dès qu'un test est ajouté : le nombre

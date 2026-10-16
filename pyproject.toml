@@ -37,6 +37,11 @@ interp = ["torch>=2.2", "transformers>=4.46", "transformer_lens>=2.0"]
 dev = [
     "pyinstaller>=6.22.3",
     "pytest>=8.0",
+    # Ordre ALEATOIRE des tests : la suite doit rester verte dans n'importe
+    # quel ordre. Sans ce plugin, un etat de module partage entre tests ne se
+    # voit QUE dans l'ordre alphabetique des fichiers — c'est ainsi que 8
+    # echecs fantomes ont survecu sur `main` (cf. tests/conftest.py).
+    "pytest-randomly>=5.0",
     "mypy>=1.10",
 ]
 

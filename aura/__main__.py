@@ -6,6 +6,12 @@ Usage :
   python -m aura --console       # ancienne console texte
   python -m aura --demo
   python -m aura "question" --x "[[1],[2],[3]]" --y "[1,8,27]"
+  python -m aura --superviser      # API surveillee (relancee si elle plante) + TUI
+  python -m aura --superviser --api  # API seule, surveillee
+
+POINT D'ENTREE UNIQUE : le superviseur vivait dans un `main.py` a la racine ;
+il est desormais ici (cf. aura/superviseur.py), donc un seul lanceur a
+connaitre — `rontogpt` (console script) ou `python -m aura`.
 """
 import argparse
 import json
@@ -78,6 +84,13 @@ def main(argv=None) -> int:
                         "succes reintegres (MLT + dataset)")
     p.add_argument("--niveau", type=int, default=1, choices=(1, 2),
                    help="niveau des defis self-play (1 = calcul, 2 = + enigmes)")
+    p.add_argument("--superviser", action="store_true",
+                   help="l'API tourne SOUS SURVEILLANCE (relancee apres un "
+                        "plantage, avec delai croissant) pendant que "
+                        "l'interface s'y connecte")
+    p.add_argument("--api", action="store_true",
+                   help="avec --superviser : API seule, sans interface "
+                        "(l'ancien « python main.py --api »)")
     args = p.parse_args(argv)
 
     if args.selfplay:
@@ -87,6 +100,12 @@ def main(argv=None) -> int:
         print(json.dumps(selfplay.session(args.selfplay, niveau=args.niveau),
                          ensure_ascii=False, indent=2))
         return 0
+
+    # SUPERVISION (ancien `main.py` racine) : le lanceur s'occupe de l'API et
+    # de l'interface ensemble, donc il passe AVANT le choix d'interface.
+    if args.superviser:
+        from . import superviseur
+        return superviseur.lancer(interface=not args.api)
 
     # INTERFACE PAR DEFAUT : le TUI. Tout ce qui demande un chemin TEXTE
     # (question, --x/--y, --demo, --chat, --console) garde la console :
