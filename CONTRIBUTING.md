@@ -58,7 +58,7 @@ uv sync
 python scripts/telecharger_llama.py        # optional: 807 MB brain
 
 # 3. Quality gates — all four must pass before you push
-uv run pytest -q        # 1152 tests
+uv run pytest -q        # 1157 tests, 0 skipped
 uv run mypy aura/       # 0 error (74 files, bodies of untyped functions included)
 uv run ruff check .     # 0 violation (cible py311)
 uv run pytest -q --cov  # coverage (source + branch come from pyproject.toml)
@@ -99,8 +99,12 @@ uv run pytest -q --cov  # coverage (source + branch come from pyproject.toml)
 
 ## 🧪 Testing your change
 
-- `pytest -q` locally (with the GGUF if you have it: 1152 tests; without:
-  the big-brain tests skip themselves — CI covers that path).
+- `pytest -q` locally. On a complete machine (the GGUF brain, `lang.db`) that
+  is **1157 passed, 0 skipped**; a test that needs a file you do not have still
+  skips by design. What is *not* allowed is a test that skips **everywhere**:
+  the three that did are gone — two now measure against **synthetic** files (an
+  lm-eval tasks tree, a GGUF header) and one was retired because its subject had
+  moved. Details: `ARCHITECTURE.md` §3decies.
 - The suite runs in a **random order** (`pytest-randomly`): a test that only
   passes because another ran before it is a bug in the test, not bad luck.
 - **Coverage: `uv run pytest -q --cov`.** Source and branch are read from
@@ -115,6 +119,33 @@ uv run pytest -q --cov  # coverage (source + branch come from pyproject.toml)
   did this and made coverage under-report by 38 points on the full suite.
 - For routing changes: run a small live quiz and paste the before/after in
   the PR. Measurements beat opinions.
+
+## 🔐 Security advisories on the frozen versions
+
+The CI job `securite` audits the **versions pinned in `uv.lock`**, as installed:
+
+```bash
+uv run python scripts/audit_dependances.py
+```
+
+It computes the venv's `site-packages` path, pins the same `pip-audit==2.10.1`,
+ignores the same advisory, and warns **before** the results if your `.venv` has
+drifted from the lock (a stray `urllib3 2.7.0` once reported three advisories
+that the lock did not have). Exit code is pip-audit's: `0` clean, `1` advisory.
+
+**Why not `pip-audit --no-deps -r requirements.txt`?** On Windows it cannot
+finish, and neither reason is a misconfiguration:
+
+1. With hashes (`uv export -o req.txt`): `--require-hashes` turns itself on as
+   soon as one line has one, and `llama-cpp-python` has none — it comes from the
+   `abetlen/llama-cpp-python` index, not PyPI.
+2. Without hashes (`uv export --no-hashes`): pip installs the package to read
+   its metadata, unpacks the `llama-cpp-python` sdist and overruns the Windows
+   path limit (`…\ChatAttachmentsListItemMcpResource.svelte`).
+
+`--no-deps` does not help: it stops dependency *exploration*, not the
+preparation of the packages you did ask for. Auditing the installed
+site-packages is the same act as the CI job, and it installs nothing.
 
 ## 📄 License
 

@@ -139,7 +139,7 @@ pas sa source : le lire pour connaître l'ordre exact.
 | **Budget 45 s / échéance** | Cadre la latence | **« riche » fait 37–40 s / 250 mots** → les KO « court » viennent de là | Arbitrage produit explicite : longueur vs latence, par catégorie |
 | **Disjoncteur anti-boucle** | Coupe une boucle pendant le flux | N'existe que sur le chemin in-process (corrigé côté serveur par DRY) | Unifier |
 | **`banc_100`** | 8 catégories, contrôle strict par nombre/mots | **13,7 h**, variance ±1-2, latences corrompues (`21675 s`), attribution manuelle | Sous-banc déterministe (~60 q, secondes) en garde-fou + banc long manuel |
-| **`pytest` 1152 + `mypy`** | Filet réel, **74 modules typés, 0 erreur** [`§3septies`](#3septies-orchestrateur-éclaté-aiguilleur-nommé-et-ci-qui-vérifie-16-oct-2026) | La **couverture n'est mesurée que depuis le 16 oct. 2026**, et le chiffre est bas ; un module peut ne plus être exercé sans que rien ne le dise [`§3nonies`](#3nonies-ce-que-la-couverture-a-mesuré-et-la-ligne-qui-mentait-16-oct-2026) | Aucun plancher : rien ne rougit si la couverture baisse |
+| **`pytest` 1157 + `mypy`** | Filet réel, **74 modules typés, 0 erreur** [`§3septies`](#3septies-orchestrateur-éclaté-aiguilleur-nommé-et-ci-qui-vérifie-16-oct-2026) | La **couverture n'est mesurée que depuis le 16 oct. 2026**, et le chiffre est bas ; un module peut ne plus être exercé sans que rien ne le dise [`§3nonies`](#3nonies-ce-que-la-couverture-a-mesuré-et-la-ligne-qui-mentait-16-oct-2026) | Aucun plancher : rien ne rougit si la couverture baisse |
 | **Ordre des tests aléatoire** | Un état partagé entre tests ne peut plus se cacher dans l'ordre alphabétique des fichiers | Latence de suite plus variable ; le seed n'est pas figé (on ne rejoue pas le même ordre) | — |
 | **`.aef` scellé** | Distribution en un fichier, intègre config, code et GGUF | Le GGUF reste aussi extrait dans `.cache_aef/cerveau.gguf` : le `.aef` et le cache occupent chacun l'espace des poids | Le format ne compresse pas les poids ; choisir le cerveau et quantifier le GGUF déterminent la taille |
 | **Python 3.12 + uv** | Dépendances propres, venv rapide | — | Aucun : les solveurs sont à 0–5 ms, Rust n'apporterait rien |
@@ -782,6 +782,82 @@ Ce qui reste **non** vérifié, et le restera depuis cette machine : les deux
 entrées `ubuntu-latest`, donc la chaîne `.aef` sur Linux et l'installeur
 PowerShell tel que GitHub le lance. Le vert GitHub n'est pas **prouvé** par ce
 tableau ; il est devenu **probable**.
+
+---
+
+## 3decies. Trois tests qui se sautaient partout, et un vide mis en cache (16 oct. 2026)
+
+`pytest -q` annonçait **1149 passés, 3 sautés**. Les trois sautés n'étaient pas des
+cas de bord : c'étaient les trois endroits où la suite ne mesurait plus rien **tout
+en donnant l'impression du contraire**. Un test qui se saute est pire qu'un test
+absent : la ligne existe, le rapport est vert, et personne ne regarde.
+
+| Toujours sauté | Ce qu'il ne mesurait donc plus | Ce qui l'a remplacé |
+|---|---|---|
+| `test_type_sortie_lit_les_configs_de_lm_eval` | que `type_sortie` lit les YAML de tâches, dont le cas **groupe sans fichier à son nom** | Dossier de tâches **synthétique** qui reproduit les formes réelles ; plus aucune dépendance |
+| `test_refus_des_groupes_et_pas_seulement_des_taches` | que `mmlu` est un **groupe** (`_mmlu.yaml` porte `group: mmlu`) et que le nom **déclaré** prime sur le nom de **fichier** | Le même dossier : `_mmlu_stem.yaml` y existe **deux fois**, et la variante qui trie en premier est celle qui note en génération |
+| `test_gemma_refuse_les_adaptateurs_llama_du_disque` | rien — son sujet était **l'état du disque** (« tant que les `.gguf` sont des deltas Llama »), état disparu avec le ré-entraînement Gemma | Retiré. L'invariant — un cerveau Gemma **refuse** des adaptateurs Llama — est verrouillé par `TestMontageAuto`, sur des en-têtes GGUF synthétiques |
+
+Les deux premiers ne comptaient **pas** comme couverture : `lm-eval` (et son torch)
+n'est pas une dépendance du projet, donc `pytest.importorskip` les sautait sur toute
+machine, **CI comprise**. Le refus des tâches à logprobabilités — le garde-fou qui
+empêche de publier un **score de hasard** comme un score — n'était donc vérifié
+nulle part. Les deux tests réécrits ont été vérifiés en **cassant** la règle qu'ils
+verrouillent : ils tombent, ils ne sont pas décoratifs.
+
+### Le bug que seule la charge a montré
+
+En lançant la suite pendant qu'une compilation `pip-audit` tournait, **5 tests sur
+1151** sont tombés d'un coup, tous avec le même écart : `'inconnu-1b'` au lieu de
+`'-1b'`. La trace mène à `famille()` (`aura/llama_cerveau.py`), qui lit la famille du
+GGUF pour choisir les **balises de fin de tour** (`<end_of_turn>` pour Gemma,
+`<|eot_id|>` pour Llama).
+
+```python
+_FAMILLE_CACHE = gguf_meta.famille(_CHEMIN_GGUF)     # AVANT : rien ne distinguait
+                                                     # un succès d'une panne
+```
+
+```python
+if not trouve:                                       # APRÈS : seul un résultat
+    return ""                                        # non vide se mémorise
+_FAMILLE_CACHE = trouve
+```
+
+`gguf_meta.famille()` ne lève jamais : elle rend `''` quand l'en-tête est illisible.
+La mémoriser comme un succès faisait d'un **hoquet de lecture** (quelques Ko, une
+fois) un état **définitif pour tout le processus** : le cerveau s'appelait
+« inconnu », ses balises étaient remplacées par les génériques, et rien ne le
+disait. Le correctif ne prétend pas expliquer le hoquet — il rend seulement son
+effet non permanent. Le test de régression
+(`test_une_lecture_ratee_ne_devient_pas_definitive`, dans
+`tests/test_chargement_cerveau.py`) a été vérifié en **remettant** l'ancien code :
+il tombe.
+
+### Côté dépendances : `pip-audit -r` ne peut pas aboutir ici, et ce n'est pas qu'une histoire de chemin long
+
+`pip-audit --no-deps -r req.txt` échoue pour **deux** raisons successives, et aucune
+n'est un problème de configuration :
+
+1. **Avec** empreintes (`uv export -o req.txt`) : `--require-hashes` s'active dès
+   qu'**une** ligne en porte une, et `llama-cpp-python==0.3.36` n'en a pas — il vient
+   de l'index `abetlen/llama-cpp-python`, pas de PyPI.
+2. **Sans** empreintes (`uv export --no-hashes`) : pip installe les paquets pour lire
+   leurs métadonnées, dépaquette le sdist de `llama-cpp-python` et **dépasse la
+   limite de chemin de Windows** (`…\ChatAttachmentsListItemMcpResource.svelte`).
+
+`--no-deps` ne dispense pas de cette installation : il arrête l'exploration des
+*dépendances*, pas la préparation des paquets demandés. La CI n'utilise donc pas `-r`
+— elle audite le `site-packages` du venv (`--path`) — et
+`scripts/audit_dependances.py` fait **le même geste en local**, Windows compris, avec
+le même `pip-audit` épinglé et le même avis ignoré. Il prévient d'abord si le venv a
+dérivé du verrou : sur ce poste, il a immédiatement trouvé un `urllib3 2.7.0`
+installé contre `2.8.0` figé — **3 avis** déjà corrigés par le verrou, donc trois
+faux positifs que rien ne distinguait des vrais.
+
+Les mesures de §3septies et de §3nonies restent celles de **leur** commit (1149
+passés, 3 sautés) ; cette section est celle d'après : **1157 passés, 0 sauté** sur
+une machine complète.
 
 ---
 

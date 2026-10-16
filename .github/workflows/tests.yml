@@ -265,6 +265,12 @@ jobs:
           uvx --from pip-audit==2.10.1 pip-audit --path "$SP" \
             --ignore-vuln PYSEC-2026-2447
 
+      # Le meme audit, EN LOCAL (Windows compris) : `python
+      # scripts/audit_dependances.py`. Il calcule le `--path` du venv, epingle
+      # la meme version de pip-audit, ignore le meme avis — et previent avant
+      # les avis si le venv n'est pas le verrou. `pip-audit --no-deps -r`,
+      # lui, ne peut pas aboutir ici : voir l'en-tete de ce script.
+
   # La TUI est du TypeScript, et son package.json declare `check: tsc
   # --noEmit` depuis toujours — mais AUCUNE CI ne l'appelait. Il passait donc
   # seulement parce que personne ne le lancait : le meme genre de faux

@@ -444,9 +444,9 @@ Two more constraints, by design:
 ## 🧪 Tests & quality
 
 ```bash
-uv run pytest -q        # 1152 tests collected (1149 pass; 3 self-skip: the adapters
-                        # on disk are no longer Llama deltas — cf. test_couplage —
-                        # and 2 need the optional lm_eval package)
+uv run pytest -q        # 1157 collected, 1157 pass, 0 skipped on a complete
+                        # machine — the 3 that skipped EVERYWHERE are replaced
+                        # by tests that measure (ARCHITECTURE.md §3decies)
 uv run mypy aura/       # 0 error (74 files, untyped function bodies included)
 uv run ruff check .     # 0 violation (target py311)
 uv run pytest -q --cov  # 72 % of aura/ + rontogpt/ (branch coverage)
@@ -455,7 +455,7 @@ uv run pytest -q --cov  # 72 % of aura/ + rontogpt/ (branch coverage)
 Test counts go stale the moment a test is added, so the number above is the
 one measured on this HEAD — `pytest --collect-only -q` prints the live one.
 
-**Coverage is measured, not claimed: 72 %** (branches included, 9527
+**Coverage is measured, not claimed: 72 %** (branches included, 9535
 statements). Deliberately **no `--cov-fail-under`**: at this level a floor would
 stay green for years without guaranteeing anything, and one self-skipping test
 would turn the CI red with no line changed — the figure is printed on every run,
