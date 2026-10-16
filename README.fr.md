@@ -497,13 +497,25 @@ Deux contraintes supplémentaires, par conception :
 uv run pytest -q        # 1152 tests collectés (1149 passent ; 3 se sautent seuls : les
                         # adaptateurs du disque ne sont plus des deltas Llama, et 2
                         # exigent le paquet optionnel lm_eval)
-uv run mypy aura/       # 0 erreur (73 fichiers)
+uv run mypy aura/       # 0 erreur (73 fichiers, corps non annotés compris)
 uv run ruff check .     # 0 violation (cible py311)
+uv run pytest -q --cov  # 72 % de aura/ + rontogpt/ (branches comprises)
 ```
 
 Un décompte de tests devient faux dès qu'un test est ajouté : le nombre
 ci-dessus est celui **mesuré sur ce HEAD** — `pytest --collect-only -q`
 affiche le chiffre courant.
+
+**La couverture est mesurée, pas annoncée : 72 %** (branches comprises, 9527
+instructions). **Pas de `--cov-fail-under`, volontairement** : à ce niveau, un
+plancher passerait au vert pendant des années sans rien garantir, et un seul
+test qui se saute ferait rougir la CI sans qu'une ligne ait changé — le chiffre
+s'écrit à chaque run, et c'est une **baisse** qui alerte. Obtenir ce chiffre a
+demandé de corriger un vrai bug : `aura/potcode.py` défaisait son propre traceur
+avec `sys.settrace(None)`, ce qui **effaçait celui de l'hôte** — la couverture a
+d'abord annoncé 20 %, avec `aura/routeur.py` à 13 % en suite complète contre
+62 % sur trois tests. Détail et les trois mesures :
+[`ARCHITECTURE.md` §3nonies](ARCHITECTURE.md).
 
 La CI (GitHub Actions) lance **huit jobs** : la suite sur **Ubuntu + Windows**
 (Python 3.11/3.12) ; toute la chaîne `.aef` (forge → signature Ed25519 → boot →

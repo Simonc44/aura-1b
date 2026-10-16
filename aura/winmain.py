@@ -11,12 +11,14 @@ En exe gele, kernel.py et chiffrement.py sont embarques en top-level
 (--add-data) : import direct, hors du paquet aura (jamais en conflit avec
 le paquet aura extrait du .aef).
 """
+import importlib
 import os
 import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
+from types import ModuleType
 
 # En exe gele : les fichiers embarques (kernel.py, chiffrement.py) sont
 # extraits dans _MEIPASS — il faut y pointer sys.path pour les importer.
@@ -26,14 +28,17 @@ if getattr(sys, "frozen", False):
         sys.path.insert(0, _meipass)
 
 
-def _import_kernel():
-    """Import du kernel : paquet (python) ou top-level (exe gele)."""
+def _import_kernel() -> ModuleType:
+    """Import du kernel : paquet (python) ou top-level (exe gele).
+
+    `importlib` plutot qu'un `from aura import kernel` suivi d'un
+    `import kernel` : sous `--check-untyped-defs`, mypy compte les deux
+    liaisons du meme nom comme une redefinition. Semantique identique.
+    """
     try:
-        from aura import kernel
-        return kernel
+        return importlib.import_module("aura.kernel")
     except ImportError:
-        import kernel
-        return kernel
+        return importlib.import_module("kernel")
 
 
 def _python_local():

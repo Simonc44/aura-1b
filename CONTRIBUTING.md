@@ -59,8 +59,9 @@ python scripts/telecharger_llama.py        # optional: 807 MB brain
 
 # 3. Quality gates — all four must pass before you push
 uv run pytest -q        # 1152 tests
-uv run mypy aura/       # 0 error (73 files)
+uv run mypy aura/       # 0 error (73 files, bodies of untyped functions included)
 uv run ruff check .     # 0 violation (cible py311)
+uv run pytest -q --cov  # coverage (source + branch come from pyproject.toml)
 ```
 
 ### Branch naming & commits
@@ -102,6 +103,16 @@ uv run ruff check .     # 0 violation (cible py311)
   the big-brain tests skip themselves — CI covers that path).
 - The suite runs in a **random order** (`pytest-randomly`): a test that only
   passes because another ran before it is a bug in the test, not bad luck.
+- **Coverage: `uv run pytest -q --cov`.** Source and branch are read from
+  `[tool.coverage]` in `pyproject.toml`, so the bare flag is enough. There is
+  intentionally **no `--cov-fail-under`**: at today's level a floor would pass
+  for years without guaranteeing anything, and a self-skipping test would
+  turn the CI red with no line changed. The number is printed on every CI run
+  — read it, and treat a **drop** as a question to answer.
+- **Never call `sys.settrace(None)`** to undo your own trace function: it
+  erases the host's tracer (debugger, profiler, coverage). Save it first
+  (`avant = sys.gettrace()`) and put it back in the `finally`. `aura/potcode.py`
+  did this and made coverage under-report by 38 points on the full suite.
 - For routing changes: run a small live quiz and paste the before/after in
   the PR. Measurements beat opinions.
 

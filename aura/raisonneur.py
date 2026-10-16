@@ -15,12 +15,16 @@ import logging
 import operator
 import re
 import unicodedata
+from collections.abc import Callable
 
 LOG = logging.getLogger("aura.pot")
 
 # -- evaluateur AST securise ( meme contrat que filtre_instantane ) ---------
 
-_OPS = {
+# Annoté : sans le type, mypy (qui verifie desormais les corps non annotes,
+# `check_untyped_defs`) ne sait pas QUELLES fonctions sont ces valeurs et
+# refuse de les appeler — « Cannot call function of unknown type ».
+_OPS: dict[type, Callable[..., float]] = {
     ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
     ast.Div: operator.truediv, ast.Pow: operator.pow,
     ast.FloorDiv: operator.floordiv, ast.Mod: operator.mod,

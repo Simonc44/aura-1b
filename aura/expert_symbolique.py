@@ -40,8 +40,14 @@ class ExpertSymbolique:
                          stopping_criteria=precision, random_state=graine)
         self.programme = None
         self.erreur = None
-        # bornes min-max memorisees pour denormaliser
-        self._x_min = self._x_max = self._y_min = self._y_max = None
+        # bornes min-max memorisees pour denormaliser. ANNOTEES : sans le
+        # type, mypy deduit `float | None` d'une initialisation a None, et
+        # refuse alors l'arithmetique de `resoudre` (`... - None`), alors que
+        # `_normaliser` vient forcement de les remplir par des floats.
+        self._x_min: np.ndarray | None = None
+        self._x_max: np.ndarray | None = None
+        self._y_min: float | None = None
+        self._y_max: float | None = None
 
     def _normaliser(self, X, y):
         self._x_min, self._x_max = X.min(axis=0), X.max(axis=0)
@@ -69,6 +75,9 @@ class ExpertSymbolique:
         reg.fit(Xn, Yn)
         self.programme = reg._program
         # erreur en unites REELLES (predictions denormalisees)
+        # Invariant de `_normaliser`, que mypy ne peut pas suivre d'une
+        # methode a l'autre : les bornes y sont TOUJOURS renseignees.
+        assert self._y_min is not None and self._y_max is not None
         etendue_y = (self._y_max - self._y_min) or 1.0
         pred = np.asarray(reg.predict(Xn)) * etendue_y + self._y_min
         self.erreur = float(np.mean((pred - y) ** 2))

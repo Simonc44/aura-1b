@@ -51,8 +51,15 @@ import time
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import TYPE_CHECKING
 
 from . import config as _config
+
+if TYPE_CHECKING:
+    # Le cerveau n'est importe qu'au PREMIER appel (`charger`), jamais a
+    # l'import du serveur : la declaration sert au type de `_Etat.ia` et ne
+    # coute rien au runtime (`from __future__ import annotations` ci-dessus).
+    from .orchestrateur import RontoGPT
 
 _config.appliquer()
 
@@ -111,7 +118,9 @@ class _Etat:
 
     def __init__(self, smoke: bool = False):
         self.smoke = smoke
-        self.ia = None
+        # ANNOTE : sans le type, mypy deduit `None` de l'initialisation et
+        # refuse `self.ia = RontoGPT()` plus bas.
+        self.ia: RontoGPT | None = None
         self.erreur: str | None = None
         self.chargement = False
         self.verrou = threading.Lock()

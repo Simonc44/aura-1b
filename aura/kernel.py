@@ -37,6 +37,7 @@ import sys
 import time
 import zipfile
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 HEADER_FORMAT = "<4sBBBB8sIIIIIQQ32s32s32s"
@@ -53,14 +54,18 @@ cache_env = os.environ.get("AURA_CACHE")
 CACHE = Path(cache_env) if cache_env else RACINE / ".cache_aef"
 
 
-def _importer_chiffrement():
-    """Import du module chiffrement : paquet (python) ou top-level (exe)."""
+def _importer_chiffrement() -> ModuleType:
+    """Import du module chiffrement : paquet (python) ou top-level (exe).
+
+    `importlib` plutot qu'un `from . import x` suivi d'un `import x` : sous
+    `--check-untyped-defs`, mypy compte les deux liaisons du MEME nom comme
+    une redefinition (`no-redef`). La semantique est identique — le paquet
+    d'abord, puis le module a plat de l'exe gele.
+    """
     try:
-        from . import chiffrement
-        return chiffrement
+        return importlib.import_module(".chiffrement", __package__)
     except ImportError:
-        import chiffrement
-        return chiffrement
+        return importlib.import_module("chiffrement")
 
 
 def _ouvrir(path_aef: Path) -> tuple:
@@ -180,14 +185,15 @@ def _sceller_marqueur(path_aef: Path, gguf_sha256: str,
     }), encoding="utf-8")
 
 
-def _importer_signature():
-    """Import du module signature : paquet (python) ou top-level (exe)."""
+def _importer_signature() -> ModuleType:
+    """Import du module signature : paquet (python) ou top-level (exe).
+
+    Meme raison que `_importer_chiffrement` : une seule liaison du nom.
+    """
     try:
-        from . import signature
-        return signature
+        return importlib.import_module(".signature", __package__)
     except ImportError:
-        import signature
-        return signature
+        return importlib.import_module("signature")
 
 
 def _verifier_signature_fichier(sha_fichier: bytes, path_aef: Path) -> None:

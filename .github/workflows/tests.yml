@@ -40,10 +40,17 @@ jobs:
       - name: Dependances (metadonnees du projet, versions figees)
         run: uv sync --frozen
 
-      - name: "Tests (ordre ALEATOIRE : un etat partage entre tests se voit)"
+      # LA COUVERTURE EST MESUREE, PAS SEULEMENT ANNONCEE. La config
+      # ([tool.coverage] de pyproject.toml) porte la source et les branches,
+      # donc `--cov` seul suffit ici. PAS de `--cov-fail-under` : un plancher
+      # a 20 % passerait au vert pendant des annees sans rien garantir, et il
+      # suffirait d'un test saute (`lm_eval` absent) pour rougir la CI sans
+      # qu'aucune ligne ait change. Le chiffre est ecrit dans le journal a
+      # chaque run, et c'est ARCHITECTURE.md qui dit quoi en faire.
+      - name: "Tests + couverture (ordre ALEATOIRE : un etat partage se voit)"
         env:
           PYTHONIOENCODING: utf-8
-        run: uv run --frozen pytest -q
+        run: uv run --frozen pytest -q --cov --cov-report=term-missing:skip-covered
 
       - name: Diagnostic (chaque echec pytest devient une annotation visible)
         if: failure()
@@ -139,6 +146,10 @@ jobs:
   # Le typage est un INVARIANT annonce (badge « mypy : 0 ») : il est donc
   # verifie en CI. La version de mypy vient du VERROU (uv.lock), pas d'une
   # epingle recopiee ici : c'est la meme version qui a produit le 0 annonce.
+  # `check_untyped_defs` vient de [tool.mypy] (pyproject.toml) : le corps des
+  # fonctions NON annotees est verifie lui aussi. C'est cette ligne qui a fait
+  # apparaitre 14 erreurs reelles — dont un `no-redef` et deux operandes `None`.
+  # Ne PAS la retirer : le 0 du badge couvre aujourd'hui ces corps.
   typage:
     name: mypy (aura/)
     runs-on: ubuntu-latest

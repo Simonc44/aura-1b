@@ -139,7 +139,7 @@ pas sa source : le lire pour connaître l'ordre exact.
 | **Budget 45 s / échéance** | Cadre la latence | **« riche » fait 37–40 s / 250 mots** → les KO « court » viennent de là | Arbitrage produit explicite : longueur vs latence, par catégorie |
 | **Disjoncteur anti-boucle** | Coupe une boucle pendant le flux | N'existe que sur le chemin in-process (corrigé côté serveur par DRY) | Unifier |
 | **`banc_100`** | 8 catégories, contrôle strict par nombre/mots | **13,7 h**, variance ±1-2, latences corrompues (`21675 s`), attribution manuelle | Sous-banc déterministe (~60 q, secondes) en garde-fou + banc long manuel |
-| **`pytest` 1152 + `mypy`** | Filet réel, **73 modules typés, 0 erreur** [`§3septies`](#3septies-orchestrateur-éclaté-aiguilleur-nommé-et-ci-qui-vérifie-16-oct-2026) | `mypy` passe mais **ne vérifie pas les corps non typés** (`annotation-unchecked`) | Activer `--check-untyped-defs` sur le cœur |
+| **`pytest` 1152 + `mypy`** | Filet réel, **73 modules typés, 0 erreur** [`§3septies`](#3septies-orchestrateur-éclaté-aiguilleur-nommé-et-ci-qui-vérifie-16-oct-2026) | La **couverture n'est mesurée que depuis le 16 oct. 2026**, et le chiffre est bas ; un module peut ne plus être exercé sans que rien ne le dise [`§3nonies`](#3nonies-ce-que-la-couverture-a-mesuré-et-la-ligne-qui-mentait-16-oct-2026) | Aucun plancher : rien ne rougit si la couverture baisse |
 | **Ordre des tests aléatoire** | Un état partagé entre tests ne peut plus se cacher dans l'ordre alphabétique des fichiers | Latence de suite plus variable ; le seed n'est pas figé (on ne rejoue pas le même ordre) | — |
 | **`.aef` scellé** | Distribution en un fichier, intègre config, code et GGUF | Le GGUF reste aussi extrait dans `.cache_aef/cerveau.gguf` : le `.aef` et le cache occupent chacun l'espace des poids | Le format ne compresse pas les poids ; choisir le cerveau et quantifier le GGUF déterminent la taille |
 | **Python 3.12 + uv** | Dépendances propres, venv rapide | — | Aucun : les solveurs sont à 0–5 ms, Rust n'apporterait rien |
@@ -648,6 +648,98 @@ J'avais proposé de sortir `resultats/` du dépôt (30 fichiers, 540 Ko).
 `gsm8k_aura/NOTE_cerveau_raisonneur_R1.md`, et `aura/aiguilleur.py` renvoie à
 `BILAN_HONNETE_20261011.md` pour un taux mesuré. Les retirer casserait la
 traçabilité que ce dépôt revendique, pour 540 Ko. **Rien n'a été supprimé.**
+
+---
+
+## 3nonies. Ce que la couverture a mesuré, et la ligne qui mentait (16 oct. 2026)
+
+Le projet parlait de « filet » sans jamais dire **quelle part du code** il
+touchait. `pytest-cov` est arrivé, et le premier chiffre obtenu — **20 %** —
+était **faux**. C'est la mesure qui a trouvé le bug, pas l'inverse.
+
+### Le chiffre qui ne tenait pas debout
+
+Sur une même suite de 1149 tests, `aura/routeur.py` rendait **62 %** lancé seul
+avec trois tests, et **13 %** dans la suite complète. Un module ne peut pas être
+*mieux* couvert par trois tests que par mille. Même chose pour
+`pipeline_rontogpt.py` (7 %) et `aura/llama_cerveau.py` (20 %) — des étages que
+la suite exerce en permanence.
+
+### La cause : `aura/potcode.py` effaçait le traceur de son hôte
+
+La sandbox de code bornait les instructions avec `sys.settrace(_trace)` puis, en
+`finally`, `sys.settrace(None)`. Ce `None` ne remettait pas l'état d'avant : il
+**supprimait** le traceur de l'hôte — ici la couverture de code, mais aussi bien
+n'importe quel débogueur ou profileur attaché au même processus. Après le
+premier bout de code passé en sandbox, plus rien n'était compté.
+
+Correctif, deux lignes : `avant = sys.gettrace()` avant, `sys.settrace(avant)`
+dans le `finally`. Le seul geste qui compte est de **rendre** ce qu'on a pris.
+
+### Le chiffre vrai, et ce qu'on en a fait
+
+| Mesure, même suite, même code | TOTAL |
+|---|---|
+| noyau par défaut, `sys.settrace(None)` (le bug) | **20 %** |
+| noyau C explicite (`COVERAGE_CORE=ctrace`), **même code bogué** | 58 % |
+| noyau par défaut, traceur **restauré** (corrigé) | **72 %** |
+
+**72 %** de bout en bout, branches comprises (9527 instructions, `aura/` +
+`rontogpt/`) : `orchestrateur` 93 %, `filtre_instantane` 87 %, `potcode` 84 %,
+`config` 76 %, `llama_cerveau` 70 %, `api` 58 %, `kernel` 58 % — et `gui.py`
+comme `gui_web.py` à **0 %**, ce qui est le juste résultat : ces deux-là ne
+s'importent que devant une fenêtre.
+
+Ce que la mesure dit, et qu'aucun badge ne dira à notre place :
+
+* **pas de `--cov-fail-under`.** À ce niveau, un plancher passerait au vert
+  pendant des années sans rien garantir, et un seul test qui se saute
+  (`lm_eval` absent) suffirait à rougir la CI sans qu'une ligne ait changé. Le
+  chiffre s'écrit dans le journal à **chaque** run : c'est une **baisse** qui
+  pose une question, pas un seuil ;
+* la couverture est mesurée **dans le même pas** que les tests, donc le chiffre
+  disponible et le chiffre affiché sont le même ;
+* `COVERAGE_CORE` n'est **pas** figé : le noyau par défaut est le bon depuis que
+  le traceur est restauré. Le `ctrace` explicite rend 58 % — moins, parce que
+  `potcode` lui prend le traceur pendant la sandbox. Publier ce chiffre-là
+  serait publier un chiffre trop **bas**, exactement l'erreur inverse du 20 %.
+
+### Ce qui n'est pas élucidé, et qui est écrit quand même
+
+Je n'ai **pas** isolé lequel des deux mécanismes explique chaque écart : prendre
+le traceur de l'hôte pendant la sandbox, ou l'effacer après. Les trois lignes du
+tableau sont mesurées ; l'explication détaillée de la colonne du milieu ne l'est
+pas. Ce qui est établi, c'est le remède : **ne jamais laisser un composant
+effacer le traceur du processus**, et mesurer la couverture d'un module seul
+pour détecter le contraire.
+
+### Deuxième découverte, côté machine : un `pandas` fantôme
+
+46 tests échouaient sur le poste de développement et **aucun** en CI ni dans un
+environnement reconstruit depuis le verrou. Cause : un dossier `pandas/`
+orphelin dans le `.venv` (sans `__init__` réel ni `DataFrame`), que `narwhals`
+traverse à chaque `fit` de scikit-learn et où il casse. Retiré : **1149
+passent**. Rien à corriger dans le dépôt — mais la leçon compte : un échec
+massif **local** et absent partout ailleurs désigne l'environnement avant le
+code.
+
+### La matrice CI tournée pour de vrai — la moitié qu'on peut tenir ici
+
+Le vert GitHub reste une **inférence** depuis ce poste : il n'y a pas de runner.
+En revanche, les deux entrées **Python** de la matrice ont été **exécutées** en
+local, dans deux environnements construits depuis le verrou (`uv sync
+--frozen`), sur de vrais interpréteurs, avec le code de ce commit :
+
+| Entrée | Interpréteur | Résultat |
+|---|---|---|
+| `tests`, py 3.11 | 3.11.16 | **1149 passés, 3 sautés, 0 échec** — 108 s |
+| `tests`, py 3.12 | 3.12.10 | **1149 passés, 3 sautés, 0 échec** — 97 s |
+| `compat-311` | 3.11.16 | `compileall -q aura rontogpt tests scripts` → **exit 0** |
+
+Ce qui reste **non** vérifié, et le restera depuis cette machine : les deux
+entrées `ubuntu-latest`, donc la chaîne `.aef` sur Linux et l'installeur
+PowerShell tel que GitHub le lance. Le vert GitHub n'est pas **prouvé** par ce
+tableau ; il est devenu **probable**.
 
 ---
 

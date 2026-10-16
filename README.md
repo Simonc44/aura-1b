@@ -447,12 +447,23 @@ Two more constraints, by design:
 uv run pytest -q        # 1152 tests collected (1149 pass; 3 self-skip: the adapters
                         # on disk are no longer Llama deltas — cf. test_couplage —
                         # and 2 need the optional lm_eval package)
-uv run mypy aura/       # 0 error (73 files)
+uv run mypy aura/       # 0 error (73 files, untyped function bodies included)
 uv run ruff check .     # 0 violation (target py311)
+uv run pytest -q --cov  # 72 % of aura/ + rontogpt/ (branch coverage)
 ```
 
 Test counts go stale the moment a test is added, so the number above is the
 one measured on this HEAD — `pytest --collect-only -q` prints the live one.
+
+**Coverage is measured, not claimed: 72 %** (branches included, 9527
+statements). Deliberately **no `--cov-fail-under`**: at this level a floor would
+stay green for years without guaranteeing anything, and one self-skipping test
+would turn the CI red with no line changed — the figure is printed on every run,
+and a **drop** is the signal. Getting that number required fixing a real bug:
+`aura/potcode.py` undid its own tracer with `sys.settrace(None)`, which **erased
+the host's tracer** — coverage first reported 20 %, and `aura/routeur.py` looked
+like 13 % in the full suite against 62 % with three tests. Details and the three
+measurements: [`ARCHITECTURE.md` §3nonies](ARCHITECTURE.md).
 
 CI (GitHub Actions) runs **eight jobs**: the suite on **Ubuntu + Windows**
 (Python 3.11/3.12); the whole `.aef` chain (forge → Ed25519 signature → boot →

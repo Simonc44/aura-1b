@@ -3,7 +3,7 @@ et routage des experts speciaux. Mixin herite par RontoGPT (aura/orchestrateur.p
 import logging
 import os
 import threading
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from . import memoire_web, filtre_instantane, rag_binaire
 from . import chaines_numeriques
@@ -44,6 +44,12 @@ class ExpertsMixin:
     if TYPE_CHECKING:
         _resoudre_par_code: Callable[..., str | None]
         _resoudre_par_logique: Callable[..., str | None]
+        # Meme contrat : celles-ci vivent dans d'autres mixins montes sur
+        # RontoGPT (`_requete_web` dans ExpertsMixin lui-meme cote pipeline,
+        # `resoudre_numerique` dans RaisonnementMixin). Les declarer evite
+        # trois `attr-defined` faux : l'attribut EXISTE au runtime.
+        _requete_web: Callable[..., str]
+        resoudre_numerique: Callable[..., str]
 
     # -- validation avant execution (idea JEV #2) ---------------------------
 
@@ -93,7 +99,11 @@ class ExpertsMixin:
         de cote dans self._contexte_api (consomme ensuite par le pipeline).
         """
         self._contexte_api = ""
-        taches = {}
+        # ANNOTE : sans le type, mypy fige celui du PREMIER ajout (le
+        # `chercher_iteratif` du web) et refuse ensuite les deux autres
+        # fonctions, pourtant interchangeables ici (meme contrat : chaine, ou
+        # echec isole). `taches` est un sac de taches, pas un type unique.
+        taches: dict[str, tuple[Callable[..., str], tuple[Any, ...]]] = {}
         # hors_web : demande de code ou enigme de logique (fix bugs 3 et 4) —
         # rien a chercher sur internet, ni DuckDuckGo ni API publique. Pose par
         # _executer_detaille (attribut, pour ne pas changer la signature).

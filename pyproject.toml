@@ -64,6 +64,11 @@ dev = [
     # par `requires-python`. C'est ce qui manquait quand
     # `aura/llama_cerveau.py` est devenu incompilable sous 3.11.
     "ruff>=0.17",
+    # La couverture : le projet annoncait des chiffres SANS jamais la mesurer.
+    # Sans ce paquet, « 20 % » etait une impression, pas une mesure — et un
+    # module que plus rien n'exerce (`aura/routeur.py` : 62 % sur trois tests,
+    # 13 % sur la suite complete, voir ARCHITECTURE.md) passe inapercu.
+    "pytest-cov>=7.0",
 ]
 
 [[tool.uv.index]]
@@ -100,6 +105,21 @@ exclude = ["tui/node_modules", "adaptateurs/_archive_llama_3.2"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
+[tool.coverage.run]
+# Cible : le paquet LIVRE (jamais les tests ni les scripts de banc).
+branch = true
+source = ["aura", "rontogpt"]
+
+[tool.coverage.report]
+# Ce qui n'est PAS executable sous pytest ne doit pas compter comme manque :
+# les declarations de typage (`if TYPE_CHECKING:`) et le point d'entree script.
+# Les compter ferait baisser le chiffre sans qu'AUCUN test puisse le remonter —
+# un trou que personne ne peut boucher n'est pas un trou.
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
+
 [tool.ruff]
 # Cible : le PLUS ANCIEN Python supporte (`requires-python`). Indispensable :
 # ruff rapporte en `invalid-syntax` ce qui ne compile pas sous cette version
@@ -132,6 +152,12 @@ select = ["E4", "E7", "E9", "F"]
 # donc PAS mypy qui garde la compatibilite 3.11 : c'est ruff, dont le
 # `target-version = "py311"` refuse toute syntaxe plus recente.
 python_version = "3.12"
+# Les corps de fonctions NON annotees sont verifies eux aussi. Sans ce
+# reglage, mypy affichait des `annotation-unchecked` et laissait passer, dans
+# ces corps, des erreurs qu'il refusait ailleurs (`attr-defined`,
+# `no-redef`, operandes `None`) : 14 d'entre elles ont ete corrigees pour
+# activer cette ligne. Le badge « mypy : 0 » couvre donc desormais ces corps.
+check_untyped_defs = true
 # Stubs absents pour les libs scientifiques : on n'insiste pas dessus.
 [[tool.mypy.overrides]]
 module = [

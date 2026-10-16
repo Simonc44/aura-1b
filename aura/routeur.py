@@ -14,6 +14,7 @@ import json
 import logging
 import os
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -283,10 +284,17 @@ class RouteurIntelligent:
     def __init__(self, dossier_cache: str | Path | None = None):
         self._dossier_cache = Path(dossier_cache or os.path.join(
             os.path.dirname(__file__), ".cache_routeur"))
-        self._classifieur = None
-        self._vectoriseur = None
-        self._proto_vecs = None
-        self._proto_labels = None
+        # ANNOTES : initialises a None, ils sont remplis plus tard par
+        # sklearn. Sans annotation explicite, mypy (qui verifie desormais les
+        # corps non annotes) voit le type `None` et refuse `.fit_transform`,
+        # `.fit` et `.append` sur ces attributs. `Any` est le seul choix
+        # honnete : scikit-learn ne livre PAS de `py.typed` (verifie dans le
+        # venv), donc aucun de ses types n'est verifiable ici.
+        self._classifieur: Any = None
+        self._vectoriseur: Any = None
+        self._proto_vecs: Any = None
+        self._proto_vect: Any = None
+        self._proto_labels: list[str] = []
 
     # -- initialisation paresseuse -----------------------------------------
 
@@ -433,7 +441,10 @@ class RouteurIntelligent:
                           + 0.5 * float(flou.get(k, 0.0)) for k in cles}
             total = sum(fondus.values()) or 1.0
             probas = {k: v / total for k, v in fondus.items()}
-            pred = max(probas, key=probas.get)
+            # `key=probas.get` est plus court mais mypy le refuse : `dict.get`
+            # est SURCHARGE, donc passer la methode non liee comme cle n'est
+            # pas typable. La lambda dit exactement la meme chose.
+            pred = max(probas, key=lambda k: probas[k])
             methodes.append("MiniLM-MLP")
 
         # methode 2 : similarité cosinus avec prototypes

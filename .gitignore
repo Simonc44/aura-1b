@@ -69,3 +69,11 @@ aura/feedback.jsonl
 
 # Secrets locaux
 .env
+
+# Rapports de couverture (`pytest --cov`) : fichiers GENERES, jamais livres.
+# Sans ces deux lignes, le premier `uv run pytest --cov` d'un contributeur
+# laisse un `.coverage` non suivi a la racine du depot.
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
