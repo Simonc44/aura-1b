@@ -1,63 +1,97 @@
-# RontoGPT v0.2.0 — the system grows a mind of its own
+# RontoGPT v0.3.0 — measured, not claimed
 
 > **The fastest answer is the one you never generate.**
-> A 100 % local, CPU-native AI: Llama 3.2 1B orchestrated with exact math,
-> verified facts and a sealed `.aef` distribution — **no GPU required**.
+> A 100 % local, CPU-native AI: a 1B brain routed through exact solvers, verified
+> facts and a sealed `.aef` distribution — **no GPU required**.
 
 ## ✨ Added
 
-- **Served multi-LoRA with weight mixing** — the official llama-server (CPU
-  build, auto-started) mounts the Q4_K_M brain + all 4 category adapters at
-  boot; the router's probabilities become simultaneous weights
-  (`{"math": 0.7, "web": 0.3}`) in one HTTP call, ~ms hot-swap, no reload.
-  In-process fallback never blocks. Base stays **Q4_K_M (807 MB)**.
-- **Self-play, AlphaGo-style** (`aura/selfplay.py`) — a challenge generator
-  builds logic puzzles & drills from the fact graph, a **deterministic judge**
-  validates (never the model grading itself), successes reinforce the graph
-  and join the training dataset; failures become injected corrections.
-  `aura --selfplay 20 [--niveau 2]`
-- **Autonomous long-term memory** (`aura/graphe_faits.py`) — every fact
-  triplet carries a **strength**: each verified use reinforces it, lookup is
-  strength × recency weighted. Knowledge organizes its own importance with
-  zero retraining.
-- **RLSS** (`aura/rlss.py`) — symbolic-reinforcement loop: generated
-  exercises → exact validation → successes stored for the next LoRA.
-- **Dynamic Compute** — complex questions trigger a masked `<thinking>`
-  draft (×2 token budget), stripped before display; simple ones stay instant.
-- **Style mimicry (few-shot)** — calibrated exemplars steer the 1B's
-  attention: it copies big-model prose instead of inventing its own tics.
-- **Double-pass editing** — the 1B critiques its own draft then rewrites it;
-  catching flaws in existing text is where a small model statistically
-  matches a much bigger one.
-- **Semantic triplets** — web context is compressed to `subject | relation |
-  object` (~10× shorter), protecting the 1B context window and feeding the
-  fact graph.
-- **Creator lock** (`aura/verrou.py`) — re-forging the `.aef` requires the
-  Ed25519 private key (never distributed); the AI only ever rewrites data,
-  never code. License: MIT → **GPLv3**.
-
-## 📊 The equivalence, measured by capability
-
-| Capability | RontoGPT system | Raw 1B brain |
-|---|---|---|
-| Logic & math | **beyond class** — exact, proven | hallucinates |
-| Facts (graph + web) | **~7-8B anchored**, 0 hallucination | ~1B, frozen |
-| Code (sandbox-verified) | **~8B** on testable code | worse |
-| Style & writing | **~7-8B perceived** | 1B tics |
-| Deep unanchored analysis | honest limit — weights stay 1B | 1B |
+- **Escalation to Gemini as a measured decision** (`aura/aiguilleur.py` +
+  `aura/gemini.py`) — when the local answer is judged insufficient (on the task
+  *and* on the response), the question goes out to Google's API. The HTTP call
+  lives in one module, the key is read from the environment or `.env` and never
+  written to the URL, and `python -m aura.gemini` diagnoses key, model and
+  network end to end. Set `AURA_GEMINI=0` to cut it, or simply leave without a
+  key: the local path never blocks on it.
+- **A terminal UI in TypeScript** (`tui/`) with its own smoke harness, next to
+  the existing GUI and the HTTP API on `:8760` — one port of entry, decoupled
+  from the engine.
+- **A declarative expert registry** (`aura/registre_experts.py`). The cascade
+  order is no longer a chain of `if`: every expert declares its kind, cost,
+  source and *reason*, the invariant ("no approximate before an exact") is
+  carried by the kind, and a test compares the registry with the order
+  **actually executed**. It caught a missing expert by itself.
+- **Latency contracts** (`aura/contrats.py`). A "rich" answer promises 900
+  characters inside a 45 s budget; the response now carries the budget verdict
+  instead of silently shipping something shorter.
+- **`scripts/audit_dependances.py`** — the security audit now runs locally,
+  Windows included. `pip-audit --no-deps -r` cannot finish there (two distinct
+  causes, both documented), and auditing a `.venv` that had drifted from the
+  lock once reported three advisories the lock did not have.
 
 ## 🔧 Changed
 
-- Brain priority: Q4_K_M is the LoRA-compatible base (validated end-to-end
-  with 4 simultaneous adapters — root cause of earlier failures: Colab
-  converters write transposed `lora_a/lora_b`, fixed by `transpose_lora.py`).
-- Warmup with 4 LoRA requires `-c 1536 --no-warmup` (else `GGML_ASSERT`).
-- `llama-cpp-python` pinned to the official prebuilt CPU wheel (0.3.2) via
-  the `[[tool.uv.index]]` — no more MinGW builds.
+- **Python 3.11 works again.** The project did not compile under the version it
+  advertises — an f-string only 3.12 accepts. A `compileall` gate with the real
+  3.11 interpreter now refuses that class of mistake.
+- **The biggest module lost its output bus** (`aura/flux_cerveau.py`): phases,
+  subscribers, the `<think>`-aware dispatcher and the turn's reflection memory
+  moved out, block by block, with the public surface unchanged.
+- **The security job can no longer pass green while verifying nothing.** The
+  audit used to run on a path that could be missing; it is now computed by the
+  venv's own interpreter and checked before use.
+- **A single bad header read no longer lasts forever.** `famille()` cached an
+  empty result as if it were a success: one transient read hiccup (a few KB)
+  renamed the brain to "unknown" **for the whole process** and replaced its
+  end-of-turn tags with generic ones. Only a non-empty result is cached now, and
+  a regression test proven by restoring the old code.
+- **Every dependency comes from the project metadata** (`uv sync --frozen`), on
+  a random test order, nothing hand-copied.
 
 ## 🧪 Quality
 
-- **251 tests** (+78 since v0.1.0), mypy 0 errors, green CI on
-  Ubuntu + Windows (Python 3.11/3.12).
+- **1159 tests, 0 skipped on a complete machine** (+908 since v0.2.0). The three
+  tests that skipped **everywhere** — two needed an optional `lm_eval`, one
+  asserted a disk state that had moved — are gone: the first two now measure
+  against a synthetic task tree (groups, `include:` chains, duplicate names), the
+  third was retired because its invariant is locked elsewhere.
+- **Coverage is measured, not claimed: 72 %** (branches included, 9535
+  statements). Getting that number found a real bug: `aura/potcode.py` undid its
+  own tracer with `sys.settrace(None)`, erasing the host's tracer — coverage
+  first reported 20 %.
+- **`mypy aura/` 0 errors over 74 files**, untyped function bodies included;
+  **ruff 0**; the TUI typechecks (`tsc --noEmit`); **8 CI jobs** — Ubuntu and
+  Windows × Python 3.11/3.12, the whole `.aef` chain (forge → Ed25519 → boot →
+  tamper detection), typing, lint, the 3.11 gate, the security audit and the
+  installer.
+- New in this release: a **logit-lens probe published with its own caveats**
+  (`resultats/NOTE_sonde_gemma4b.md`) and an **honest self-assessment out of
+  100 000** (`docs/AUTOEVALUATION_2026-10-16.md`) where every point lost is tied
+  to a measurement.
 
-**Full changelog**: https://github.com/Simonc44/aura-1b/compare/v0.1.0...v0.2.0
+## ⚠️ Honest limits
+
+- **On GSM8K the pipeline does not rescue the brain**: 0.16 / 0.20 bare (100
+  questions), 0.12 through the API. The failure is the reasoning, not the format.
+- **Long-form writing remains the weak spot** (4/10 in the latest full run).
+- **No defensible ranking against 3B/8B models** — no shared benchmark exists.
+  A 4B probe shows the fact forming mid-network while the last layer starts a
+  sentence instead, and no digit of `17 × 23` ever reaches the top 3.
+- **Coverage is 72 % on average and very uneven** (`aura/tui.py` sits at 24 %).
+- **One advisory is accepted and written down**: `diskcache` (pulled in by
+  `llama-cpp-python`) has no published fix.
+- The `.aef` **does not compress the weights**: the sealed file is ~808 MB.
+
+## 📦 Downloads
+
+| File | What it is |
+|---|---|
+| `RontoGPT-v0.3.0-windows.zip` | `RontoGPT.exe` (bytecode-only kernel, ~12-15 MB) + README + LICENSE |
+| `RontoGPT-Setup-0.3.0.exe` | Windows installer (Inno Setup), user-level, no admin needed |
+| `checksums-sha256.txt` | SHA-256 of the ZIP |
+
+The first launch builds the environment and fetches the 807 MB brain
+(`scripts/installer.ps1`), then boots from the sealed `.aef` — integrity is
+verified once, and `--cache` starts instantly afterwards.
+
+**Full changelog**: https://github.com/Simonc44/rontogpt/compare/v0.2.0...v0.3.0

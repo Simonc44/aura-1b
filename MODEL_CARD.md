@@ -37,7 +37,7 @@ pipeline_tag: text-generation
 [![License: MIT](https://img.shields.io/badge/License-MIT-5bc0de.svg)](https://github.com/Simonc44/aura-1b/blob/main/LICENSE)
 ![GPU](https://img.shields.io/badge/GPU-not%20required-5bc0de)
 
-[🌐 Code open source](https://github.com/Simonc44/aura-1b) · [📦 Release v0.1.0](https://github.com/Simonc44/aura-1b/releases) · [📖 README complet](https://github.com/Simonc44/aura-1b#readme)
+[🌐 Code open source](https://github.com/Simonc44/rontogpt) · [📦 Dernière release](https://github.com/Simonc44/rontogpt/releases) · [📖 README complet](https://github.com/Simonc44/rontogpt#readme)
 
 </div>
 

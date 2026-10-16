@@ -1,6 +1,6 @@
 [project]
 name = "aura-1b"
-version = "0.1.0"
+version = "0.3.0"
 description = "IA hybride neuro-symbolique : orchestrateur LLM + expert symbolique (PGS) + memoire web (RAG)"
 # LICENCE (arbitrage) : le depot a porte DEUX licences contradictoires —
 # `LICENSE` en GPL-3.0, `LICENSE.mit.txt` en MIT, et un CONTRIBUTING qui

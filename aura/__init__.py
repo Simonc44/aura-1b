@@ -8,4 +8,4 @@ Trois piliers :
 from .orchestrateur import Aura1B, RontoGPT
 
 __all__ = ["RontoGPT", "Aura1B"]
-__version__ = "0.1.0"
+__version__ = "0.3.0"

@@ -29,7 +29,10 @@ from . import config
 
 LOG = logging.getLogger(__name__)
 
-_REPO = "Simonc44/aura-1b"
+# Nom ACTUEL du depot. L'ancien (`aura-1b`) repond encore par une redirection
+# 301, mais l'auto-mise a jour ne doit pas dependre d'une redirection : elle
+# lit la derniere release, et c'est elle qui decide de dire « a jour ».
+_REPO = "Simonc44/rontogpt"
 _URL = f"https://api.github.com/repos/{_REPO}/releases/latest"
 _AGENT = "aura-maj"
 
