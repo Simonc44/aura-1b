@@ -237,7 +237,10 @@ class TestBranchement:
         assert "?" in r["reponse"]
         assert r["clarification"]["famille"] == "verbe-nu"
 
-    def test_le_tour_suivant_est_recolle_puis_repondu(self, ia):
+    def test_le_tour_suivant_est_recolle_puis_repondu(self, ia, monkeypatch):
+        # Famille EPINGLEE : sans cerveau sur le disque `famille()` rend '' et
+        # la chaine annoncait « inconnu-1b » (mesure du 16 oct. 2026, en CI).
+        monkeypatch.setattr(llama_cerveau, "famille", lambda: "gemma3")
         ia.executer_detaille("Explique")
         r = ia.executer_detaille("la photosynthese")
         assert r["cerveau_choisi"] == f"{llama_cerveau.famille()}-1b"
@@ -306,6 +309,9 @@ class TestBranchement:
 
     def test_coupe_circuit_par_variable(self, ia, monkeypatch):
         monkeypatch.setenv("AURA_CLARIFICATION", "0")
+        # Famille EPINGLEE : meme raison que ci-dessus (l'etat du disque ne
+        # doit pas decider du nom annonce).
+        monkeypatch.setattr(llama_cerveau, "famille", lambda: "gemma3")
         r = ia.executer_detaille("Explique")
         assert r["cerveau_choisi"] == f"{llama_cerveau.famille()}-1b"
         assert len(ia.appels) == 1

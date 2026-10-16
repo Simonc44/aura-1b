@@ -23,10 +23,18 @@ FER = "<" "/think>"
 
 @pytest.fixture(autouse=True)
 def _flux_propre():
-    """Aucun abonne residuel entre deux tests (le registre est global)."""
+    """Etat de MODULE remis a zero entre deux tests.
+
+    Le registre d'abonnes ET la reflexion retenue sont globaux. Sans ca, un
+    test depend de ce qu'un autre a laisse derriere lui — et la suite tourne
+    en ordre ALEATOIRE : `test_reflexion_retiree_et_lisible` tombait ainsi
+    dans un job sur quatre (mesure du 16 oct. 2026).
+    """
+    lc.effacer_reflexion()
     yield
     for phase in lc.LES_DEUX_PHASES:
         lc._abonnes_flux[phase].clear()
+    lc.effacer_reflexion()
 
 
 class TestAbonnementParPhase:
@@ -131,7 +139,10 @@ class TestRepartiteur:
 class TestReflexionDuTour:
     def test_reflexion_retiree_et_lisible(self):
         """La reflexion n'est pas jetee : elle est MISE DE COTE, nommement."""
-        assert lc.reflexion_du_tour() == ""      # remis a zero par generer()
+        # `generer()` la remet a zero en production ; ici, on ne depend pas de
+        # ce qu'un test precedent a laisse (voir la fixture _flux_propre).
+        lc.effacer_reflexion()
+        assert lc.reflexion_du_tour() == ""
         lc._retenir_reflexion("17 x 3 = 51, donc...")
         assert "17 x 3" in lc.reflexion_du_tour()
         lc.effacer_reflexion()

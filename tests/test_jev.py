@@ -42,6 +42,10 @@ class TestCycleUnique:
         assert duree < 0.6        # un appel sequentiel ferait >= 1.0 s
 
     def test_miss_le_routeur_est_consulte(self, monkeypatch):
+        # Famille EPINGLEE : sans cerveau sur le disque `famille()` rend '' et
+        # la chaine annoncait « inconnu-1b » (mesure du 16 oct. 2026, en CI).
+        # Le nom annonce doit suivre la famille LUE, pas une constante.
+        monkeypatch.setattr(llama_cerveau, "famille", lambda: "gemma3")
         ia = _ia_neutre(monkeypatch, analyse={"experts": {"general"},
                                               "methodes": ["test"]})
         r = ia.executer_detaille("bonjour")
@@ -108,31 +112,51 @@ class TestFanOutParallele:
         assert ident["web"] != ident["pgs"]       # vraie parallelisation
 
     def test_web_et_pgs_se_recouvrent(self, monkeypatch):
-        """2 taches de 0.3 s en parallele : < 0.58 s (sequentiel >= 0.6 s)."""
+        """2 taches de 0.3 s lancees ENSEMBLE : leurs intervalles se recouvrent.
+
+        Le test mesurait la DUREE TOTALE (2 x 0.3 s en parallele < 0.58 s). Ce
+        chiffre depend de la machine : sur un runner lent, ce qui entoure le
+        fan-out pese plus que les 0.3 s des deux taches, donc le test tombait
+        (1.31 s mesure en CI le 16 oct. 2026) sans que le parallelisme soit en
+        cause. Ce qui est verifie ici est le RECOUVREMENT lui-meme, mesure sur
+        les intervalles des deux appels : deux appels sequentiels ne peuvent
+        pas se recouvrir, quelle que soit la machine.
+        """
         ia = _ia_neutre(monkeypatch, analyse={"experts": {"web", "math"},
                                               "methodes": ["test"]})
+        intervalles: dict[str, tuple[float, float]] = {}
+
+        def _chrono(nom: str, valeur: str) -> str:
+            debut = time.perf_counter()
+            time.sleep(0.3)
+            intervalles[nom] = (debut, time.perf_counter())
+            return valeur
+
         # 3 lignes pertinentes : chercher_iteratif s'arrete apres UN appel
         # (cf. banc scripts/banc_latence.py : 1 question sur 20 en fait deux).
         monkeypatch.setattr(
             memoire_web, "chercher",
-            lambda q, **k: (time.sleep(0.3),
-                            "prix de l or FAIT\nprix aujourd hui A\n"
-                            "prix hui B")[1])
+            lambda q, **k: _chrono("web", "prix de l or FAIT\nprix aujourd hui A\n"
+                                          "prix hui B"))
         monkeypatch.setattr(ia, "resoudre_numerique",
-                            lambda X, y: (time.sleep(0.3), "mul(X0,X0)")[1])
+                            lambda X, y: _chrono("pgs", "mul(X0,X0)"))
         # Chargement unique du modele d'embeddings (~1 s, une fois par processus)
         # hors du chronometre : il ne doit pas masquer le recouvrement.
         # Idem pour l'en-tete GGUF (famille, lu une fois par processus).
         from aura import embeddings, llama_cerveau
         embeddings.encoder(["amorce"])
         llama_cerveau.famille()
-        t0 = time.perf_counter()
         # question non-riche : chercher() appele une seule fois
         r = ia.executer_detaille("prix de l or aujourd hui", X=[[1.0], [2.0]],
                                  y=[1.0, 4.0])
-        duree = time.perf_counter() - t0
         assert "FAIT" in r["contexte_web"] and r["formule"] == "mul(X0,X0)"
-        assert duree < 0.58
+        assert set(intervalles) == {"web", "pgs"}, (
+            "les deux experts doivent avoir tourne : " + repr(intervalles))
+        (debut_web, fin_web), (debut_pgs, fin_pgs) = (
+            intervalles["web"], intervalles["pgs"])
+        assert debut_web < fin_pgs and debut_pgs < fin_web, (
+            f"les deux appels ne se recouvrent pas : web {debut_web:.2f}-{fin_web:.2f}, "
+            f"pgs {debut_pgs:.2f}-{fin_pgs:.2f} — le fan-out est sequentiel")
 
     def test_echec_web_nempeche_pas_pgs(self, monkeypatch):
         ia = _ia_neutre(monkeypatch, analyse={"experts": {"web", "math"},

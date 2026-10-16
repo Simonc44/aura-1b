@@ -57,6 +57,9 @@ class TestSeuilConfiance:
         monkeypatch.setattr(filtre_instantane, "repondre", lambda q: None)
         monkeypatch.setattr(filtre_instantane, "enregistrer", lambda q, r: None)
         monkeypatch.setattr(llama_cerveau, "generer", lambda *a, **k: "ok-llm")
+        # Famille EPINGLEE : sans cerveau sur le disque `famille()` rend '' et
+        # la chaine annoncait « inconnu-1b » (mesure du 16 oct. 2026, en CI).
+        monkeypatch.setattr(llama_cerveau, "famille", lambda: "gemma3")
         ia = RontoGPT()
         monkeypatch.setattr(
             ia, "analyser",

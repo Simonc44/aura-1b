@@ -169,16 +169,40 @@ jobs:
       # — c'est exactement ce qui a laisse ce job rouge et MUET pendant trois
       # semaines, alors que `mypy aura/` passe (0 erreur, 74 fichiers) sur un
       # poste de developpement. Le statut de sortie reste celui de mypy.
-      - name: mypy aura/
+      - name: mypy aura/ (la version du verrou, dans le venv installe)
         env:
           PYTHONIOENCODING: utf-8
         shell: bash
         run: |
-          uv run --frozen mypy aura/ 2>&1 | tee mypy_sortie.txt
-          statut=${PIPESTATUS[0]}
+          # Le binaire du VENV, pas `uv run` : `uv run --frozen` peut echouer
+          # (resolution, reconstruction de l'editable) AVANT d'executer mypy,
+          # et son message ne contient pas d'erreur de typage — donc la boucle
+          # ci-dessous n'annotait rien et le job restait MUET. Le venv, lui,
+          # est celui que `uv sync --frozen` vient d'installer : rien a rejouer.
+          if [ ! -x .venv/bin/mypy ]; then
+            echo "::error::mypy absent du venv installe par 'uv sync --frozen' — il est pourtant dans le groupe dev de uv.lock"
+            ls .venv/bin | head -20
+            exit 1
+          fi
+          .venv/bin/mypy --version
+          statut=0
+          .venv/bin/mypy aura/ > mypy_sortie.txt 2>&1 || statut=$?
+          cat mypy_sortie.txt
           if [ "$statut" -ne 0 ]; then
-            { grep -E ": (error|note):" mypy_sortie.txt || true; } | head -15 \
-              | while IFS= read -r ligne; do echo "::error::$ligne"; done
+            if grep -qE ": (error|note):" mypy_sortie.txt; then
+              grep -E ": (error|note):" mypy_sortie.txt | head -20 \
+                | while IFS= read -r ligne; do echo "::error::$ligne"; done
+            else
+              # mypy tombe sans erreur de typage : c'est l'execution qui a
+              # echoue. La sortie brute est publiee ici, sinon le job est
+              # rouge et muet — ce qui a cache ce probleme trois semaines.
+              echo "::error::mypy sort en $statut SANS erreur de typage : sortie brute"
+              head -20 mypy_sortie.txt \
+                | while IFS= read -r ligne; do echo "::error::[brut] $ligne"; done
+            fi
+          else
+            # Trace lisible SANS jeton : ce que la CI a REELLEMENT execute.
+            echo "::notice::$(.venv/bin/mypy --version) — $(cat mypy_sortie.txt)"
           fi
           exit "$statut"
 

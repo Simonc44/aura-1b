@@ -90,6 +90,13 @@ class TestOrchestrateur:
         from aura import filtre_instantane, rag_binaire
         monkeypatch.setattr(filtre_instantane, "repondre", lambda q: None)
         monkeypatch.setattr(rag_binaire, "chercher", lambda q: None)
+        # La famille est EPINGLEE : sans cerveau sur le disque, `famille()`
+        # rend '' et la chaine annoncait « inconnu-1b » — le test comparait
+        # alors deux valeurs differentes (mesure du 16 oct. 2026, en CI, ou le
+        # fichier de 806 Mo n'existe pas). L'invariant est le meme avec ou sans
+        # ce fichier : le nom annonce est celui de la famille LUE, jamais une
+        # constante ecrite en dur.
+        monkeypatch.setattr(llama_cerveau, "famille", lambda: "gemma3")
         r = RontoGPT().executer_detaille("bonjour")
         assert r["cerveau_choisi"] == f"{llama_cerveau.famille()}-1b"
 

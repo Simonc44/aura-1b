@@ -195,12 +195,21 @@ class TestMontageAuto:
         assert not ok
 
     def test_aucun_adaptateur_aucune_garde(self, tmp_path, monkeypatch):
-        """Sans adaptateur sur disque, rien a proteger : on accepte."""
+        """Sans adaptateur sur disque, rien a proteger : on accepte.
+
+        Le cerveau est SYNTHETIQUE (en-tete GGUF minimal, cf.
+        `_ecrire_gguf_minimal`) : l'invariant ne depend pas du fichier de
+        806 Mo. Avec `GEMMA` et son fichier absent, `verifier_cerveau` refuse
+        un chemin illisible — le test tombait donc en CI (mesure du 16 oct.
+        2026) pour une raison qui n'avait rien a voir avec son sujet.
+        """
+        cerveau = tmp_path / "cerveau.gguf"
+        _ecrire_gguf_minimal(cerveau, {"general.architecture": "gemma3"})
         d = tmp_path / "adaptateurs"
         d.mkdir()
         monkeypatch.setattr(adaptateurs, "dossier", lambda: d)
-        ok, _ = adaptateurs.verifier_cerveau(str(GEMMA))
-        assert ok is True
+        ok, pourquoi = adaptateurs.verifier_cerveau(str(cerveau))
+        assert ok is True, pourquoi
 
     def test_en_tete_illisible_ne_bloque_pas_le_montage(self, tmp_path, monkeypatch):
         """Un .bin non-GGUF ne doit pas faire refuser les autres."""
@@ -232,15 +241,37 @@ class TestBootServeur:
             "— sinon les adaptateurs seraient montes sur un cerveau "
             "incompatible, en silence")
 
-    def test_serveur_utilise_le_meme_cerveau_que_le_reste(self):
+    def test_serveur_utilise_le_meme_cerveau_que_le_reste(self, tmp_path, monkeypatch):
         """Une seule source pour le chemin du GGUF.
 
         serveur_lora avait sa propre liste de noms de fichiers : le jour ou
         l'on change de cerveau, un oubli ne produit pas d'erreur mais un
         serveur qui tourne sur l'ANCIEN modele.
+
+        Le cerveau est un fichier TEMPORAIRE de quelques octets : le couplage
+        se mesure en CHANGEANT la source unique, pas en exigeant le fichier de
+        806 Mo. Avec lui absent, `_gguf_cerveau()` rend None (il ne sert jamais
+        un cerveau qui n'existe pas) et le test tombait en CI le 16 oct. 2026.
         """
         from aura import llama_cerveau, serveur_lora
+        cerveau = tmp_path / "cerveau.gguf"
+        cerveau.write_bytes(b"GGUF")
+        monkeypatch.setattr(llama_cerveau, "_CHEMIN_GGUF", str(cerveau))
         assert serveur_lora._gguf_cerveau() == Path(llama_cerveau.chemin_gguf())
+        assert serveur_lora._gguf_cerveau() == cerveau
+        # Changer la source unique change ce que le serveur sert : c'est le
+        # couplage lui-meme, pas seulement une egalite a un instant donne.
+        autre = tmp_path / "autre.gguf"
+        autre.write_bytes(b"GGUF")
+        monkeypatch.setattr(llama_cerveau, "_CHEMIN_GGUF", str(autre))
+        assert serveur_lora._gguf_cerveau() == autre
+
+    def test_serveur_ne_sert_jamais_un_cerveau_absent(self, tmp_path, monkeypatch):
+        """Un chemin configure mais ABSENT ne doit pas etre servi en silence."""
+        from aura import llama_cerveau, serveur_lora
+        monkeypatch.setattr(llama_cerveau, "_CHEMIN_GGUF",
+                            str(tmp_path / "inexistant.gguf"))
+        assert serveur_lora._gguf_cerveau() is None
 
 
 class TestReutilisationServeur:

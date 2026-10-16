@@ -35,6 +35,8 @@ serveur/
 cle_privee.pem
 cle_publique.pub
 Aura.spec
+# PyInstaller ecrit un .spec a cote du script a chaque build (scripts/construire_exe.py)
+RontoGPT.spec
 aura_system.aef.enc
 # sauvegardes d'artefacts .aef (rollback local, jamais dans git)
 aura_system.aef*.bak*
