@@ -59,7 +59,7 @@ python scripts/telecharger_llama.py        # optional: 807 MB brain
 
 # 3. Quality gates — all four must pass before you push
 uv run pytest -q        # 1152 tests
-uv run mypy aura/       # 0 error (73 files, bodies of untyped functions included)
+uv run mypy aura/       # 0 error (74 files, bodies of untyped functions included)
 uv run ruff check .     # 0 violation (cible py311)
 uv run pytest -q --cov  # coverage (source + branch come from pyproject.toml)
 ```

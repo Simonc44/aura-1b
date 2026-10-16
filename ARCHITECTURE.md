@@ -139,7 +139,7 @@ pas sa source : le lire pour connaître l'ordre exact.
 | **Budget 45 s / échéance** | Cadre la latence | **« riche » fait 37–40 s / 250 mots** → les KO « court » viennent de là | Arbitrage produit explicite : longueur vs latence, par catégorie |
 | **Disjoncteur anti-boucle** | Coupe une boucle pendant le flux | N'existe que sur le chemin in-process (corrigé côté serveur par DRY) | Unifier |
 | **`banc_100`** | 8 catégories, contrôle strict par nombre/mots | **13,7 h**, variance ±1-2, latences corrompues (`21675 s`), attribution manuelle | Sous-banc déterministe (~60 q, secondes) en garde-fou + banc long manuel |
-| **`pytest` 1152 + `mypy`** | Filet réel, **73 modules typés, 0 erreur** [`§3septies`](#3septies-orchestrateur-éclaté-aiguilleur-nommé-et-ci-qui-vérifie-16-oct-2026) | La **couverture n'est mesurée que depuis le 16 oct. 2026**, et le chiffre est bas ; un module peut ne plus être exercé sans que rien ne le dise [`§3nonies`](#3nonies-ce-que-la-couverture-a-mesuré-et-la-ligne-qui-mentait-16-oct-2026) | Aucun plancher : rien ne rougit si la couverture baisse |
+| **`pytest` 1152 + `mypy`** | Filet réel, **74 modules typés, 0 erreur** [`§3septies`](#3septies-orchestrateur-éclaté-aiguilleur-nommé-et-ci-qui-vérifie-16-oct-2026) | La **couverture n'est mesurée que depuis le 16 oct. 2026**, et le chiffre est bas ; un module peut ne plus être exercé sans que rien ne le dise [`§3nonies`](#3nonies-ce-que-la-couverture-a-mesuré-et-la-ligne-qui-mentait-16-oct-2026) | Aucun plancher : rien ne rougit si la couverture baisse |
 | **Ordre des tests aléatoire** | Un état partagé entre tests ne peut plus se cacher dans l'ordre alphabétique des fichiers | Latence de suite plus variable ; le seed n'est pas figé (on ne rejoue pas le même ordre) | — |
 | **`.aef` scellé** | Distribution en un fichier, intègre config, code et GGUF | Le GGUF reste aussi extrait dans `.cache_aef/cerveau.gguf` : le `.aef` et le cache occupent chacun l'espace des poids | Le format ne compresse pas les poids ; choisir le cerveau et quantifier le GGUF déterminent la taille |
 | **Python 3.12 + uv** | Dépendances propres, venv rapide | — | Aucun : les solveurs sont à 0–5 ms, Rust n'apporterait rien |
@@ -534,6 +534,41 @@ l'espace de noms reste l'API historique — `llama_cerveau._en_boucle(...)` et
 les monkeypatches des tests continuent de fonctionner. Le module de cerveau
 est passé de 1 885 à 1 612 lignes, sans une ligne réécrite (le bloc déplacé
 est **verbatim**, ce qui est vérifiable dans le diff).
+
+### Le même geste, une deuxième fois : le bus de flux (16 oct. 2026)
+
+Le chantier laissé ouvert était « découper `llama_cerveau.py` (chargement /
+génération) ». Il a été fait **en partie**, et la partie qui manque l'est pour
+une raison qui n'est pas la paresse :
+
+* **Ce qui est sorti** : le **bus de flux** — les deux phases
+  (`pensee` / `reponse`), la table des abonnés, le répartiteur `_FluxTour` qui
+  gère une balise `<think>` coupée entre deux morceaux, et la mémoire de la
+  réflexion du tour. `aura/flux_cerveau.py`, **291 lignes**, ré-exportées par
+  `llama_cerveau` exactement comme le post-traitement : la surface publique ne
+  bouge pas, `llama_cerveau.publier_flux(...)` et `llama_cerveau._abonnes_flux`
+  continuent de marcher. Le module de cerveau passe de 1 647 à **1 398 lignes**.
+  Ce qui compte ici n'est pas le nombre de lignes, c'est la **frontière** : le
+  module du bus ne sait plus ce qu'est llama.cpp, et `llama_cerveau` ne sait
+  plus comment on répartit un flux.
+
+* **Ce qui n'est PAS sorti, et pourquoi** : le **chargement du modèle**. Les
+  tests ne lisent pas seulement `llama_cerveau._llm`, ils l'**écrivent**
+  (`monkeypatch.setattr(llama_cerveau, "_llm", faux)`) puis vérifient le
+  résultat de `llama_cerveau._charger()`. Déplacer `_charger` dans un autre
+  module ferait écrire le `_llm` du **nouveau** module alors que le test
+  observe celui de l'ancien : l'état partagé ne se réexporte pas, une liaison
+  d'import fige la **valeur**, pas la **variable**. Le découpage coûterait donc
+  de réécrire deux fichiers de tests — une **décision**, pas une déduction.
+  Elle est laissée à qui connaît le produit, avec le chiffre qui va avec :
+  ~600 lignes de chargement, 2 fichiers de tests à adapter.
+
+Vérifié après le découpage : 3.12.10 → **1149 passés, 3 sautés, 0 échec**
+(couverture 72 %, `flux_cerveau` compté) ; 3.11.16 → **1149 passés** et
+`compileall` exit 0 ; `mypy` **0 sur 74 fichiers** ; `ruff` 0 violation ; et
+l'identité des objets (`llama_cerveau._abonnes_flux is
+flux_cerveau._abonnes_flux`) vérifiée à la main, parce que c'est elle qui fait
+marcher `_abonnes_flux[phase].clear()` dans les tests.
 
 ---
 

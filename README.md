@@ -447,7 +447,7 @@ Two more constraints, by design:
 uv run pytest -q        # 1152 tests collected (1149 pass; 3 self-skip: the adapters
                         # on disk are no longer Llama deltas — cf. test_couplage —
                         # and 2 need the optional lm_eval package)
-uv run mypy aura/       # 0 error (73 files, untyped function bodies included)
+uv run mypy aura/       # 0 error (74 files, untyped function bodies included)
 uv run ruff check .     # 0 violation (target py311)
 uv run pytest -q --cov  # 72 % of aura/ + rontogpt/ (branch coverage)
 ```

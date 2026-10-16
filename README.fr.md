@@ -497,7 +497,7 @@ Deux contraintes supplémentaires, par conception :
 uv run pytest -q        # 1152 tests collectés (1149 passent ; 3 se sautent seuls : les
                         # adaptateurs du disque ne sont plus des deltas Llama, et 2
                         # exigent le paquet optionnel lm_eval)
-uv run mypy aura/       # 0 erreur (73 fichiers, corps non annotés compris)
+uv run mypy aura/       # 0 erreur (74 fichiers, corps non annotés compris)
 uv run ruff check .     # 0 violation (cible py311)
 uv run pytest -q --cov  # 72 % de aura/ + rontogpt/ (branches comprises)
 ```
