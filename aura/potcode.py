@@ -90,6 +90,14 @@ def _executer_sandbox(code: str,
                 raise _BudgetEpuise()
         return _trace
 
+    # LE TRACEUR PRECEDENT EST RESTAURE, jamais efface. `sys.settrace(None)`
+    # supprimait celui de l'HOTE : un debuggeur, un profileur ou la couverture
+    # de code attaches au meme processus se taisaient apres le premier code
+    # execute en sandbox. Mesure (16 oct. 2026) : sur la MEME suite, `pytest
+    # --cov` rendait 20 % quand le traceur etait efface et 58 % quand il etait
+    # restaure — les modules exercises APRES le premier sandbox (routeur,
+    # pipeline, llama_cerveau) tombaient a 7-20 % contre 59-71 % en isolation.
+    precedent = sys.gettrace()
     sys.settrace(_trace)
     try:
         exec(arbre, env)            # noqa: S102 — sandbox construite pour
@@ -100,7 +108,7 @@ def _executer_sandbox(code: str,
     except Exception as e:
         raise ValueError(f"execution illicite : {type(e).__name__}: {e}")
     finally:
-        sys.settrace(None)
+        sys.settrace(precedent)
     return env
 
 
