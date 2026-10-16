@@ -433,7 +433,8 @@ Two more constraints, by design:
 ## 🧪 Tests & quality
 
 ```bash
-uv run pytest -q        # 1132 tests collected (1131 pass, 1 skipped: no GGUF here)
+uv run pytest -q        # 1132 tests collected (1131 pass; 1 self-skips: the adapters
+                        # on disk are no longer Llama deltas — cf. test_couplage)
 uv run mypy aura/       # 0 error (71 files)
 ```
 

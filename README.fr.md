@@ -485,7 +485,8 @@ Deux contraintes supplémentaires, par conception :
 ## 🧪 Tests & qualité
 
 ```bash
-uv run pytest -q        # 1132 tests collectés (1131 passent, 1 sauté : pas de GGUF ici)
+uv run pytest -q        # 1132 tests collectés (1131 passent ; 1 se saute seul : les
+                        # adaptateurs du disque ne sont plus des deltas Llama)
 uv run mypy aura/       # 0 erreur (71 fichiers)
 ```
 
