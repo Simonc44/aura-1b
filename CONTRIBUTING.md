@@ -58,7 +58,7 @@ uv sync
 python scripts/telecharger_llama.py        # optional: 807 MB brain
 
 # 3. Quality gates — all four must pass before you push
-uv run pytest -q        # 1157 tests, 0 skipped
+uv run pytest -q        # 1159 tests, 0 skipped
 uv run mypy aura/       # 0 error (74 files, bodies of untyped functions included)
 uv run ruff check .     # 0 violation (cible py311)
 uv run pytest -q --cov  # coverage (source + branch come from pyproject.toml)
@@ -100,7 +100,7 @@ uv run pytest -q --cov  # coverage (source + branch come from pyproject.toml)
 ## 🧪 Testing your change
 
 - `pytest -q` locally. On a complete machine (the GGUF brain, `lang.db`) that
-  is **1157 passed, 0 skipped**; a test that needs a file you do not have still
+  is **1159 passed, 0 skipped**; a test that needs a file you do not have still
   skips by design. What is *not* allowed is a test that skips **everywhere**:
   the three that did are gone — two now measure against **synthetic** files (an
   lm-eval tasks tree, a GGUF header) and one was retired because its subject had

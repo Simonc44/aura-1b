@@ -139,7 +139,7 @@ pas sa source : le lire pour connaître l'ordre exact.
 | **Budget 45 s / échéance** | Cadre la latence | **« riche » fait 37–40 s / 250 mots** → les KO « court » viennent de là | Arbitrage produit explicite : longueur vs latence, par catégorie |
 | **Disjoncteur anti-boucle** | Coupe une boucle pendant le flux | N'existe que sur le chemin in-process (corrigé côté serveur par DRY) | Unifier |
 | **`banc_100`** | 8 catégories, contrôle strict par nombre/mots | **13,7 h**, variance ±1-2, latences corrompues (`21675 s`), attribution manuelle | Sous-banc déterministe (~60 q, secondes) en garde-fou + banc long manuel |
-| **`pytest` 1157 + `mypy`** | Filet réel, **74 modules typés, 0 erreur** [`§3septies`](#3septies-orchestrateur-éclaté-aiguilleur-nommé-et-ci-qui-vérifie-16-oct-2026) | La **couverture n'est mesurée que depuis le 16 oct. 2026**, et le chiffre est bas ; un module peut ne plus être exercé sans que rien ne le dise [`§3nonies`](#3nonies-ce-que-la-couverture-a-mesuré-et-la-ligne-qui-mentait-16-oct-2026) | Aucun plancher : rien ne rougit si la couverture baisse |
+| **`pytest` 1159 + `mypy`** | Filet réel, **74 modules typés, 0 erreur** [`§3septies`](#3septies-orchestrateur-éclaté-aiguilleur-nommé-et-ci-qui-vérifie-16-oct-2026) | La **couverture n'est mesurée que depuis le 16 oct. 2026**, et le chiffre est bas ; un module peut ne plus être exercé sans que rien ne le dise [`§3nonies`](#3nonies-ce-que-la-couverture-a-mesuré-et-la-ligne-qui-mentait-16-oct-2026) | Aucun plancher : rien ne rougit si la couverture baisse |
 | **Ordre des tests aléatoire** | Un état partagé entre tests ne peut plus se cacher dans l'ordre alphabétique des fichiers | Latence de suite plus variable ; le seed n'est pas figé (on ne rejoue pas le même ordre) | — |
 | **`.aef` scellé** | Distribution en un fichier, intègre config, code et GGUF | Le GGUF reste aussi extrait dans `.cache_aef/cerveau.gguf` : le `.aef` et le cache occupent chacun l'espace des poids | Le format ne compresse pas les poids ; choisir le cerveau et quantifier le GGUF déterminent la taille |
 | **Python 3.12 + uv** | Dépendances propres, venv rapide | — | Aucun : les solveurs sont à 0–5 ms, Rust n'apporterait rien |
@@ -856,7 +856,7 @@ installé contre `2.8.0` figé — **3 avis** déjà corrigés par le verrou, do
 faux positifs que rien ne distinguait des vrais.
 
 Les mesures de §3septies et de §3nonies restent celles de **leur** commit (1149
-passés, 3 sautés) ; cette section est celle d'après : **1157 passés, 0 sauté** sur
+passés, 3 sautés) ; cette section est celle d'après : **1159 passés, 0 sauté** sur
 une machine complète.
 
 ---

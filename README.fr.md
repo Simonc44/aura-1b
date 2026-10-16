@@ -95,7 +95,7 @@ utilisé uniquement là où il compte.
 | GSM8K cerveau seul | **16–20 % flexible** selon le run 100 questions documenté | Le modèle local reste limité sur le raisonnement mathématique multi-étapes |
 | Mémoire | Les derniers tours sont rechargés au redémarrage ; historique complet consultable | Améliore la continuité, pas les poids du modèle |
 | Recherche web | DDGS par défaut ; Google Search Grounding optionnel ; liens conservés | Aide aux faits récents, sous réserve de la qualité des sources |
-| Comparaison 1B / 1,5B / 3B / 8B | **Pas de banc commun complet disponible** | Aucun classement honnête face aux 3B et 8B n'est établi |
+| Comparaison 1B / 1,5B / 3B / 8B | **Pas de banc commun complet disponible** | Aucun classement honnête face aux 3B et 8B n'est établi. Une [sonde sur un 4B](resultats/NOTE_sonde_gemma4b.md) (« logit lens », 16 oct. 2026) montre que le fait se forme au milieu du réseau, que la dernière couche ne le livre pas, et qu'aucun chiffre de `17 × 23` n'atteint jamais le top 3 |
 
 Les outils peuvent rendre RontoGPT plus exact en calcul, plus à jour sur le web,
 ou plus continu en conversation. Ils ne rendent pas son LLM local aussi
@@ -494,7 +494,7 @@ Deux contraintes supplémentaires, par conception :
 ## 🧪 Tests & qualité
 
 ```bash
-uv run pytest -q        # 1157 collectés, 1157 passent, 0 sauté sur une machine
+uv run pytest -q        # 1159 collectés, 1159 passent, 0 sauté sur une machine
                         # complète — les 3 qui se sautaient PARTOUT sont remplacés
                         # par des tests qui mesurent (ARCHITECTURE.md §3decies)
 uv run mypy aura/       # 0 erreur (74 fichiers, corps non annotés compris)

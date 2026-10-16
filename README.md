@@ -107,7 +107,7 @@ math and dates, real-time facts, and a 1B brain used only where it matters.
 | GSM8K, standalone brain | **16–20% flexible** in the documented 100-question run | The local model remains limited on multi-step mathematical reasoning |
 | Memory | Recent turns reload on restart; full history remains searchable | Improves continuity, not model weights |
 | Web search | DDGS by default; optional Google Search Grounding; links retained | Helps with current facts, subject to source quality |
-| 1B / 1.5B / 3B / 8B comparison | **No complete shared benchmark available** | No defensible ranking against 3B or 8B is established |
+| 1B / 1.5B / 3B / 8B comparison | **No complete shared benchmark available** | No defensible ranking against 3B or 8B is established. A 4B probe ([logit lens](resultats/NOTE_sonde_gemma4b.md), 16 Oct 2026) shows the fact is formed mid-network, the last layer does not deliver it, and no digit of `17 × 23` ever reaches the top 3 |
 
 Tools can make RontoGPT more exact at calculations, more current on the web, or
 more continuous across conversations. They do not make its local LLM as
@@ -444,7 +444,7 @@ Two more constraints, by design:
 ## 🧪 Tests & quality
 
 ```bash
-uv run pytest -q        # 1157 collected, 1157 pass, 0 skipped on a complete
+uv run pytest -q        # 1159 collected, 1159 pass, 0 skipped on a complete
                         # machine — the 3 that skipped EVERYWHERE are replaced
                         # by tests that measure (ARCHITECTURE.md §3decies)
 uv run mypy aura/       # 0 error (74 files, untyped function bodies included)

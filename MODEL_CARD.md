@@ -125,6 +125,19 @@ ne couvre pas ces énoncés. Cette mesure a aussi mis au jour un défaut réel d
 « exacte » (`_calcul_direct` répond à toute phrase contenant `a/b`). Détail dans
 `ARCHITECTURE.md` § 3sexies.
 
+**Sonde d'interprétabilité sur un 4B** (16 oct. 2026, `scripts/sonde_interp.py` — « logit lens » couche par
+couche sur `unsloth/gemma-3-4b-it`, 5 prompts, mesures brutes dans
+`resultats/sonde_gemma4b.json`) : le fait est **déjà formé en interne** bien avant la sortie —
+« Canberra » sort à **0,9706 dès la couche 28**, six couches avant la fin, « Oui » à 0,9381 et
+« Je » à 0,9341 en couche 33 — mais la **dernière couche ne le livre pas** : elle est quasi
+certaine (p ≥ 0,9997) et prédit l'**amorce d'une phrase** (`' Cette'`, `' C'`, `' É'`).
+*Savoir n'est pas répondre*, et ici cela se mesure. Et **sur `17 * 23`, aucun chiffre n'entre
+jamais dans le top 3, sur aucune des 35 positions** (le mieux est `'1'` à 0,0006, ~1 600 fois
+sous l'espace) : il n'y a pas de produit « déjà calculé » à extraire — l'argument chiffré du
+solveur déterministe, plutôt que d'un modèle plus gros. Mesures, réserves et reproduction
+(prompt sondé **sans** le gabarit de conversation ; 4B et non le 1B livré) :
+[`resultats/NOTE_sonde_gemma4b.md`](resultats/NOTE_sonde_gemma4b.md).
+
 ## 📚 Citation
 
 ```bibtex
