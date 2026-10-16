@@ -12,7 +12,10 @@ une question de taux avant que `calcul_taux` ne la calcule.
 
 Ces tests verrouillent les DEUX cotes de la propriete :
   * EMPOISONNE : le cache contient une reponse FAUSSE a une question que le
-    solveur exact sait traiter -> le solveur exact doit gagner ;
+    solveur exact sait traiter -> le solveur exact doit gagner. Depuis le
+    12 oct. 2026 une purge a la LECTURE retire en plus les entrees de CALCUL :
+    le poison arithmetique ne peut plus exister (1re defense, testee dans
+    TestEtagesSepares) ; la cascade ci-dessous verrouille la 2e ;
   * MUET : aucun solveur ne sait repondre -> le cache doit continuer a
     servir (sinon on aurait « corrige » en cassant la memoire).
 """
@@ -55,8 +58,12 @@ class TestEtagesSepares:
     def test_repondre_ignore_le_cache(self, monkeypatch, tmp_path):
         _cache(monkeypatch, tmp_path,
                [{"q": _Q_EXACT, "r": "999", "t": "2026-10-06"}])
-        # le poison est un VRAI hit : sans cette assertion le test ne prouve rien
-        assert F.repondre_cache(_Q_EXACT) == "999"
+        # Le poison d'un CALCUL ne dort meme plus dans le cache : il est retire
+        # a la LECTURE (purge « fix bug 2 », 12 oct. 2026), et l'ordre exact
+        # est la SECONDE defense. Le poison de l'etage flou se teste donc des
+        #ormais sur un solveur exact NON arithmetique (test de cascade plus
+        # bas, _Q_TAUX) : c'est la seule entree qui survit a la purge.
+        assert F.repondre_cache(_Q_EXACT) is None
         # ...et pourtant l'etage exact repond juste, sans consulter le cache
         assert F.repondre(_Q_EXACT) == "543"
         # l'etage complet (bancs/outils) garde l'ancien comportement exact-first

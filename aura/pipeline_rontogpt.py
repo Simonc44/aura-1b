@@ -3,6 +3,8 @@ import logging
 import os
 import re
 import time
+from typing import TYPE_CHECKING, Callable
+
 from . import memoire_web, filtre_instantane
 from . import registre_experts
 from . import llama_cerveau, raisonneur, graphe_faits
@@ -16,11 +18,46 @@ from . import typographie as _typo
 from .regles_reponse import _CAPACITE, _CAPACITES, _FONCTIONNEMENT, _IDENTITE, _MOTS_IDENTITE, _RE_CAPACITES, _RE_CAPACITE_MODELE, _RE_DEF, _RE_DEF_LOOKUP, _RE_FONCTIONNEMENT, _RE_IDENTITE, _RE_PHRASE_MIN, _est_meta_ia, _est_refus, _recopie, _repli_extractif, _reponse_bribe, _reponse_temps, _retirer_refus_tete, _sans_fragment_incomplet, _source_pertinente, _sujet_definition
 from .detection_demande import _DEMANDE_CODE, _RE_SORTIE_LONGUE, _est_demande_ecriture, _sans_accents
 
+if TYPE_CHECKING:                 # import de typage seul, jamais execute
+    from .clarification import Suivi
+    from .memoire_conversation import MemoireConversation
+
 LOG = logging.getLogger("aura.orchestrateur")
 
 
 class PipelineMixin:
     """Pipeline de reponse de RontoGPT (methodes de RontoGPT)."""
+
+    # CONTRAT STATIQUE (jamais execute) : les METHODES ci-dessous sont portees
+    # par les AUTRES mixins et l'ETAT par RontoGPT.__init__ (montage fait dans
+    # aura/orchestrateur.py). Les declarer ici, sous `TYPE_CHECKING`, rend le
+    # mixin verifiable par mypy SANS import circulaire ni dependance runtime :
+    # le bloc disparait a l'execution. L'implementation reste celle du mixin
+    # qui la porte — on ne declare PAS de corps de methode, pour ne jamais
+    # masquer l'originale dans l'ordre de resolution des methodes.
+    if TYPE_CHECKING:
+        # etat de l'instance (RontoGPT.__init__)
+        _historique: "MemoireConversation"
+        _clarif: "Suivi"
+        _contexte_api: str
+        derniere_erreur: str | None
+        # methodes portees par les autres mixins
+        _consommer_relance: Callable[..., tuple[str, bool]]
+        _decider: Callable[..., tuple[str | None, dict]]
+        analyser: Callable[..., dict]
+        _valider_experts: Callable[..., set]
+        _est_puzzle: Callable[..., bool]
+        _auto_think: Callable[..., bool]
+        _expert_applicable: Callable[..., bool]
+        _appel_expert: Callable[..., str | dict | None]
+        _resultat_expert: Callable[..., dict | None]
+        _porte_clarification: Callable[..., dict | None]
+        _executer_experts: Callable[..., tuple[str, str]]
+        _generer: Callable[..., str]
+        _resoudre_par_pot: Callable[..., str | None]
+        _extraire_chaine: Callable[..., list[tuple[str, str]]]
+        _a_besoin_verification: Callable[..., bool]
+        _verifier_au_web: Callable[..., str]
 
 
     # -- verification outillee (pattern CRITIC) -----------------------------
@@ -55,7 +92,7 @@ class PipelineMixin:
     def _memoriser_reponse(self, cle: str | None, resultat: dict) -> None:
         cache_reponses.memoriser(cle, resultat)
 
-    # -- repli Gemini : ce que le cerveau local a deja laisse derriere lui ------
+    # -- aiguilleur : petit modele local, ou Gemini ----------------------------
 
     def _tours_precedents(self) -> list:
         """Les tours AVANT la question en cours (pour AURA_GEMINI_HISTORIQUE).
@@ -123,24 +160,29 @@ class PipelineMixin:
         llama_cerveau.poser_echeance(deadline)
         try:
             resultat = self._executer_detaille(question, X, y, t0)
-            # REPLI GEMINI (opt-in, GOOGLE_API_KEY) : le cerveau local a rendu
-            # une reponse vide, en erreur, refusee, bouclee, dans la mauvaise
-            # langue, trop courte, ou un fait precis qu'il a devine sans source
-            # (cf. aura/gemini.py). Un tier exact ou verifie n'est jamais rejuge.
+            # AIGUILLEUR (opt-in, GOOGLE_API_KEY) : il lit la TACHE demandee
+            # (dissertation, traduction...) et la REPONSE rendue (vide, refus,
+            # boucle, mauvaise langue, fait devine sans source...), puis decide
+            # de garder le petit modele local ou de passer la main au renfort
+            # distant (cf. aura/aiguilleur.py). Un tier exact ou verifie n'est
+            # jamais rejuge ; sans cible disponible, rien ne part.
             try:
-                from . import gemini
+                from . import aiguilleur, gemini
                 categorie = getattr(self, "_derniere_categorie", None)
-                raison = gemini.raison_du_repli(question, resultat, categorie)
-                if raison:
+                decision = aiguilleur.decider(question, resultat, categorie)
+                if decision.escalader:
                     texte = gemini.repondre(
                         question,
                         contexte_web=str(resultat.get("contexte_web") or ""),
                         historique=self._tours_precedents())
                     if texte:
-                        LOG.info("[gemini] repli (%s) : %s -> gemini", raison,
+                        LOG.info("[aiguilleur] %s (%s) : %s -> gemini",
+                                 decision.raison, decision.moment,
                                  resultat.get("cerveau_choisi"))
                         resultat["repli"] = {
-                            "fournisseur": "gemini", "raison": raison,
+                            "fournisseur": "gemini",
+                            "raison": decision.raison,
+                            "moment": decision.moment,
                             "reponse_locale": str(resultat.get("reponse") or "")}
                         resultat["reponse"] = texte
                         resultat["cerveau_choisi"] = "gemini"
@@ -148,7 +190,7 @@ class PipelineMixin:
                     else:
                         resultat["repli_echec"] = gemini.derniere_erreur()
             except Exception as e:
-                LOG.info("[gemini] repli impossible (%s)", e)
+                LOG.info("[aiguilleur] escalade impossible (%s)", e)
             self._memoriser_reponse(cle, resultat)
             return resultat
         finally:

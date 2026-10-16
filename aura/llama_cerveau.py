@@ -34,8 +34,11 @@ import os
 import re
 import threading
 import time
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:       # jamais importe au runtime : la memoire n'est qu'un type
+    from .memoire_conversation import MemoireConversation
 
 # Alias souligne : dans ce module le nom `echantillonnage` est deja pris par
 # le dict des kwargs passes a _streamer. Le module est la SOURCE des valeurs,
@@ -1101,7 +1104,8 @@ def _avec_raisonnement(question: str) -> str:
     return question
 
 
-def _tours_fenetre(historique) -> list[dict]:
+def _tours_fenetre(
+        historique: "list[dict] | MemoireConversation | None") -> list[dict]:
     """Fenetre glissante : accepte MemoireConversation (RLM) ou liste brute.
 
     MemoireConversation -> ses 4 derniers tours deja tronques ; liste
@@ -1112,7 +1116,9 @@ def _tours_fenetre(historique) -> list[dict]:
     fenetre = getattr(historique, "fenetre", None)
     if callable(fenetre):
         return fenetre()
-    return list(historique)[-6:]
+    # Hors contrat declare (tuple, deque, iterable nu) : c'est le chemin
+    # generique d'origine, la liste des tours reste acceptee telle quelle.
+    return list(cast("Iterable[dict]", historique))[-6:]
 
 
 # ── BUDGET DE CONTEXTE : plus jamais « exceed context window » ──────────
@@ -1493,7 +1499,7 @@ _INSTRUCTION_THINK = (
 
 def generer(question: str, contexte_web: str = "", formule: str = "",
             max_tokens: int | None = None,
-            historique: list[dict] | None = None,
+            historique: "list[dict] | MemoireConversation | None" = None,
             systeme: str | None = None,
             contexte_faits: str = "",
             think: bool | None = None,
@@ -1502,7 +1508,9 @@ def generer(question: str, contexte_web: str = "", formule: str = "",
     """Genere une reponse avec le cerveau local (Gemma-3-1B par defaut).
 
     historique : liste de {'role': 'user'|'assistant', 'content': str} pour
-    les conversations multi-tours (memoire courte, le modele se souvient).
+    les conversations multi-tours (memoire courte, le modele se souvient),
+    ou directement la `MemoireConversation` du pipeline (cf.
+    `_tours_fenetre`, qui lit sa fenetre glissante).
     systeme : prompt systeme de remplacement (mode PoT du raisonneur).
     contexte_faits : triplets du graphe de faits VERIFIES (MiniRAG-lite).
     categorie : categorie routee (web/math/code/general) — pilote le

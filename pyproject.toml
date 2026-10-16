@@ -56,6 +56,20 @@ build-backend = "hatchling.build"
 # marcherait depuis la racine du depot (CWD dans sys.path) mais pas une fois
 # le projet installe.
 packages = ["aura", "rontogpt"]
+# DONNEES DE RACINE : le code les lit par le PARENT du paquet
+# (`Path(__file__).resolve().parent.parent`) — aura/concepts.py,
+# aura/adaptateurs.py, aura/tui.py. Les inclure a la RACINE de la wheel
+# reproduit donc exactement la disposition du depot une fois le projet
+# installe. Sans elles, un `pip install` livrait un RontoGPT degrade : sans
+# concepts.toml (bibliotheque de concepts), sans adaptateurs/ (hot-swap LoRA,
+# fichiers langue) et sans tui/ (interface terminal).
+# `only-include` et non `include` : avec `packages`, hatchling ignore
+# `include` (verifie — la wheel ne contenait que aura/ et rontogpt/).
+only-include = ["aura", "rontogpt", "concepts.toml", "adaptateurs", "tui"]
+# Les deux seuls contenus volumineux et regenerables : le cache Bun de la TUI
+# et les adaptateurs Llama 3.2 archives (le code lit les .gguf/.cvec de la
+# racine de `adaptateurs/`).
+exclude = ["tui/node_modules", "adaptateurs/_archive_llama_3.2"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

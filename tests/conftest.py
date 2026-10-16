@@ -14,13 +14,14 @@ def _apis_publiques_coupees(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _gemini_coupe(monkeypatch):
-    """Aucun appel reseau vers Google, meme si ta cle est dans ton shell/.env.
+    """Aucune escalade distante, meme si ta cle est dans ton shell/.env.
 
-    Le repli Gemini (aura/gemini.py) s'active des que GOOGLE_API_KEY (ou
-    GEMINI_API_KEY) existe — y compris dans le `.env` de la racine. Sans cette
-    fixture, les tests qui font rendre une reponse locale VIDE l'appelleraient
-    pour de vrai. Les tests de aura/gemini.py re-activent la brique avec
-    monkeypatch.setenv("AURA_GEMINI", "1") + un urllib mocke.
+    L'aiguilleur (aura/aiguilleur.py) passe la main a Gemini des que
+    GOOGLE_API_KEY (ou GEMINI_API_KEY) existe — y compris dans le `.env` de la
+    racine. Sans cette fixture, les tests qui font rendre une reponse locale
+    VIDE l'appelleraient pour de vrai. Les tests de aura/aiguilleur.py et
+    aura/gemini.py re-activent la cible avec monkeypatch.setenv("AURA_GEMINI",
+    "1") + un urllib mocke.
     """
     monkeypatch.setenv("AURA_GEMINI", "0")
 
@@ -44,6 +45,25 @@ def _cache_reponses_isole(monkeypatch, tmp_path):
     monkeypatch.setattr(f0, "_matrice", None)
     monkeypatch.setattr(f0, "_entrees", [])
     monkeypatch.setattr(f0, "_vecteurs", None)
+
+
+@pytest.fixture(autouse=True)
+def _cache_reponses_vide(monkeypatch):
+    """Cache de reponses VIDE pour tous les tests (etat de MODULE).
+
+    `aura/cache_reponses.py` garde `_CACHE_REPONSES`, un dict de module : un
+    resultat memorise par un test etait resservi au suivant des que deux tests
+    posaient la MEME question (typiquement l'enigme de l'escargot, posee par
+    deux tests voisins de test_ameliorations_v4). Le second recevait la
+    reponse du premier — produite par un cerveau simule different — et
+    echouait sans que le pipeline soit en cause.
+
+    C'est la cause des echecs « en suite seulement » (observes le 11 oct.
+    2026 : ces tests passent seuls, echouent ensemble). Restaurer le dict
+    apres le test evite en plus de polluer le suivant.
+    """
+    from aura import cache_reponses
+    monkeypatch.setattr(cache_reponses, "_CACHE_REPONSES", {})
 
 
 @pytest.fixture(scope="session")

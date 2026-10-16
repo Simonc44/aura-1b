@@ -1,6 +1,8 @@
 """Raisonnement de RontoGPT : pilier logique, Program-of-Thoughts, puzzles et routage de la reflexion. Mixin herite par RontoGPT (aura/orchestrateur.py)."""
 import logging
 import re
+from typing import TYPE_CHECKING
+
 from . import clarification
 from . import llama_cerveau, raisonneur
 from . import logique as solveur_logique
@@ -10,11 +12,31 @@ from . import agents
 from .regles_reponse import _est_bribe
 from .detection_demande import _ENIGME_LOGIQUE, _PHRASE_TAUX, _SUJET_MOUVEMENT, _SYSTEME_RECOPIE, _cle_reponse_pot, _contient_valeur
 
+if TYPE_CHECKING:       # types du contrat des mixins : jamais importes au runtime
+    from .arbre_reflexion import ArbreReflexion
+    from .clarification import Suivi
+    from .expert_symbolique import ExpertSymbolique
+    from .memoire_conversation import MemoireConversation
+
 LOG = logging.getLogger("aura.orchestrateur")
 
 
 class RaisonnementMixin:
     """Raisonnement de RontoGPT (methodes de RontoGPT)."""
+
+    # CONTRAT STATIQUE (jamais execute) : ces noms sont portes par RontoGPT
+    # (aura/orchestrateur.py) au montage. Les declarer ici rend le mixin
+    # verifiable par mypy sans import circulaire NI dependance au runtime :
+    # le bloc disparait a l'execution.
+    if TYPE_CHECKING:
+        expert: "ExpertSymbolique"
+        _clarif: "Suivi"
+        _historique: "MemoireConversation"
+        # Cree et REMIS A None par ce mixin lui-meme ; declare ICI parce que
+        # RontoGPT.__init__ l'initialise et doit pouvoir le remettre a None
+        # (sans la declaration, mypy infere `ArbreReflexion` du premier
+        # `self._dernier_arbre = arbre` et refuse l'initialisation).
+        _dernier_arbre: "ArbreReflexion | None"
 
     # -- pilier logique ----------------------------------------------------
 

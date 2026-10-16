@@ -1,54 +1,40 @@
-"""Repli Gemini 2.5 Flash (API Google) : le 1B local passe la main quand sa reponse ne vaut rien.
+"""Appel Gemini 2.5 Flash (API Google) : le renfort du cerveau local.
 
-POURQUOI CE MODULE A ETE REECRIT
---------------------------------
-L'ancienne version ne se declenchait que sur une reponse VIDE ou « [RontoGPT] »
-(ou un domaine liste a la main), donc une mauvaise reponse du 1B — refus,
-« je ne sais pas », boucle, fait invente — n'allait jamais chez Gemini. Elle
-dependait aussi du paquet optionnel `google-genai` et avalait toute erreur en
-silence (niveau INFO) : cle absente, cle invalide, quota, modele inconnu,
-paquet manquant... rien ne se voyait. Ici :
+CE QUE CE MODULE FAIT, ET CE QU'IL NE FAIT PAS
+---------------------------------------------
+Ce module APPELLE. Il ne juge pas : c'est aura/aiguilleur.py qui decide, sur la
+tache demandee et sur la reponse rendue, s'il faut escalader ou garder le petit
+modele local. Ici, on rend une question a Google et on rapporte son texte — ou
+None, jamais une exception.
+
+Details de l'appel :
 - appel HTTP direct (urllib) : AUCUNE dependance a installer ;
 - cle lue dans l'environnement (GOOGLE_API_KEY ou GEMINI_API_KEY) ou, a defaut,
   dans le fichier `.env` de la racine du projet (ces deux noms SEULEMENT) ;
-- les echecs sont dits (WARNING, et `resultat["repli_echec"]`), jamais muets ;
+- les echecs sont dits (WARNING, et `derniere_erreur()`), jamais muets : cle
+  absente ou invalide, quota, modele inconnu, paquet manquant... rien ne se
+  perd dans un silence ;
+- une cle invalide ou un modele inconnu met le repli en pause (10 min) au lieu
+  d'attendre un timeout a chaque question ;
 - `python -m aura.gemini` teste la cle, le modele et le reseau de bout en bout.
 
-PRINCIPE DE DETECTION
----------------------
-Le jugement est DETERMINISTE (regles, pas de sonde LLM) : < 1 ms, relisible.
-Il part vers Gemini quand la reponse locale est vide, en erreur, un refus, un
-aveu d'ignorance, une boucle, un echo de la question, trop courte pour une
-question ouverte, une redaction trop courte, dans la mauvaise langue, quand la
-question est un probleme chiffre en mots, ou un fait precis que le 1B a
-« devine » sans aucune source (`factuel`), ou un domaine que tu designes.
-
-CE QUI NE PART JAMAIS VERS GEMINI
----------------------------------
-Une reponse d'un tier EXACT ou VERIFIE (calcul, PAL, RAG, micro-faits,
-Wikipedia, PoT+AST, constantes, horloge, clarification, [Code], [Logique]) n'est
-jamais rejugee : la remplacer par une reponse probable serait une regression.
-Seules les reponses GENERATIVES du cerveau local sont candidates. Exception : une
-reponse VIDE ou « [RontoGPT] ... », quel que soit son tier.
-
-OPT-IN, ET CE QUI QUITTE LA MACHINE
------------------------------------
-Sans cle, ce module ne fait RIEN. Quand il est actif, partent chez Google : la
-QUESTION, les extraits web deja recoltes pour elle et, pour une question courte
-ou de relance (« et sa capitale ? »), les derniers messages de la conversation
+CE QUI QUITTE LA MACHINE
+------------------------
+Sans cle, ce module ne fait RIEN (`disponible()` est faux, `repondre()` rend
+None). Quand il est actif, partent chez Google : la QUESTION, les extraits web
+deja recoltes pour elle et, pour une question courte ou de relance
+(« et sa capitale ? »), les derniers messages de la conversation
 (AURA_GEMINI_HISTORIQUE, defaut 4 ; 0 = rien). La cle ne se met JAMAIS dans
 aura.toml : seulement dans l'environnement ou dans `.env` (non versionne).
 
 Variables :
     GOOGLE_API_KEY / GEMINI_API_KEY   cle Google AI Studio (aistudio.google.com)
-    AURA_GEMINI=0                     coupe le repli meme si la cle existe
+    AURA_GEMINI=0                     coupe l'escalade meme si la cle existe
     AURA_GEMINI_MODELE                defaut gemini-2.5-flash
     AURA_GEMINI_TIMEOUT               secondes (defaut 45)
     AURA_GEMINI_MAX_TOKENS            budget de sortie, reflexion comprise (4096)
     AURA_GEMINI_REFLEXION             budget de reflexion de 2.5 Flash : 0 = coupee,
                                       -1 = dynamique, defaut 1024
-    AURA_GEMINI_DOMAINES              categories routees envoyees d'office, ex. « code,math »
-    AURA_GEMINI_REGLES                sous-ensemble des regles a appliquer (defaut : toutes)
     AURA_GEMINI_HISTORIQUE            nb de messages precedents joints (defaut 4)
 """
 from __future__ import annotations
@@ -62,15 +48,12 @@ import unicodedata
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import Any
 
 LOG = logging.getLogger("aura.gemini")
 
 URL_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 MODELE_DEFAUT = "gemini-2.5-flash"
-
-#: Toutes les regles de jugement, dans l'ordre d'evaluation.
-REGLES = ("vide", "erreur", "refus", "aveu", "boucle", "echo", "court",
-          "redaction", "langue", "probleme", "factuel", "domaine")
 
 _RACINE = Path(__file__).resolve().parent.parent
 _NOMS_CLE = ("GOOGLE_API_KEY", "GEMINI_API_KEY")
@@ -98,10 +81,6 @@ def _entier(nom: str, defaut: int) -> int:
         return int(_env(nom, str(defaut)))
     except ValueError:
         return defaut
-
-
-def _liste(nom: str) -> set[str]:
-    return {x.strip() for x in _env(nom).split(",") if x.strip()}
 
 
 def _cle_et_source() -> tuple[str, str]:
@@ -141,7 +120,7 @@ def actif() -> bool:
 
 
 def configure() -> bool:
-    """Vrai si un repli Gemini est possible (repli actif et cle presente)."""
+    """Vrai si un appel Gemini est possible (escalade active et cle presente)."""
     return actif() and bool(_cle())
 
 
@@ -152,31 +131,40 @@ def _modele() -> str:
     return m if re.fullmatch(r"[A-Za-z0-9._\-]+", m) else MODELE_DEFAUT
 
 
-def _regles_actives() -> set[str]:
-    choisies = _liste("AURA_GEMINI_REGLES")
-    return (choisies & set(REGLES)) if choisies else set(REGLES)
-
-
 # -- etat : derniere erreur et pause apres un echec ---------------------------
 # Une cle invalide ou un modele inconnu ne se corrigent pas tout seuls : on
 # arrete d'appeler pendant 10 min au lieu d'attendre un timeout a chaque question.
 
-_etat = {"erreur": "", "pause_jusqu_a": 0.0}
+# Deux variables TYPAYEES plutot qu'un dict melangeant str et float : dans un
+# meme dict, mypy infere `object` pour les valeurs, et le controle
+# `time.monotonic() < _etat["pause_jusqu_a"]` devenait invérifiable.
+_erreur: str = ""
+_pause_jusqu_a: float = 0.0
 _dormir = time.sleep
 
 
 def derniere_erreur() -> str:
     """Raison du dernier echec d'appel (chaine vide si tout va bien)."""
-    return _etat["erreur"]
+    return _erreur
 
 
 def reinitialiser() -> None:
     """Efface l'erreur et la pause (utile apres avoir corrige la cle)."""
-    _etat["erreur"], _etat["pause_jusqu_a"] = "", 0.0
+    global _erreur, _pause_jusqu_a
+    _erreur, _pause_jusqu_a = "", 0.0
 
 
 def _en_pause() -> bool:
-    return time.monotonic() < _etat["pause_jusqu_a"]
+    return time.monotonic() < _pause_jusqu_a
+
+
+def disponible() -> bool:
+    """Vrai si un appel peut aboutir MAINTENANT (configure et hors pause).
+
+    C'est ce que lit l'aiguilleur (aura/aiguilleur.py) : une cible en pause ne
+    doit pas envoyer chaque question dans le vide.
+    """
+    return configure() and not _en_pause()
 
 
 class _Echec(Exception):
@@ -185,7 +173,13 @@ class _Echec(Exception):
         self.message, self.pause = message, pause
 
 
-# -- le jugement : DETERMINISTE ----------------------------------------------
+# -- l'appel -------------------------------------------------------------------
+
+_RE_ANAPHORE = re.compile(
+    r"^\W*(?:et|mais|donc|alors|aussi|pourquoi|comment|lui|elle|eux|ca|cela|"
+    r"celui|celle|ceux|plus|moins)\b")
+_HISTORIQUE_QUESTION_COURTE = 8
+
 
 def _sans_accents(texte: str) -> str:
     t = unicodedata.normalize("NFKD", (texte or "").lower().replace("’", "'"))
@@ -194,183 +188,6 @@ def _sans_accents(texte: str) -> str:
 
 def _mots(texte: str) -> int:
     return len((texte or "").split())
-
-
-#: Reponses du cerveau local qu'on a le droit de rejuger. Tout le reste est
-#: exact ou verifie (cf. docstring du module).
-_ESCALADABLES = frozenset({"def-web+1b", "extraction-web"})
-_RE_CERVEAU_GENERATIF = re.compile(r"-\d+(?:\.\d+)?b$")
-_PREFIXES_VERIFIES = ("[Logique]", "[Code]")
-
-
-def _generatif(cerveau: str | None) -> bool:
-    c = cerveau or ""
-    return c in _ESCALADABLES or bool(_RE_CERVEAU_GENERATIF.search(c))
-
-
-# Refus et aveux d'impuissance. Seulement sur une reponse COURTE : un long
-# developpement qui contient un « je ne sais pas » en passant reste une reponse.
-_RE_REFUS = re.compile(
-    r"^\W*(?:je suis desole|desole|pardon|je ne (?:peux|puis) pas|"
-    r"je ne suis pas en mesure)\b")
-_RE_AVEU = re.compile(
-    r"\bje ne (?:peux|puis) pas\b|\bje ne suis pas en mesure\b|"
-    r"\bje ne sais pas\b|\bje ne connais pas\b|\bje ne dispose pas\b|"
-    r"\bje ne comprends pas\b|\bil m'est impossible\b|"
-    r"\bje n'ai pas (?:reussi|acces|d'information|la possibilite|les moyens)|"
-    r"\baucune source ne definit\b")
-_AVEU_MAX_CAR = 500
-
-_RE_OUVERTE = re.compile(
-    r"\b(?:explique\w*|pourquoi|comment|compare\w*|analyse\w*|redige\w*|"
-    r"decri\w*|resume\w*|developpe\w*|argumente\w*|discute\w*|presente\w*|"
-    r"avantages|inconvenients|difference\w*)\b")
-_COURT_MIN_MOTS = 25
-
-# Demande de production LONGUE. Seuil : celui du banc du projet
-# (« court » = 900 caracteres ou moins, cf. scripts/bench_qualite.py).
-_RE_LONGUE = re.compile(
-    r"\b(?:ecri\w*|redig\w*|compos\w*|produi\w*|gener\w*|developp\w*)\b"
-    r".{0,80}\b(?:dissertation|essai|article|discours|rapport|synthese)\b"
-    r"|\b(?:[2-9]|\d{2,})\s*(?:pages?|paragraphes?)\b|\b[1-9]\d{2,}\s*mots\b")
-_REDACTION_MIN_CAR = 900
-
-# Probleme en mots avec des nombres : la famille que le 1B local rate le plus
-# (GSM8K : 0,12 via le pipeline, cf. resultats/BILAN_HONNETE_20261011.md) et
-# que les solveurs exacts n'ont pas pris (sinon on ne serait pas ici).
-_RE_NOMBRE = re.compile(r"\d+(?:[.,]\d+)?")
-_RE_CODE = re.compile(r"\b(?:fonction|python|code|script|programme|def|assert)\b")
-_PROBLEME_MIN_MOTS = 12
-
-# Fait precis (qui / quand / ou / combien / capitale...) : sans AUCUNE source,
-# le 1B le « devine » — c'est la que son aplomb est le plus trompeur.
-_RE_FACTUEL = re.compile(
-    r"^\W*(?:"
-    r"qui (?:est|etait|sont|etaient|ont|a (?:ecrit|invente|decouvert|fonde|"
-    r"realise|compose|peint|dirige|gagne|marque))\b"
-    r"|quand (?:est|a|ont|etait|sont|fut|se|s'est)\b"
-    r"|en quelle annee\b"
-    r"|combien (?:de|d')\b"
-    r"|ou (?:est|se trouve|se situe|sont|habite|vit|est ne|est mort)\b"
-    r"|quel(?:le)?s? (?:est|etait|sont|etaient) (?:le|la|l'|les) "
-    r"(?:capitale|population|superficie|surface|date|distance|hauteur|"
-    r"altitude|taille|devise|monnaie|langue|president|premier ministre|"
-    r"fondateur|auteur|nombre|montant|prix|cout)\b)")
-
-# Langue : un 1B qui glisse en anglais sur une question francaise.
-_MOTS_EN = frozenset(
-    "the of and to is are was were this that with for you your in by be have "
-    "has not but from which what".split())
-_MOTS_FR = frozenset(
-    "le la les des une un et est que qui dans pour pas sur avec du de ce cette "
-    "sont nous vous il elle ne se je tu mais ou comment pourquoi quel quelle".split())
-_RE_LANGUE_DEMANDEE = re.compile(
-    r"\b(?:anglais|english|traduis\w*|traduct\w*|translate|allemand|espagnol|"
-    r"italien|latin)\b")
-
-
-def _norme_courte(texte: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", _sans_accents(texte)).strip()
-
-
-def _en_boucle(reponse: str) -> bool:
-    phrases = [p.strip().lower() for p in re.split(r"(?<=[.!?])\s+|\n+", reponse)
-               if len(p.strip()) >= 15]
-    return len(phrases) >= 4 and len(set(phrases)) / len(phrases) < 0.6
-
-
-def _est_echo(question: str, reponse: str) -> bool:
-    q, r = _norme_courte(question), _norme_courte(reponse)
-    if len(q) < 15 or not r:
-        return False
-    return r == q or (q in r and len(r) <= len(q) * 1.25)
-
-
-def _mauvaise_langue(question: str, reponse: str) -> bool:
-    q = _sans_accents(question)
-    if _RE_LANGUE_DEMANDEE.search(q) or "```" in reponse:
-        return False
-    mots_q = re.findall(r"[a-z']+", q)
-    francais = (sum(m in _MOTS_FR for m in mots_q) >= 2
-                or any(c in question.lower() for c in "éèêàùçôîï"))
-    mots_r = re.findall(r"[a-z']+", _sans_accents(reponse))
-    if not francais or len(mots_r) < 12:
-        return False
-    anglais = sum(m in _MOTS_EN for m in mots_r) / len(mots_r)
-    fr = sum(m in _MOTS_FR for m in mots_r) / len(mots_r)
-    return anglais >= 0.22 and fr < 0.08
-
-
-def raison_du_repli(question: str, resultat: dict,
-                    categorie: str | None = None) -> str | None:
-    """Pourquoi cette reponse doit partir vers Gemini, ou None si elle reste.
-
-    `resultat` est le dict de l'orchestrateur (cles lues : reponse,
-    cerveau_choisi, en_attente, contexte_web, formule). La premiere regle qui
-    s'applique gagne ; la raison est renvoyee pour etre journalisee et jointe
-    au resultat.
-    """
-    if not configure() or _en_pause():
-        return None
-    actives = _regles_actives()
-    reponse = str(resultat.get("reponse") or "")
-
-    # Rien a conserver : quel que soit le tier.
-    if not reponse.strip():
-        return "vide" if "vide" in actives else None
-    if reponse.startswith("[RontoGPT]"):
-        return "erreur" if "erreur" in actives else None
-
-    # Une relance de clarification n'est pas une reponse faible. Un tier exact
-    # ou verifie n'est jamais rejuge, pas plus qu'un resultat [Code]/[Logique]
-    # (que le pipeline verifie avant de le livrer).
-    if (resultat.get("en_attente")
-            or not _generatif(resultat.get("cerveau_choisi"))
-            or reponse.lstrip().startswith(_PREFIXES_VERIFIES)):
-        return None
-
-    q = _sans_accents(question)
-    r = _sans_accents(reponse)
-    sans_source = not str(resultat.get("contexte_web") or "").strip()
-    sans_formule = not resultat.get("formule")
-
-    if len(reponse) < _AVEU_MAX_CAR:
-        if "refus" in actives and _RE_REFUS.search(r):
-            return "refus"
-        if "aveu" in actives and _RE_AVEU.search(r):
-            return "aveu"
-    if "boucle" in actives and _en_boucle(reponse):
-        return "boucle"
-    if "echo" in actives and _est_echo(question, reponse):
-        return "echo"
-    if ("court" in actives and _RE_OUVERTE.search(q)
-            and _mots(reponse) < _COURT_MIN_MOTS):
-        return "court"
-    if ("redaction" in actives and _RE_LONGUE.search(q)
-            and len(reponse) <= _REDACTION_MIN_CAR):
-        return "redaction"
-    if "langue" in actives and _mauvaise_langue(question, reponse):
-        return "langue"
-    if ("probleme" in actives and sans_formule
-            and not _RE_CODE.search(q)
-            and _mots(question) >= _PROBLEME_MIN_MOTS
-            and len(_RE_NOMBRE.findall(question)) >= 2):
-        return "probleme"
-    if ("factuel" in actives and sans_source and sans_formule
-            and _RE_FACTUEL.search(q)):
-        return "factuel"
-    if ("domaine" in actives and categorie
-            and categorie in _liste("AURA_GEMINI_DOMAINES")):
-        return "domaine"
-    return None
-
-
-# -- l'appel -------------------------------------------------------------------
-
-_RE_ANAPHORE = re.compile(
-    r"^\W*(?:et|mais|donc|alors|aussi|pourquoi|comment|lui|elle|eux|ca|cela|"
-    r"celui|celle|ceux|plus|moins)\b")
-_HISTORIQUE_QUESTION_COURTE = 8
 
 
 def _depend_du_contexte(question: str) -> bool:
@@ -401,8 +218,12 @@ def _contenus(question: str, contexte_web: str, historique) -> list[dict]:
 
 
 def _corps(question: str, contexte_web: str, historique, modele: str) -> dict:
-    config = {"temperature": 0.3,
-              "maxOutputTokens": _entier("AURA_GEMINI_MAX_TOKENS", 4096)}
+    # `dict[str, Any]` explicite : le type du litteral ne contient que des
+    # nombres, si bien que la config de reflexion (elle-meme un dict) ne
+    # pouvait pas y etre ajoutee.
+    config: dict[str, Any] = {
+        "temperature": 0.3,
+        "maxOutputTokens": _entier("AURA_GEMINI_MAX_TOKENS", 4096)}
     if "2.5" in modele:      # la reflexion n'existe que sur la famille 2.5
         config["thinkingConfig"] = {
             "thinkingBudget": _entier("AURA_GEMINI_REFLEXION", 1024)}
@@ -488,7 +309,8 @@ def repondre(question: str, contexte_web: str = "",
 
     La raison d'un echec est dans `derniere_erreur()` et dans les logs (WARNING).
     """
-    if not configure() or _en_pause():
+    global _erreur, _pause_jusqu_a
+    if not disponible():
         return None
     modele = _modele()
     try:
@@ -496,17 +318,17 @@ def repondre(question: str, contexte_web: str = "",
         donnees = _appeler(corps, modele, _cle(),
                            _entier("AURA_GEMINI_TIMEOUT", 45))
         texte = _extraire(donnees)
-        _etat["erreur"] = ""
+        _erreur = ""
         return texte
     except _Echec as e:
-        _etat["erreur"] = e.message
+        _erreur = e.message
         if e.pause:
-            _etat["pause_jusqu_a"] = time.monotonic() + e.pause
+            _pause_jusqu_a = time.monotonic() + e.pause
     except Exception as e:  # noqa: BLE001 — un repli ne doit jamais bloquer
-        _etat["erreur"] = (f"appel impossible ({type(e).__name__} : reseau "
-                           "coupe ou delai depasse ?)")
-        _etat["pause_jusqu_a"] = time.monotonic() + 20
-    LOG.warning("[gemini] %s -> reponse locale conservee", _etat["erreur"])
+        _erreur = (f"appel impossible ({type(e).__name__} : reseau "
+                   "coupe ou delai depasse ?)")
+        _pause_jusqu_a = time.monotonic() + 20
+    LOG.warning("[gemini] %s -> reponse locale conservee", _erreur)
     return None
 
 
@@ -518,7 +340,7 @@ def diagnostic() -> int:
     cle, source = _cle_et_source()
     print(f"modele  : {_modele()}")
     if not actif():
-        print("repli   : COUPE (AURA_GEMINI=0)")
+        print("escalade : COUPE (AURA_GEMINI=0)")
         return 1
     if not cle:
         print("cle     : ABSENTE — pose GOOGLE_API_KEY (ou GEMINI_API_KEY) dans "

@@ -437,10 +437,26 @@ class TestReglagesMajorite:
 # ── 3. Majorite sur les enigmes (mini-SAT) ──────────────────────────────
 
 class TestMajoriteLogique:
+    """Vote de N formalisations : la MAJORITE tranche, le SOLVEUR redige.
+
+    Contrat courant (cf. _resoudre_par_logique, 12 oct. 2026) : le 1B ne sert
+    QU'A formaliser. La solution gagnante est rendue par le solveur
+    (`logique.phrase_solution`) et jamais reecrite par le modele — devant la
+    consigne brute, le 1B begayait ou reformulait l'enigme au lieu d'y
+    repondre. Les deux tests ci-dessous attendaient une generation de
+    synthese supplementaire sur un enonce sans les noms (que le garde
+    anti-recopie `entites_dans_question` refuse) : ce sont EUX qui ont ete
+    mis a jour le 16 oct. 2026, pas le pipeline.
+    """
+
     F_ROUGE = ("ENTITES : Anna, Bob\nDOMAINE : rouge, vert\n"
                "TOUS DIFFERENTS\nCONDITION : Anna == rouge")
     F_VERT = ("ENTITES : Anna, Bob\nDOMAINE : rouge, vert\n"
               "TOUS DIFFERENTS\nCONDITION : Anna == vert")
+    # L'enonce porte les ENTITES formalisees : sans elles, le garde
+    # anti-recopie rejette la formalisation (comportement voulu).
+    ENONCE = ("Anna et Bob portent chacun une couleur differente. "
+              "Qui porte quelle couleur ?")
 
     @staticmethod
     def _lancer(monkeypatch, suite):
@@ -456,25 +472,24 @@ class TestMajoriteLogique:
         return RontoGPT(), captures
 
     def test_vote_deux_sur_trois(self, monkeypatch):
-        # 2 formalisations vers Anna=rouge, 1 vers Anna=vert -> gagnant ROUGE
+        # 2 voix vers Anna=rouge, 1 vers Anna=vert : la MAJORITE tranche, et
+        # elle gagne meme quand elle n'arrive PAS en premier (le vote, pas
+        # l'ordre d'arrivee des formalisations).
         ia, captures = self._lancer(
-            monkeypatch, [self.F_ROUGE, self.F_VERT, self.F_ROUGE,
-                          "Anna est rouge."])
-        r = ia._resoudre_par_logique("enigme de test")
-        assert r == "Anna est rouge."
-        assert len(captures) == 4                # 3 formalisations + synthese
-        ctx = captures[-1].get("contexte_web") or ""
-        assert "- Anna : rouge" in ctx
-        assert "- Bob : vert" in ctx
+            monkeypatch, [self.F_VERT, self.F_ROUGE, self.F_ROUGE])
+        r = ia._resoudre_par_logique(self.ENONCE)
+        assert len(captures) == 3                # 3 formalisations, aucune redaction
+        assert "Anna : rouge" in r and "Bob : vert" in r
+        assert "Anna : vert" not in r            # la voix minoritaire est ecartee
 
     def test_relance_unique_sur_premier_rejet(self, monkeypatch):
         # AURA_MAJORITE_N=1 : ancien comportement (relance self-debug)
         monkeypatch.setenv("AURA_MAJORITE_N", "1")
         ia, captures = self._lancer(
-            monkeypatch, ["n importe quoi", self.F_ROUGE, "Anna est rouge."])
-        r = ia._resoudre_par_logique("enigme de test")
-        assert r == "Anna est rouge."
-        assert len(captures) == 3                # rejet + relance + synthese
+            monkeypatch, ["n importe quoi", self.F_ROUGE])
+        r = ia._resoudre_par_logique(self.ENONCE)
+        assert len(captures) == 2                # rejet + UNE relance
+        assert "Anna : rouge" in r and "Bob : vert" in r
 
 
 # ── 4. concepts.toml (bibliotheque extensible) ──────────────────────────

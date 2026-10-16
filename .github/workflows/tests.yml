@@ -28,7 +28,11 @@ jobs:
       - name: Dépendances (sans llama-cpp — la CI n'a ni GGUF ni GPU)
         run: |
           python -m pip install --upgrade pip
-          pip install numpy scikit-learn joblib gplearn ddgs requests cryptography pytest
+          # `google-adk` est une dependance de [project] (aura/agents_adk.py) :
+          # sans elle, tests/test_agents_adk.py echoue a l'import (verifie).
+          # `onnxruntime`, `tokenizers` et `pywebview` sont importes
+          # paresseusement : les tests savent s'en passer.
+          pip install numpy scikit-learn joblib gplearn ddgs requests cryptography pytest google-adk
 
       - name: Tests (les tests GGUF savent se sauter seuls)
         env:
@@ -126,6 +130,29 @@ jobs:
           else:
               raise SystemExit("ECHEC : un fichier altere a ete accepte !")
           PY
+
+  # Le typage est un INVARIANT annonce (badge « mypy : 0 ») : il est donc
+  # verifie en CI, sur la MEME version de mypy que celle utilisee pour
+  # l'annoncer (une version plus recente peut signaler d'autres cas).
+  typage:
+    name: mypy (aura/)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Dépendances
+        run: |
+          python -m pip install --upgrade pip
+          pip install "mypy==2.3.1" numpy scikit-learn joblib gplearn ddgs requests cryptography google-adk
+
+      - name: mypy aura/
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python -m mypy aura/
 
   installateur:
     name: Syntaxe de l'installeur PowerShell

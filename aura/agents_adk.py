@@ -78,7 +78,9 @@ async def _executer(question: str) -> str:
         pass
     session = await runner.session_service.get_session(
         app_name=APP, user_id="aura", session_id=sid)
-    return _texte_etat(session.state)
+    # `get_session` peut rendre None (session absente) : etat vide plutot
+    # qu'un AttributeError, le planificateur retombe alors sur agents.planifier.
+    return _texte_etat(session.state if session is not None else None)
 
 
 def _texte_etat(etat) -> str:

@@ -1,17 +1,30 @@
 """Synthese de la reponse de RontoGPT : prompt systeme, garde-fous de
 contamination et generation. Mixin herite par RontoGPT (aura/orchestrateur.py)."""
 import logging
+from typing import TYPE_CHECKING, Callable
 
 from . import autoamelioration
 from . import agents
 from .regles_reponse import _rejoue_le_tour_precedent, _reste_substantiel, _sans_amorce_meta
 from .detection_demande import _RE_SORTIE_LONGUE, _SYSTEME_RAISONNEMENT, _SYSTEME_REDACTION, _est_demande_ecriture, _est_redaction, _sans_accents
 
+if TYPE_CHECKING:
+    from .memoire_conversation import MemoireConversation
+
 LOG = logging.getLogger("aura.orchestrateur")
 
 
 class SyntheseMixin:
     """Generation de la reponse finale (methodes de RontoGPT)."""
+
+    # CONTRAT STATIQUE (jamais execute) : ces noms sont portes par RontoGPT
+    # (aura/orchestrateur.py) au montage des mixins. Les declarer ici, sous
+    # `TYPE_CHECKING`, rend le mixin verifiable par mypy sans import
+    # circulaire ni dependance au runtime : le bloc disparait a l'execution.
+    if TYPE_CHECKING:
+        _llama: Callable[..., str] | None
+        _historique: "MemoireConversation"
+        _special_traite: bool
 
     def _generer(self, question: str, contexte_web: str, formule: str,
                  contexte_faits: str = "",

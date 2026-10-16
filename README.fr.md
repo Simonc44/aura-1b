@@ -485,13 +485,19 @@ Deux contraintes supplémentaires, par conception :
 ## 🧪 Tests & qualité
 
 ```bash
-uv run pytest -q        # 323 tests (CI : verte — tests dépendant du GGUF sautés, pas de GGUF en CI)
-uv run mypy aura/       # 0 erreur
+uv run pytest -q        # 1132 tests collectés (1131 passent, 1 sauté : pas de GGUF ici)
+uv run mypy aura/       # 0 erreur (71 fichiers)
 ```
+
+Un décompte de tests devient faux dès qu'un test est ajouté : le nombre
+ci-dessus est celui **mesuré sur ce HEAD** — `pytest --collect-only -q`
+affiche le chiffre courant.
 
 La CI (GitHub Actions) tourne sur **Ubuntu + Windows** (Python 3.11/3.12),
 revalide toute la chaîne `.aef` (forge → signature Ed25519 → boot → détection
-d'altération) sur Linux, et vérifie la syntaxe de l'installeur PowerShell.
+d'altération) sur Linux, vérifie la syntaxe de l'installeur PowerShell et
+fait respecter l'invariant de typage (`mypy aura/`, sur la même version de
+mypy que le badge).
 
 ## 📄 Licence
 

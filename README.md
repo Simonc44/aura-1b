@@ -433,13 +433,17 @@ Two more constraints, by design:
 ## 🧪 Tests & quality
 
 ```bash
-uv run pytest -q        # 323 tests (CI: green — GGUF-dependent tests skipped, no GGUF in CI)
-uv run mypy aura/       # 0 error
+uv run pytest -q        # 1132 tests collected (1131 pass, 1 skipped: no GGUF here)
+uv run mypy aura/       # 0 error (71 files)
 ```
+
+Test counts go stale the moment a test is added, so the number above is the
+one measured on this HEAD — `pytest --collect-only -q` prints the live one.
 
 CI (GitHub Actions) runs on **Ubuntu + Windows** (Python 3.11/3.12), re-validates
 the whole `.aef` chain (forge → Ed25519 signature → boot → tamper detection)
-on Linux, and syntax-checks the PowerShell installer.
+on Linux, syntax-checks the PowerShell installer, and enforces the typing
+invariant (`mypy aura/`, on the same mypy version as this badge).
 
 </details>
 

@@ -9,7 +9,8 @@ build/
 
 # Local
 *.log
-uv.lock
+# `uv.lock` est VERSIONNE (ne pas le remettre ici) : c'est lui qui rend les
+# installations reproductibles (`uv sync` fige les versions exactes).
 
 # Interface terminal (tui/) : Bun et @opentui/core s'installent localement
 # (le package-lock.json, lui, reste versionnable : il fige les versions)

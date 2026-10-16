@@ -16,6 +16,7 @@ from __future__ import annotations
 import queue
 import threading
 import time
+from functools import partial
 import tkinter as tk
 
 # ---------------- palette claire neumorphique ----------------
@@ -601,10 +602,12 @@ class FenetreRontoGPT(tk.Tk):
                         jnl.insert("end", f" {titre[:55]}  ",
                                    ("source_titre", tag_url, tag_msg))
                         jnl.insert("end", _NL, "cache")
-                        # Clic => ouvre le lien dans le navigateur
-                        jnl.tag_bind(
-                            tag_url, "<Button-1>",
-                            lambda _e, u=url: webbrowser.open(u))
+                        # Clic => ouvre le lien dans le navigateur.
+                        # `partial` plutot qu'un lambda a argument par defaut :
+                        # le lien est fige explicitement (et le type de la
+                        # fonction passee a tkinter reste inferable).
+                        jnl.tag_bind(tag_url, "<Button-1>",
+                                     partial(webbrowser.open, url))
                         jnl.tag_bind(
                             tag_url, "<Enter>",
                             lambda _e: jnl.config(cursor="hand2"))

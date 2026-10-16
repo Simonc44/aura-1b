@@ -37,6 +37,7 @@ import sys
 import time
 import zipfile
 from pathlib import Path
+from typing import Any
 
 HEADER_FORMAT = "<4sBBBB8sIIIIIQQ32s32s32s"
 HEADER_TAILLE = struct.calcsize(HEADER_FORMAT)
@@ -375,10 +376,17 @@ def _appliquer_identite_cerveau(cfg: dict) -> None:
     if not specs or "AURA_TUNING" in os.environ:
         return
     try:
+        # IMPORT DYNAMIQUE du profil materiel : en paquet il s'agit de
+        # `aura.profil_materiel`, dans l'executable gele le paquet n'existe
+        # plus et le module vit a cote du binaire. Deux chemins possibles pour
+        # le MEME nom — deux `import ... as pm` statiques faisaient echouer
+        # mypy (« Name "pm" already defined »), d'ou l'import par nom.
+        pm: Any
         try:
-            from . import profil_materiel as pm
-        except ImportError:
-            import profil_materiel as pm
+            pm = importlib.import_module(".profil_materiel",
+                                         __package__ or "aura")
+        except Exception:       # noqa: BLE001 - gel : module a cote du binaire
+            pm = importlib.import_module("profil_materiel")
         actuel = pm.profiler()
         cles = ("cpu_modele", "cpu_coeurs_logiques", "ram_go", "avx2", "os")
         if any(specs.get(k) != actuel.get(k) for k in cles):

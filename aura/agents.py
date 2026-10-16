@@ -150,8 +150,11 @@ def compresser(texte: str, question: str) -> str:
         return texte
     structure_web = bool(re.search(r"\b(?:titre|extrait)\s*:", texte,
                                    re.IGNORECASE))
-    if len(texte) <= 320 and not structure_web:
-        return texte
+    # Une source COURTE ne remplit pas la fenetre du 1B : elle n'est jamais
+    # JETEE faute de recouvrement lexical (cf. le repli plus bas). Cela ne
+    # dispense PAS du plafond de morceaux : une liste de 8 lignes courtes
+    # reste 8 extraits livres au modele (fix bug 1).
+    court = len(texte) <= 320 and not structure_web
     q_tokens = _tokens(question)
     if not q_tokens:
         return texte
@@ -168,12 +171,6 @@ def compresser(texte: str, question: str) -> str:
             score += 1
         scorees.append((score, p))
     pertinents = [(score, p) for score, p in scorees if score > 0]
-    if not pertinents:
-        LOG.info("[compresseur] contexte ecarte : aucun terme pertinent")
-        return ""
-    # Une source courte ne mérite pas de troncature, mais on exclut quand
-    # même les lignes sans signal lexical. Les contextes longs sont limités
-    # aux trois unités les mieux notées pour préserver la fenêtre du modèle.
     # BRIDAGE (fix bug 1) : jamais plus de 3 morceaux (10 pour une
     # recherche complexe), meme sur un contexte court.
     try:
@@ -181,6 +178,17 @@ def compresser(texte: str, question: str) -> str:
         plafond = memoire_web.limite_morceaux(question)
     except Exception:       # noqa: BLE001 - le compresseur ne doit pas casser
         plafond = 3
+    if not pertinents:
+        if court:
+            # Aucun terme pertinent, mais la source est courte : mieux vaut
+            # un contexte faible que pas de contexte — on la garde, bornee.
+            return (texte if len(morceaux) <= plafond
+                    else "\n".join(morceaux[:plafond]))
+        LOG.info("[compresseur] contexte ecarte : aucun terme pertinent")
+        return ""
+    # Une source courte ne mérite pas de troncature, mais on exclut quand
+    # même les lignes sans signal lexical. Les contextes longs sont limités
+    # aux unités les mieux notées pour préserver la fenêtre du modèle.
     limites = min(len(pertinents), plafond)
     garde = {p for _, p in sorted(pertinents,
                                   key=lambda x: -x[0])[:limites]}

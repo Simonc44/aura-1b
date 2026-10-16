@@ -3,6 +3,7 @@ et routage des experts speciaux. Mixin herite par RontoGPT (aura/orchestrateur.p
 import logging
 import os
 import threading
+from typing import TYPE_CHECKING, Callable
 
 from . import memoire_web, filtre_instantane, rag_binaire
 from . import chaines_numeriques
@@ -32,6 +33,17 @@ _SEUIL_CONFIANCE = float(os.environ.get("AURA_SEUIL_CONFIANCE", "0.50"))
 
 class ExpertsMixin:
     """Routage et execution des experts (methodes de RontoGPT)."""
+
+    # CONTRAT STATIQUE (jamais execute) : ces deux methodes vivent dans
+    # RaisonnementMixin (aura/raisonnement_rontogpt.py) et sont montees sur
+    # RontoGPT en meme temps que ce mixin. Declarees sous `TYPE_CHECKING`,
+    # elles rendent le mixin verifiable par mypy sans import circulaire ni
+    # dependance au runtime. Le `Callable` est lu TEL QUEL par mypy sur
+    # `self.<nom>` (pas de liaison implicite) : il decrit les arguments du
+    # SITE D'APPEL, d'ou les `...`.
+    if TYPE_CHECKING:
+        _resoudre_par_code: Callable[..., str | None]
+        _resoudre_par_logique: Callable[..., str | None]
 
     # -- validation avant execution (idea JEV #2) ---------------------------
 
