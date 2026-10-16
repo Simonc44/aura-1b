@@ -104,24 +104,14 @@ class TestVerdictMesure:
         # le verdict ne depend d'aucune sous-chaine du nom de fichier
         assert not adaptateurs.ARCHITECTURE_CIBLE.get("motif_nom")
 
-    def test_gemma_refuse_les_adaptateurs_llama_du_disque(self):
-        """Tant que les .gguf du disque sont des deltas Llama, Gemma les refuse.
-
-        Le verdict se lit sur les FICHIERS : apres le re-entrainement Gemma,
-        ce cas disparait tout seul (cf. TestMontageAuto). On saute donc quand
-        les adaptateurs ne sont plus des Llama plutot que d'exiger un etat
-        perime.
-        """
-        if not GEMMA.is_file():
-            pytest.skip("GGUF Gemma absent : rien a mesurer")
-        arc = adaptateurs.architecture_adaptateurs()
-        if "llama" not in arc.get("familles", []):
-            pytest.skip("les adaptateurs du disque ne sont plus des Llama")
-        ok, pourquoi = adaptateurs.verifier_cerveau(str(GEMMA))
-        assert not ok
-        # le message doit DIRE pourquoi : les deux familles et le remede
-        assert "llama" in pourquoi and "gemma3" in pourquoi
-        assert "re-entrainement" in pourquoi
+    # RETIRE le 16 oct. 2026 : `test_gemma_refuse_les_adaptateurs_llama_du_disque`.
+    # Il ne pouvait plus que se SAUTER : son sujet etait l'etat du disque
+    # (« tant que les .gguf du disque sont des deltas Llama »), et sa propre
+    # docstring annonçait qu'apres le re-entrainement Gemma « ce cas disparait
+    # tout seul ». Il n'existait donc plus que sous forme de saut, ce qui fait
+    # croire que le sujet est couvert alors qu'il ne mesure rien. L'invariant —
+    # un cerveau Gemma REFUSE des adaptateurs Llama — est verrouille plus bas
+    # par `TestMontageAuto`, sur des en-tetes GGUF synthetiques.
 
     def test_fichier_absent_ne_leve_jamais(self):
         """Un garde-fou qui plante serait pire que le silence qu'il remplace."""

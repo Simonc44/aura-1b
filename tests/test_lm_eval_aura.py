@@ -3,12 +3,18 @@
 Le pont ne doit JAMAIS importer lm_eval a l'import du module (sinon toute la
 suite de tests dependrait d'une dependance lourde) : il se contente de
 construire l'argv de `python -m lm_eval`.
+
+Les deux tests de `type_sortie` se lisaient dans une installation lm-eval et
+se SAUTAIENT quand elle etait absente — c'est-a-dire toujours, `lm-eval` (et
+son torch) n'etant pas une dependance du projet. Ils tournent desormais sur un
+dossier de taches qui reproduit les formes reelles (groupe sans fichier a son
+nom, `include:` qui porte l'output_type, homonyme de FICHIER qui note
+autrement) : zero saut, et la regle verrouillee est explicite au lieu de
+dependre de la version de lm-eval du jour.
 """
 import sys
 import types
 from pathlib import Path
-
-import pytest
 
 RACINE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RACINE / "scripts"))
@@ -61,14 +67,57 @@ def test_adresse_suit_la_variable_du_projet(monkeypatch):
         "http://127.0.0.1:9999/v1/chat/completions"
 
 
-def test_type_sortie_lit_les_configs_de_lm_eval():
-    pytest.importorskip("lm_eval")
+def _dossier_taches(monkeypatch, tmp_path: Path) -> Path:
+    """Un dossier de taches qui reproduit les FORMES de lm-eval.
+
+    Ce n'est pas une imitation decorative : chaque fichier existe pour une
+    regle de `scripts/lm_eval_aura.py` qui a deja ete prise en defaut.
+
+    * `mmlu` n'a **aucun** fichier a son nom — seulement `_mmlu.yaml`, qui
+      declare `group: mmlu`. Chercher `mmlu.yaml` le rendait invisible, donc
+      mesurable : c'est le bug d'origine.
+    * son `output_type` n'est PAS sur le groupe : il faut suivre `task:`,
+      puis `include:` jusqu'au gabarit qui le porte.
+    * `_mmlu_stem.yaml` existe DEUX fois. La copie de `01_variante/` trie
+      avant celle de `default/` : si la resolution retombait sur le nom de
+      FICHIER, elle gagnerait — et elle note en generation, donc un groupe a
+      choix multiple passerait pour mesurable. Seul le nom DECLARE decides.
+    """
+    racine = tmp_path / "taches"
+    (racine / "default").mkdir(parents=True)
+    (racine / "01_variante").mkdir(parents=True)
+    (racine / "gsm8k.yaml").write_text(
+        "task: gsm8k\noutput_type: generate_until\n", encoding="utf-8")
+    (racine / "arc_easy.yaml").write_text(
+        "task: arc_easy\noutput_type: loglikelihood\n", encoding="utf-8")
+    (racine / "default" / "_mmlu.yaml").write_text(
+        "group: mmlu\ntask:\n  - mmlu_abstract_algebra\n", encoding="utf-8")
+    (racine / "default" / "mmlu_abstract_algebra.yaml").write_text(
+        "task: mmlu_abstract_algebra\ninclude: _default_template_yaml\n",
+        encoding="utf-8")
+    (racine / "default" / "_default_template_yaml.yaml").write_text(
+        "output_type: multiple_choice\n", encoding="utf-8")
+    (racine / "default" / "_mmlu_stem.yaml").write_text(
+        "group: mmlu_stem\ntask:\n  - mmlu_abstract_algebra\n", encoding="utf-8")
+    (racine / "01_variante" / "_mmlu_stem.yaml").write_text(
+        "task: une_autre_tache\noutput_type: generate_until\n", encoding="utf-8")
+
+    # INJECTION par le contrat de cache du module : `type_sortie` lit `_YAMLS`,
+    # bati une seule fois depuis `dossier_taches()`. On pose la liste du
+    # dossier de test et on laisse l'index des noms se reconstruire.
+    monkeypatch.setattr(le, "_YAMLS", le._yamls(racine))
+    monkeypatch.setattr(le, "_INDEX_NOMS", None)
+    return racine
+
+
+def test_type_sortie_lit_les_yaml_de_taches(monkeypatch, tmp_path):
+    _dossier_taches(monkeypatch, tmp_path)
     assert le.type_sortie("gsm8k") == "generate_until"
     # arc_easy / hellaswag demandent les logprobs du prompt : non mesurables.
     assert le.taches_loglikelihood("gsm8k,arc_easy") == ["arc_easy"]
 
 
-def test_refus_des_groupes_et_pas_seulement_des_taches():
+def test_refus_des_groupes_et_pas_seulement_des_taches(monkeypatch, tmp_path):
     """`mmlu` est un GROUPE (`_mmlu.yaml` porte `group: mmlu`), pas un fichier
     de tache : chercher `mmlu.yaml` le rendait invisible, donc il passait le
     refus et aurait produit un score de hasard.
@@ -78,7 +127,7 @@ def test_refus_des_groupes_et_pas_seulement_des_taches():
     mmlu), et le tri par chemin tombait sur une variante qui note en
     generation — un groupe a choix multiple passait alors pour mesurable.
     """
-    pytest.importorskip("lm_eval")
+    _dossier_taches(monkeypatch, tmp_path)
     assert le.type_sortie("mmlu") == "multiple_choice"
     assert le.type_sortie("mmlu_stem") == "multiple_choice"
     assert "mmlu" in le.taches_loglikelihood("gsm8k,mmlu")
