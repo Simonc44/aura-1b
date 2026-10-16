@@ -699,10 +699,15 @@ Ce que la mesure dit, et qu'aucun badge ne dira à notre place :
   pose une question, pas un seuil ;
 * la couverture est mesurée **dans le même pas** que les tests, donc le chiffre
   disponible et le chiffre affiché sont le même ;
-* `COVERAGE_CORE` n'est **pas** figé : le noyau par défaut est le bon depuis que
-  le traceur est restauré. Le `ctrace` explicite rend 58 % — moins, parce que
-  `potcode` lui prend le traceur pendant la sandbox. Publier ce chiffre-là
-  serait publier un chiffre trop **bas**, exactement l'erreur inverse du 20 %.
+* `COVERAGE_CORE` n'est **pas** figé, et n'a pas besoin de l'être : le chiffre
+  ne dépend plus du noyau. Après le correctif, les deux noyaux tombent sur le
+  **même total** — c'est la CI qui le vérifie, puisque le noyau par défaut
+  diffère selon le Python (3.12 : `sys.monitoring`, PEP 669 ; 3.11 : le
+  traceur C). Mesuré localement : **72 % sur 3.11.16 comme sur 3.12.10**, avec
+  `routeur.py` à 76 % et `llama_cerveau.py` à 70 % des deux côtés.
+  C'est la meilleure preuve que le 20 % était un artefact : avant le correctif,
+  le même code rendait 20 % sur un noyau et 58 % sur l'autre. Un chiffre qui
+  dépend du noyau n'est pas un chiffre, c'est une observation.
 
 ### Ce qui n'est pas élucidé, et qui est écrit quand même
 
@@ -732,8 +737,8 @@ local, dans deux environnements construits depuis le verrou (`uv sync
 
 | Entrée | Interpréteur | Résultat |
 |---|---|---|
-| `tests`, py 3.11 | 3.11.16 | **1149 passés, 3 sautés, 0 échec** — 108 s |
-| `tests`, py 3.12 | 3.12.10 | **1149 passés, 3 sautés, 0 échec** — 97 s |
+| `tests` + couverture, py 3.11 | 3.11.16 | **1149 passés, 3 sautés, 0 échec** — 85 s, couverture **72 %** |
+| `tests` + couverture, py 3.12 | 3.12.10 | **1149 passés, 3 sautés, 0 échec** — 97 s, couverture **72 %** |
 | `compat-311` | 3.11.16 | `compileall -q aura rontogpt tests scripts` → **exit 0** |
 
 Ce qui reste **non** vérifié, et le restera depuis cette machine : les deux
