@@ -191,8 +191,9 @@ class IndexRAG:
             from . import _rag_data          # type: ignore[attr-defined]
             self.charger_bytes(_rag_data.BINAIRE)
             return
-        except Exception:
-            pass
+        except Exception as e:
+            # Cas NORMAL hors .aef forge : on passe a la source suivante.
+            LOG.debug("[rag] paquet embarque absent : %s", e)
         # 2) rag.bin a cote du paquet
         chemin = os.path.join(os.path.dirname(__file__), "rag.bin")
         if os.path.exists(chemin):
@@ -271,6 +272,8 @@ def statistiques() -> dict:
     """Pour le diagnostic : taille et remplissage de l'index."""
     try:
         INDEX._assurer()
-    except Exception:
-        pass
+    except Exception as e:
+        # Fonction de DIAGNOSTIC : elle doit rendre un etat, jamais lever.
+        # "charge" restera False et le dit assez ; le detail part en debug.
+        LOG.debug("[rag] chargement impossible pour les stats : %s", e)
     return {"charge": INDEX._charge, "documents": len(INDEX._docs)}

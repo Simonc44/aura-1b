@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import re
 import urllib.error
@@ -25,6 +26,8 @@ import urllib.request
 import webbrowser
 
 from . import config
+
+LOG = logging.getLogger(__name__)
 
 _REPO = "Simonc44/aura-1b"
 _URL = f"https://api.github.com/repos/{_REPO}/releases/latest"
@@ -77,8 +80,11 @@ def main(argv=None) -> int:
         sortie = getattr(sys, "stdout", None)
         if sortie is not None and hasattr(sortie, "reconfigure"):
             sortie.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+    except Exception as e:
+        # Sans reconfigure, un emoji dans les notes de release ferait une
+        # UnicodeError a l'affichage. On continue : la verification des mises
+        # a jour vaut mieux qu'un plantage sur un caractere.
+        LOG.debug("stdout non reconfigurable en utf-8 : %s", e)
     ap = argparse.ArgumentParser(prog="aura.maj")
     ap.add_argument("--json", action="store_true", help="sortie JSON")
     ap.add_argument("--ouvrir", action="store_true",

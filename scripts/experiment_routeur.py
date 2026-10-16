@@ -42,11 +42,14 @@ def _mlp(Xtr, ytr, Xte, glu=True, H=48, epochs=400, lr=2e-3, wd=1e-4,
     classes = sorted(set(ytr))
     idx = {c: i for i, c in enumerate(classes)}
     y = np.array([idx[c] for c in ytr])
-    W1 = rng.normal(0, (1 / D) ** .5, (D, H)); b1 = np.zeros(H)
-    W2 = rng.normal(0, (1 / H) ** .5, (H, K)); b2 = np.zeros(K)
+    W1 = rng.normal(0, (1 / D) ** .5, (D, H))
+    b1 = np.zeros(H)
+    W2 = rng.normal(0, (1 / H) ** .5, (H, K))
+    b2 = np.zeros(K)
     params = [W1, b1, W2, b2]
     if glu:
-        Wg = rng.normal(0, (1 / D) ** .5, (D, H)); bg = np.zeros(H)
+        Wg = rng.normal(0, (1 / D) ** .5, (D, H))
+        bg = np.zeros(H)
         params += [Wg, bg]
     m = [np.zeros_like(p) for p in params]
     v = [np.zeros_like(p) for p in params]
@@ -68,17 +71,23 @@ def _mlp(Xtr, ytr, Xte, glu=True, H=48, epochs=400, lr=2e-3, wd=1e-4,
             Xb, yb = Xtr[j], y[j]
             h, p = fwd(Xb)
             B = len(Xb)
-            dl = p.copy(); dl[np.arange(B), yb] -= 1; dl /= B
-            gW2 = h.T @ dl; gb2 = dl.sum(0)
+            dl = p.copy()
+            dl[np.arange(B), yb] -= 1
+            dl /= B
+            gW2 = h.T @ dl
+            gb2 = dl.sum(0)
             dh = dl @ W2.T
             if glu:
                 g = 1 / (1 + np.exp(-np.clip(Xb @ Wg + bg, -30, 30)))
-                gW1 = Xb.T @ (dh * g); gb1 = (dh * g).sum(0)
+                gW1 = Xb.T @ (dh * g)
+                gb1 = (dh * g).sum(0)
                 dg = dh * (Xb @ W1 + b1) * g * (1 - g)
-                gWg = Xb.T @ dg; gbg = dg.sum(0)
+                gWg = Xb.T @ dg
+                gbg = dg.sum(0)
                 grads = [gW1, gb1, gW2, gb2, gWg, gbg]
             else:
-                gW1 = Xb.T @ (dh * (Xb @ W1 + b1 > 0)); gb1 = dh.sum(0)
+                gW1 = Xb.T @ (dh * (Xb @ W1 + b1 > 0))
+                gb1 = dh.sum(0)
                 grads = [gW1, gb1, gW2, gb2]
             t += 1
             for k in range(len(params)):
@@ -91,7 +100,7 @@ def _mlp(Xtr, ytr, Xte, glu=True, H=48, epochs=400, lr=2e-3, wd=1e-4,
 
 def _cv(nom, pred_fn, X, y, plis=5, graine=0):
     from sklearn.model_selection import StratifiedKFold
-    accs, lls = [], []
+    accs = []
     skf = StratifiedKFold(n_splits=plis, shuffle=True, random_state=graine)
     for tr, te in skf.split(X, y):
         pred = pred_fn(X[tr], y[tr], X[te])

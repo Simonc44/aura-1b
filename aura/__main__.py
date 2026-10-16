@@ -23,7 +23,10 @@ import time
 from . import config as _config
 _config.appliquer()
 
-from .orchestrateur import RontoGPT
+# noqa: E402 — l'ordre est le PROPOS de ces trois lignes : `appliquer()` doit
+# avoir pose les AURA_* AVANT que l'orchestrateur (et tout ce qu'il importe)
+# ne les lise au moment de son import. Remonter cet import le casserait.
+from .orchestrateur import RontoGPT  # noqa: E402
 
 
 def _demo(ia: RontoGPT) -> int:

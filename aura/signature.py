@@ -138,9 +138,12 @@ def lire_bytes(brut: bytes) -> dict:
         raise ValueError("pas un bloc de signature RontoGPT (.sig)")
     version, t_id = struct.unpack("<BB", brut[4:6])
     off = 6
-    identite = brut[off:off + t_id].decode("utf-8", "replace"); off += t_id
-    cle_pub = brut[off:off + 32];                      off += 32
-    signature_o = brut[off:off + 64];                  off += 64
+    identite = brut[off:off + t_id].decode("utf-8", "replace")
+    off += t_id
+    cle_pub = brut[off:off + 32]
+    off += 32
+    signature_o = brut[off:off + 64]
+    off += 64
     if off != len(brut):
         raise ValueError("bloc .sig tronque ou invalide")
     return {"identite": identite, "cle_publique": cle_pub,

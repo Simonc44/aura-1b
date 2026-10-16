@@ -1,5 +1,4 @@
 """Chaine ADK (opt-in AURA_ADK=1) : modele local simule, sans GGUF ni reseau."""
-import pytest
 
 from aura import agents_adk
 from aura import llama_cerveau

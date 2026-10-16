@@ -233,8 +233,8 @@ def main(argv=None) -> int:
         except FileNotFoundError:
             pass
 
-    couverts = sum(1 for l in lignes if l["couvert"])
-    justes = sum(1 for l in lignes if l["ok"])
+    couverts = sum(1 for ligne in lignes if ligne["couvert"])
+    justes = sum(1 for ligne in lignes if ligne["ok"])
     print(f"{len(lignes)} questions en {duree:.1f} s "
           f"({compteurs['llm']} generation(s) tente(s), "
           f"{compteurs['web']} recherche(s))")
@@ -255,21 +255,21 @@ def main(argv=None) -> int:
         print(f"pas de reference ({_ATTENDU}) : relancer avec --baseline")
         return 2
 
-    attendu = {l["id"]: l for l in json.loads(
+    attendu = {ligne["id"]: ligne for ligne in json.loads(
         _ATTENDU.read_text(encoding="utf-8"))}
     ecarts = {"PERDU": [], "GAGNE": [], "CHANGE": [], "VALEUR": []}
-    for l in lignes:
-        a = attendu.get(l["id"])
+    for ligne in lignes:
+        a = attendu.get(ligne["id"])
         if a is None:
             continue
-        if a["couvert"] and not l["couvert"]:
-            ecarts["PERDU"].append(l)
-        elif l["couvert"] and not a["couvert"]:
-            ecarts["GAGNE"].append(l)
-        elif a["cerveau"] != l["cerveau"]:
-            ecarts["CHANGE"].append(l)
-        elif a["reponse"] != l["reponse"]:
-            ecarts["VALEUR"].append(l)
+        if a["couvert"] and not ligne["couvert"]:
+            ecarts["PERDU"].append(ligne)
+        elif ligne["couvert"] and not a["couvert"]:
+            ecarts["GAGNE"].append(ligne)
+        elif a["cerveau"] != ligne["cerveau"]:
+            ecarts["CHANGE"].append(ligne)
+        elif a["reponse"] != ligne["reponse"]:
+            ecarts["VALEUR"].append(ligne)
 
     print("-" * 74)
     for nom, sens in (("PERDU", "resolu -> LLM  (REGRESSION)"),
@@ -278,16 +278,16 @@ def main(argv=None) -> int:
                       ("VALEUR", "meme couche, autre reponse")):
         lot = ecarts[nom]
         print(f"{nom:7s} {len(lot):3d}   {sens}")
-        for l in lot[:12]:
-            print(f"          {l['id']:16s} {l['categorie']:11s} "
-                  f"{l['cerveau']:20s} {l['reponse'][:44]!r}")
+        for ligne in lot[:12]:
+            print(f"          {ligne['id']:16s} {ligne['categorie']:11s} "
+                  f"{ligne['cerveau']:20s} {ligne['reponse'][:44]!r}")
         if len(lot) > 12:
             print(f"          ... et {len(lot) - 12} autre(s)")
 
     if args.json:
         Path(args.json).write_text(
             json.dumps({"duree_s": round(duree, 1), "lignes": lignes,
-                        "ecarts": {k: [l["id"] for l in v]
+                        "ecarts": {k: [ligne["id"] for ligne in v]
                                    for k, v in ecarts.items()}},
                        ensure_ascii=False, indent=1), encoding="utf-8")
         print(f"-> {args.json}")

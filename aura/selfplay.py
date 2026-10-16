@@ -15,7 +15,6 @@ Différence avec rlss.py (questions/réponses de savoir) : ici ce sont des
 PROBLEMES a déduire, pas des faits a réciter. La recompense vient du
 verificateur exact : une énigme résolue prouve un raisonnement valide.
 """
-import itertools
 import json
 import logging
 import os
@@ -40,7 +39,9 @@ _CATEGORIES_FAIT = ("capitale de", "president de")
 def _faits_graphe(nb: int = 8) -> list[dict]:
     from . import graphe_faits
     try:
-        stats = graphe_faits.stats()
+        # Appel CONSERVE sans assignation : c'est un GARDE-FOU (si le graphe
+        # est illisible, le `except` renvoie []), pas une valeur a lire.
+        graphe_faits.stats()
     except Exception:
         return []
     triplets = []
@@ -76,7 +77,6 @@ def generer_enigme(nb_personnes: int = 3) -> dict | None:
     objets = random.sample(_OBJETS, nb_personnes)
 
     qui_va_ou = dict(zip(noms, lieux))
-    qui_prend_quoi = dict(zip(noms, objets))
 
     # indices : pour chaque personne, « X va au lieu » OU « X porte objet »
     lignes = []
@@ -89,8 +89,8 @@ def generer_enigme(nb_personnes: int = 3) -> dict | None:
             article = "l'" if objets[i][0] in "aeiou" else "le/la "
             lignes.append(f"{nom} porte {article}{objets[i]}.")
     # contrainte croisee : le lieu de la personne 0 n'est pas celui de la 1
-    lignes.append(f"Chaque personne va a un endroit different et porte "
-                  f"un objet different.")
+    lignes.append("Chaque personne va a un endroit different et porte "
+                  "un objet different.")
     # question : ou va la derniere personne ?
     cible = noms[-1]
     question = (f"Enigme logique : {' '.join(lignes)} Ou va {cible} ? "
@@ -170,8 +170,8 @@ def session(nb_defis: int | None = None, niveau: int = 1) -> dict:
                 paire = random.choice(faits)
                 try:
                     graphe_faits.renforcer(paire["s"], paire["o"])
-                except Exception:
-                    pass
+                except Exception as e:
+                    LOG.debug("[selfplay] renforcement du graphe ignore : %s", e)
         else:
             echecs += 1
             try:
@@ -179,8 +179,10 @@ def session(nb_defis: int | None = None, niveau: int = 1) -> dict:
                 autoamelioration.enregistrer_correction(
                     defi["question"], reponse.strip()[:120],
                     defi["attendu"], "math")
-            except Exception:
-                pass
+            except Exception as e:
+                # La correction perdue est un APPRENTISSAGE perdu : c'est le
+                # seul interet de la session, donc ce n'est pas silencieux.
+                LOG.warning("[selfplay] correction non enregistree : %s", e)
 
     bilan = {"defis": succes + echecs, "succes": succes, "echecs": echecs,
              "taux": round(succes / max(succes + echecs, 1), 2),

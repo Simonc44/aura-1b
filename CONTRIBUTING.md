@@ -50,16 +50,17 @@ Open a **Feature request** issue and describe:
 
 ```bash
 # 1. Fork & clone your fork
-git clone git@github.com:<you>/aura-1b.git
-cd aura-1b
+git clone git@github.com:<you>/rontogpt.git
+cd rontogpt
 
 # 2. Environment (uv is the reference, plain venv works too)
 uv sync
 python scripts/telecharger_llama.py        # optional: 807 MB brain
 
-# 3. Quality gates — all three must pass before you push
-uv run pytest -q        # 173 tests
-uv run mypy aura/       # 0 error
+# 3. Quality gates — all four must pass before you push
+uv run pytest -q        # 1152 tests
+uv run mypy aura/       # 0 error (73 files)
+uv run ruff check .     # 0 violation (cible py311)
 ```
 
 ### Branch naming & commits
@@ -75,11 +76,17 @@ uv run mypy aura/       # 0 error
 - Fill the PR template (it checks the three gates for you).
 - Keep PRs focused — one feature or one fix; link the issue it closes.
 - CI runs the full matrix (Ubuntu + Windows × Python 3.11/3.12) plus the
-  `.aef` chain; a red CI is fine, we debug together.
+  `.aef` chain, the typing invariant (`mypy`), ruff and the TUI typecheck;
+  a red CI is fine, we debug together.
 
 ### Code style
 
 - Python 3.11+, fully type-annotated (mypy-clean is enforced by config).
+- **3.11 is the floor and ruff enforces it** (`target-version = "py311"`).
+  A 3.12-only syntax is refused even if your machine runs 3.12 — that is how
+  `aura/llama_cerveau.py` stayed unparseable for every 3.11 user.
+- Ruff (default rules: E4/E7/E9/F) is enforced by CI; it flags errors, not
+  style. Add `# noqa: <rule>` with a reason only for a real false positive.
 - French is the language of the codebase (docstrings, comments, log
   messages, without accents for portability); English for the README and
   user-facing docs.
@@ -91,12 +98,15 @@ uv run mypy aura/       # 0 error
 
 ## 🧪 Testing your change
 
-- `pytest -q` locally (with the GGUF if you have it: 173 tests; without:
+- `pytest -q` locally (with the GGUF if you have it: 1152 tests; without:
   the big-brain tests skip themselves — CI covers that path).
+- The suite runs in a **random order** (`pytest-randomly`): a test that only
+  passes because another ran before it is a bug in the test, not bad luck.
 - For routing changes: run a small live quiz and paste the before/after in
   the PR. Measurements beat opinions.
 
 ## 📄 License
 
 By contributing, you agree that your contributions will be licensed under
-the [MIT License](LICENSE) that covers the project.
+the [GPL-3.0-or-later License](LICENSE) that covers the project. (The repo
+used to ship a contradictory `LICENSE.mit.txt`; it has been removed.)

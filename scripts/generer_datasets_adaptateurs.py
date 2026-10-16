@@ -13,7 +13,6 @@ Usage :
 """
 import json
 import random
-import re
 from datetime import date, timedelta
 from pathlib import Path
 

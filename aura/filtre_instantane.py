@@ -427,8 +427,9 @@ def _charger_cache():
         return
     if _FICHIER.exists():
         try:
-            _entrees = [json.loads(l) for l in
-                        _FICHIER.read_text(encoding="utf-8").splitlines() if l.strip()]
+            _entrees = [json.loads(ligne) for ligne in
+                        _FICHIER.read_text(encoding="utf-8").splitlines()
+                        if ligne.strip()]
         except (OSError, json.JSONDecodeError):
             _entrees = []
     # PURGE DES CALCULS (fix bug 2) : une question que le calcul exact sait

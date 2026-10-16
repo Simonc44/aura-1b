@@ -141,8 +141,10 @@ def session(nb: int | None = None) -> dict:
                 from . import autoamelioration
                 autoamelioration.enregistrer_correction(
                     question, reponse.strip()[:120], attendu, categorie)
-            except Exception:
-                pass
+            except Exception as e:
+                # La correction perdue est un APPRENTISSAGE perdu : c'est le
+                # seul interet de la session, donc ce n'est pas silencieux.
+                LOG.warning("[rlss] correction non enregistree : %s", e)
 
     bilan = {"exercices": succes + echecs, "succes": succes, "echecs": echecs,
              "dataset": _SORTIE.stat().st_size // 1024 if _SORTIE.is_file() else 0,

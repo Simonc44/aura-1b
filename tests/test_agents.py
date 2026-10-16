@@ -8,7 +8,6 @@
 
 Plus : integration orchestrateur + failsafe (AURA_AGENTS=0).
 """
-import pytest
 
 from aura import agents
 from aura.orchestrateur import RontoGPT

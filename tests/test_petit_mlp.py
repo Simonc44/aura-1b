@@ -42,8 +42,10 @@ def test_gradient_analytique_vs_finies():
             flat, g = arr.ravel(), grads[nom].ravel()
             for i in rng.choice(flat.size, size=min(8, flat.size), replace=False):
                 o = flat[i]
-                flat[i] = o + eps; lp = perte()
-                flat[i] = o - eps; lm = perte()
+                flat[i] = o + eps
+                lp = perte()
+                flat[i] = o - eps
+                lm = perte()
                 flat[i] = o
                 num = (lp - lm) / (2 * eps)
                 denom = max(abs(num), abs(g[i]), 1e-8)

@@ -45,6 +45,18 @@ if TYPE_CHECKING:       # jamais importe au runtime : la memoire n'est qu'un typ
 # le dict n'en est qu'une projection locale.
 from . import echantillonnage as _echantillonnage
 
+# POST-TRAITEMENT DU TEXTE GENERE : dans son propre module. Ces fonctions
+# PURES (disjoncteur anti-repetition + canalisation) vivaient ici, au milieu
+# du chargement du modele. Elles sont REEXPORTEES : l'espace de noms reste
+# l'API historique (`llama_cerveau._en_boucle(...)` marche toujours, tests
+# compris) et un monkeypatch de ces noms sur CE module est bien vu par les
+# appels ci-dessous, qui les resolvent dans cet espace de noms.
+from .post_traitement import (  # noqa: F401
+    _PAS_FRAGMENT, _SEUIL_FRAGMENT, _SEUIL_NB_NGRAM, _SEUIL_NB_PHRASES,
+    _SEUIL_PHRASE, _couper_boucle, _deja_dit, _en_boucle, _finir_phrase,
+    _parrotage, _phrases, _sans_doublons, _sans_libelles, _sans_parrotage,
+)
+
 LOG = logging.getLogger("aura.llama")
 
 _DOSSIER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -175,8 +187,11 @@ if os.environ.get("AURA_CONFIG"):
         import json as _json
         _cfg = _json.loads(os.environ["AURA_CONFIG"])
         _CHEMIN_GGUF = _cfg.get("chemin_gguf", _CHEMIN_GGUF)
-    except Exception:
-        pass
+    except Exception as e:
+        # Le .aef transporte ses reglages : s'il est illisible, on retombe sur
+        # les defauts du code. Le dire, sinon le cerveau change de chemin ou de
+        # fenetre sans que rien ne l'explique.
+        LOG.warning("[config] AURA_CONFIG illisible, defauts du code : %s", e)
 
 
 def _reglages_materiel() -> dict:
@@ -187,8 +202,8 @@ def _reglages_materiel() -> dict:
             reg = pm.reglages_optimaux()
             LOG.info("[profil] auto-tuning local : %s", reg)
             return reg
-        except Exception:
-            pass
+        except Exception as e:
+            LOG.debug("[profil] auto-tuning local indisponible : %s", e)
     try:
         import json as _json
         cfg = _json.loads(os.environ.get("AURA_CONFIG", "{}"))
@@ -200,8 +215,8 @@ def _reglages_materiel() -> dict:
                                                cfg.get("n_threads", 4)),
                     "flash_attn": cfg.get("flash_attn", True),
                     "type_kv": cfg.get("type_kv", 8)}
-    except Exception:
-        pass
+    except Exception as e:
+        LOG.debug("[config] reglages du .aef illisibles : %s", e)
     # ni .aef ni tuning : profil de la machine locale
     try:
         from . import profil_materiel as pm
@@ -239,20 +254,6 @@ _llm = None
 # _charger() depuis plusieurs threads ; sans ce verrou, deux appels simultanes
 # construisaient DEUX modeles (~600 Mo chacun) et la memoire doublait.
 _verrou_chargement = threading.Lock()
-
-# ── POST-TRAITEMENT DU TEXTE GENERE : desormais dans son propre module ──
-# ~290 lignes de fonctions PURES (disjoncteur anti-repetition + canalisation)
-# vivaient ici, au milieu du chargement du modele. Elles sont dans
-# `aura/post_traitement.py` et REEXPORTEES ici pour que rien ne change pour
-# les appelants : `llama_cerveau._en_boucle(...)` continue de marcher (tests
-# compris) et un monkeypatch de ces noms sur CE module est bien vu par les
-# appels ci-dessous, qui les resolvent dans cet espace de noms.
-from .post_traitement import (  # noqa: F401
-    _PAS_FRAGMENT, _SEUIL_FRAGMENT, _SEUIL_NB_NGRAM, _SEUIL_NB_PHRASES,
-    _SEUIL_PHRASE, _couper_boucle, _deja_dit, _en_boucle, _finir_phrase,
-    _parrotage, _phrases, _sans_doublons, _sans_libelles, _sans_parrotage,
-)
-
 
 
 def flux_demande() -> bool:
@@ -391,7 +392,8 @@ def _couches_gpu() -> int:
         return 0
     try:
         import importlib
-        llama_cpp = importlib.import_module("llama_cpp")
+        # Importer `llama_cpp.llama_cpp` importe deja le paquet parent :
+        # la ligne `llama_cpp = import_module("llama_cpp")` etait morte.
         llama_cpp2 = importlib.import_module("llama_cpp.llama_cpp")
         # un build GPU expose ces fonctions C ; un build CPU pur, non
         if not (hasattr(llama_cpp2, "ggml_backend_cuda_init")
@@ -478,6 +480,31 @@ def _draft_model():
         return None
 
 
+# PRECHAUFFAGE (AURA_PRECHUFFAGE=0 pour couper) : la TOUTE PREMIERE
+# generation qui suit le chargement d'un modele sort fausse. Mesure sur le
+# cerveau par defaut (Gemma 3 1B) : « Quelle est la capitale de la France ? »
+# renvoie une auto-description au 1er appel, puis « Paris » a tous les
+# suivants — 5 processus sur 5. Le cache KV (SWA) n'est pas encore amorce.
+# On paie donc une generation minuscule, jetee, pour que la PREMIERE question
+# de l'utilisateur tombe deja sur un modele chaud. Le chemin serveur fait
+# deja ce prechauffage (serveur_lora.rechauffer, appele par l'API et la GUI).
+def _prechauffer(modele, t0: float) -> None:
+    """Une generation minuscule et jetee, pour amorcer le cache du modele."""
+    if os.environ.get("AURA_PRECHUFFAGE", "1") == "0":
+        return
+    t1 = time.time()
+    try:
+        modele.create_chat_completion(
+            messages=[{"role": "user", "content": "Bonjour"}],
+            max_tokens=1, temperature=0.0)
+    except Exception as e:
+        # Un prechauffage qui echoue ne doit JAMAIS empecher le chargement.
+        LOG.debug("prechauffage ignore : %s", e)
+        return
+    LOG.info("prechauffage du cerveau en %.1fs (chargement %.1fs)",
+             time.time() - t1, t1 - t0)
+
+
 def _charger():
     global _llm
     # Double verification SOUS verrou : le 1er appel charge (2-3 s), les appels
@@ -532,9 +559,15 @@ def _charger():
             # llama-cpp-python anterieure a l'architecture du fichier
             # (0.3.2 ne connait pas `gemma3`). On nomme la famille lue, la
             # version installee, et la commande qui repare.
+            # Le nom de famille est calcule AVANT la f-string : un saut de
+            # ligne a l'interieur d'un champ `{...}` n'est legal qu'a partir
+            # de Python 3.12 (PEP 701). Ce fichier est declare compatible
+            # 3.11 (`requires-python`), ou cette forme est une ERREUR DE
+            # SYNTAXE — le module entier ne se compilait plus sous 3.11.
+            nom_famille = famille() or "famille inconnue"
             raise RuntimeError(
-                f"chargement du cerveau impossible ({famille() or 'famille '
-                'inconnue'} : {os.path.basename(_CHEMIN_GGUF)}) : {e}\n"
+                f"chargement du cerveau impossible ({nom_famille} : "
+                f"{os.path.basename(_CHEMIN_GGUF)}) : {e}\n"
                 "Si l'architecture est recente (gemma3), la version de "
                 "llama-cpp-python est trop ancienne :\n"
                 "    pip install --extra-index-url "
@@ -547,6 +580,7 @@ def _charger():
                  famille() or "?", time.time() - t0,
                  os.path.basename(_CHEMIN_GGUF), couches_gpu,
                  "on" if modele.draft_model is not None else "off")
+        _prechauffer(modele, t0)
         return modele
 
 
@@ -880,8 +914,9 @@ def _compter_tokens(llm, texte: str) -> int:
         try:
             return max(1, len(llm.tokenize(texte.encode("utf-8"),
                                            add_bos=False)))
-        except Exception:
-            pass
+        except Exception as e:
+            LOG.debug("[tokens] tokenizer indisponible, estimation 3 car/token"
+                      " : %s", e)
     return max(1, len(texte) // 3)
 
 

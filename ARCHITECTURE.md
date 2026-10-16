@@ -139,7 +139,7 @@ pas sa source : le lire pour connaître l'ordre exact.
 | **Budget 45 s / échéance** | Cadre la latence | **« riche » fait 37–40 s / 250 mots** → les KO « court » viennent de là | Arbitrage produit explicite : longueur vs latence, par catégorie |
 | **Disjoncteur anti-boucle** | Coupe une boucle pendant le flux | N'existe que sur le chemin in-process (corrigé côté serveur par DRY) | Unifier |
 | **`banc_100`** | 8 catégories, contrôle strict par nombre/mots | **13,7 h**, variance ±1-2, latences corrompues (`21675 s`), attribution manuelle | Sous-banc déterministe (~60 q, secondes) en garde-fou + banc long manuel |
-| **`pytest` 1146 + `mypy`** | Filet réel, **73 modules typés, 0 erreur** [`§3septies`](#3septies-orchestrateur-éclaté-aiguilleur-nommé-et-ci-qui-vérifie-16-oct-2026) | `mypy` passe mais **ne vérifie pas les corps non typés** (`annotation-unchecked`) | Activer `--check-untyped-defs` sur le cœur |
+| **`pytest` 1152 + `mypy`** | Filet réel, **73 modules typés, 0 erreur** [`§3septies`](#3septies-orchestrateur-éclaté-aiguilleur-nommé-et-ci-qui-vérifie-16-oct-2026) | `mypy` passe mais **ne vérifie pas les corps non typés** (`annotation-unchecked`) | Activer `--check-untyped-defs` sur le cœur |
 | **Ordre des tests aléatoire** | Un état partagé entre tests ne peut plus se cacher dans l'ordre alphabétique des fichiers | Latence de suite plus variable ; le seed n'est pas figé (on ne rejoue pas le même ordre) | — |
 | **`.aef` scellé** | Distribution en un fichier, intègre config, code et GGUF | Le GGUF reste aussi extrait dans `.cache_aef/cerveau.gguf` : le `.aef` et le cache occupent chacun l'espace des poids | Le format ne compresse pas les poids ; choisir le cerveau et quantifier le GGUF déterminent la taille |
 | **Python 3.12 + uv** | Dépendances propres, venv rapide | — | Aucun : les solveurs sont à 0–5 ms, Rust n'apporterait rien |
@@ -534,6 +534,120 @@ l'espace de noms reste l'API historique — `llama_cerveau._en_boucle(...)` et
 les monkeypatches des tests continuent de fonctionner. Le module de cerveau
 est passé de 1 885 à 1 612 lignes, sans une ligne réécrite (le bloc déplacé
 est **verbatim**, ce qui est vérifiable dans le diff).
+
+---
+
+## 3octies. Le projet ne compilait pas sous Python 3.11 (16 oct. 2026)
+
+C'est la trouvaille la plus grave de cette passe, et rien ne l'avait vue.
+
+### Une f-string a rendu le dépôt inutilisable sous le Python annoncé
+
+`aura/llama_cerveau.py` levait un **`SyntaxError`** sous **Python 3.11** : un
+saut de ligne à l'intérieur d'un champ `{...}` de f-string, autorisé seulement
+depuis **3.12** (PEP 701). Or `pyproject.toml` annonce `requires-python =
+">=3.11"` et la matrice de CI teste 3.11. Sous 3.11, `llama_cerveau` — importé
+par tout le pipeline — ne se compilait pas : **aucun utilisateur en 3.11 ne
+pouvait lancer RontoGPT**.
+
+Pourquoi personne ne le voyait :
+
+* la CI **ne se lisait même pas** (cf. §3septies), donc sa matrice 3.11
+  n'avait jamais tourné ;
+* `mypy aura/` dit **0 erreur** — mais il analyse en 3.12
+  (`python_version = "3.12"`), et ne peut pas descendre en 3.11 : les stubs de
+  **numpy** utilisent `type X = ...` (PEP 695), que mypy refuse de lire sous
+  3.11. Ce n'est donc pas mypy qui garde la compatibilité ;
+* `ast.parse(feature_version=(3, 11))` ne l'attrape pas non plus : la
+  tokenisation des f-strings (le cœur de PEP 701) lui échappe.
+
+Vérifié avec un **vrai interpréteur** : `uv python install 3.11` puis
+`compile()` sur les **196** fichiers — 1 en échec avant, **0 après**.
+
+### Deux nouveaux garde-fous, parce qu'un seul ne suffisait pas
+
+| Garde-fou | Ce qu'il attrape |
+|---|---|
+| Job CI **`compat-311`** | `python -m compileall` avec le **vrai** interpreteur 3.11 : aucune dépendance à installer, quelques secondes, et il couvre les 196 fichiers |
+| Job CI **`lint`** (ruff) | `target-version = "py311"` refuse toute syntaxe plus recente. C'est **ruff** qui a trouvé celle-ci, en `invalid-syntax` |
+
+Le jeu de règles ruff est celui **par défaut** (E4/E7/E9 + F) : il ne juge pas
+le style, il attrape des erreurs (nom indéfini, import mort, variable jamais
+lue, `except` nu). Pas de `E501` : une ligne longue n'est pas un bug.
+**148 violations** ramenées à **0** — dont 44 corrections automatiques, le
+reste à la main (`;` éclatés, `l` renommés, variables mortes retirées).
+
+### La correction automatique a cassé 71 tests — et c'est le filet qui l'a dit
+
+`ruff --fix` a supprimé les imports « inutilisés » de `aura/orchestrateur.py`.
+Or plusieurs de ces noms ne servent **pas** dans ce fichier : ils SONT son API
+(`orch.llama_cerveau`, `orch.agents`, `orch._est_redaction`…), lue par les
+tests et les extensions. Le dépôt annotait déjà les autres
+`# noqa: F401 (reexport)` — les non annotés sont partis.
+
+**71 tests d'un coup**, tous sur la même cause. Réparés en restaurant les
+exports avec la convention du module. Le `--fix` de ruff ne distingue pas un
+import mort d'un ré-export : c'est un nettoyage à relire, pas à subir.
+
+### La toute première génération était fausse
+
+Mesuré sur le cerveau par défaut (Gemma 3 1B) : « Quelle est la capitale de la
+France ? » renvoie une **auto-description** au tout premier appel après le
+chargement, puis « Paris » à tous les suivants — **5 processus sur 5**. Le
+cache KV (SWA) n'est pas encore amorcé.
+
+Conséquence en clair : la toute première question d'un utilisateur qui vient
+de lancer RontoGPT pouvait tomber sur une réponse absurde. Conséquence en
+test : `test_reponse_fr` **échouait 5/5 en isolation** et ne passait que
+parce que ~1 100 tests avaient chauffé le modèle avant lui. Son vert était un
+**artefact d'ordre**, pas une propriété du code.
+
+`_charger` paie maintenant une génération minuscule et jetée
+(`AURA_PRECHUFFAGE=0` pour couper, jamais bloquant en cas d'échec), comme le
+chemin serveur le faisait déjà (`serveur_lora.rechauffer`). Vérifié :
+première génération d'un processus neuf → « Paris » 3/3, et `test_reponse_fr`
+3/3 en isolation. `tests/test_prechauffage.py` verrouille l'**ordre** :
+publication du modèle → préchauffage → retour à l'appelant.
+
+### Licence : deux textes contradictoires, et aucune métadonnée
+
+`LICENSE` était en **GPL-3.0**, `LICENSE.mit.txt` en **MIT**, et
+`CONTRIBUTING.md` annonçait « the MIT License (LICENSE) ». La wheel ne
+déclarait **aucune licence** (`pip show` muet) et **aucune description
+longue**.
+
+Arbitrage : **GPL-3.0-or-later**, celle du fichier `LICENSE`. `LICENSE.mit.txt`
+supprimé, `CONTRIBUTING.md` corrigé, métadonnées ajoutées (`license`,
+`license-files`, `authors`, `readme`, `[project.urls]`). `twine check` passe
+**sans avertissement** (il en produisait 2) : la wheel porte
+`License-Expression: GPL-3.0-or-later` et 28 027 caractères de description.
+
+### Dépendances : 5 avis de sécurité → 1, et un job pour surveiller
+
+`urllib3` figé en `2.7.0` portait **3 avis** corrigés en `2.8.0` : monté.
+Reste `diskcache 5.6.3` (tiré par `llama-cpp-python`) : **aucun correctif
+publié**, donc accepté et **écrit noir sur blanc** dans le job `securite`
+(`--ignore-vuln` commenté), plutôt que toléré en silence.
+
+### Les échecs silencieux parlent
+
+**19** emplacements `except Exception: pass` — les 11 fichiers concernés —
+taisaient l'erreur. Ce sont pour la plupart des replis **voulus** (option
+absente, machine sans tel fichier) : ils passent en `LOG.debug`. Trois
+méritaient mieux et le disent : `AURA_CONFIG` illisible (`warning`, le
+cerveau changerait de chemin ou de fenêtre sans explication), correction
+d'auto-apprentissage perdue (`warning`, c'est le seul intérêt d'une session
+de self-play), et libération d'adaptateur LoRA échouée (`warning` — le log
+voisin annonçait « libéré de la mémoire » alors que le `free` avait levé).
+
+### Et une recommandation que j'ai RETIRÉE
+
+J'avais proposé de sortir `resultats/` du dépôt (30 fichiers, 540 Ko).
+**C'était une erreur** : ces fichiers sont la **preuve** des chiffres annoncés
+— `docs/BASELINE_2026-10-11.md` y renvoie par 8 liens, `README.fr.md` cite
+`gsm8k_aura/NOTE_cerveau_raisonneur_R1.md`, et `aura/aiguilleur.py` renvoie à
+`BILAN_HONNETE_20261011.md` pour un taux mesuré. Les retirer casserait la
+traçabilité que ce dépôt revendique, pour 540 Ko. **Rien n'a été supprimé.**
 
 ---
 

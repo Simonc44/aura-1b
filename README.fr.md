@@ -494,20 +494,26 @@ Deux contraintes supplémentaires, par conception :
 ## 🧪 Tests & qualité
 
 ```bash
-uv run pytest -q        # 1146 tests collectés (1145 passent ; 1 se saute seul : les
-                        # adaptateurs du disque ne sont plus des deltas Llama)
+uv run pytest -q        # 1152 tests collectés (1149 passent ; 3 se sautent seuls : les
+                        # adaptateurs du disque ne sont plus des deltas Llama, et 2
+                        # exigent le paquet optionnel lm_eval)
 uv run mypy aura/       # 0 erreur (73 fichiers)
+uv run ruff check .     # 0 violation (cible py311)
 ```
 
 Un décompte de tests devient faux dès qu'un test est ajouté : le nombre
 ci-dessus est celui **mesuré sur ce HEAD** — `pytest --collect-only -q`
 affiche le chiffre courant.
 
-La CI (GitHub Actions) tourne sur **Ubuntu + Windows** (Python 3.11/3.12),
-revalide toute la chaîne `.aef` (forge → signature Ed25519 → boot → détection
-d'altération) sur Linux, vérifie la syntaxe de l'installeur PowerShell et
-fait respecter l'invariant de typage (`mypy aura/`, sur la même version de
-mypy que le badge).
+La CI (GitHub Actions) lance **huit jobs** : la suite sur **Ubuntu + Windows**
+(Python 3.11/3.12) ; toute la chaîne `.aef` (forge → signature Ed25519 → boot →
+détection d'altération) sur Linux ; **ruff** (règles par défaut,
+`target-version = py311`, donc une syntaxe réservée à 3.12 est refusée) ; un
+**garde-fou 3.11** (`compileall` avec le vrai interpréteur, soit la plus ancienne
+version annoncée) ; **`mypy aura/`** ; un **`pip-audit`** sur les versions
+figées ; la syntaxe de l'installeur PowerShell ; et le **typecheck de la TUI**
+(`tsc --noEmit`). Les dépendances viennent des **métadonnées du projet**
+(`uv sync --frozen`), jamais d'une liste recopiée.
 
 ## 📄 Licence
 

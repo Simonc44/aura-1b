@@ -24,7 +24,6 @@ Cycle de vie (AURA_SERVEUR=1 pour activer) :
 import json
 import logging
 import os
-import shutil
 import subprocess
 import threading
 import time
@@ -355,15 +354,15 @@ def _n_ctx() -> int:
     if os.environ.get("AURA_TUNING"):
         try:
             return int(pm.reglages_optimaux()["n_ctx"])
-        except Exception:
-            pass
+        except Exception as e:
+            LOG.debug("[serveur] auto-tuning local indisponible : %s", e)
     try:
         import json as _json
         cfg = _json.loads(os.environ.get("AURA_CONFIG", "{}"))
         if cfg.get("n_ctx"):
             return int(cfg["n_ctx"])
-    except Exception:
-        pass
+    except Exception as e:
+        LOG.debug("[serveur] n_ctx du .aef illisible : %s", e)
     try:
         return int(pm.reglages_optimaux()["n_ctx"])
     except Exception:

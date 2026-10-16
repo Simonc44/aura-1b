@@ -444,18 +444,24 @@ Two more constraints, by design:
 ## 🧪 Tests & quality
 
 ```bash
-uv run pytest -q        # 1146 tests collected (1145 pass; 1 self-skips: the adapters
-                        # on disk are no longer Llama deltas — cf. test_couplage)
+uv run pytest -q        # 1152 tests collected (1149 pass; 3 self-skip: the adapters
+                        # on disk are no longer Llama deltas — cf. test_couplage —
+                        # and 2 need the optional lm_eval package)
 uv run mypy aura/       # 0 error (73 files)
+uv run ruff check .     # 0 violation (target py311)
 ```
 
 Test counts go stale the moment a test is added, so the number above is the
 one measured on this HEAD — `pytest --collect-only -q` prints the live one.
 
-CI (GitHub Actions) runs on **Ubuntu + Windows** (Python 3.11/3.12), re-validates
-the whole `.aef` chain (forge → Ed25519 signature → boot → tamper detection)
-on Linux, syntax-checks the PowerShell installer, and enforces the typing
-invariant (`mypy aura/`, on the same mypy version as this badge).
+CI (GitHub Actions) runs **eight jobs**: the suite on **Ubuntu + Windows**
+(Python 3.11/3.12); the whole `.aef` chain (forge → Ed25519 signature → boot →
+tamper detection) on Linux; **ruff** (default rules, `target-version = py311`,
+so a 3.12-only syntax is refused); a **Python 3.11 gate** (`compileall` with the
+real interpreter — the oldest version the project claims); **`mypy aura/`**; a
+**`pip-audit`** pass over the frozen versions; the PowerShell installer syntax;
+and the **TUI typecheck** (`tsc --noEmit`). Every dependency comes from the
+**project metadata** (`uv sync --frozen`), never from a hand-copied list.
 
 </details>
 

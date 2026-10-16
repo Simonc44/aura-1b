@@ -23,8 +23,11 @@ _RACINE = Path(__file__).resolve().parent.parent
 if str(_RACINE / "scripts") not in sys.path:
     sys.path.insert(0, str(_RACINE / "scripts"))
 
+# noqa: E402 — ces imports viennent APRES l'ajout de `scripts/` au path :
+# les tests du banc importent `banc_100` depuis la. Les remonter casserait
+# le cas 2 (« non-regression sur le banc »).
 from aura import clarification as C  # noqa: E402
-from aura import llama_cerveau
+from aura import llama_cerveau  # noqa: E402
 
 
 # ── 1. la detection ---------------------------------------------------------

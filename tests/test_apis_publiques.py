@@ -247,7 +247,7 @@ class TestOrchestrateur:
         toute generation inattendue leve une assertion claire.
         """
         from aura import (agents, calcul_verbal, fast_lang,
-                          filtre_instantane, llama_cerveau, memoire_web,
+                          filtre_instantane, memoire_web,
                           rag_binaire)
         from aura.orchestrateur import RontoGPT
         from aura import cache_reponses
@@ -341,7 +341,7 @@ class TestOrchestrateur:
 
     def test_pipeline_api_survit_au_compresseur(self, monkeypatch, tmp_path):
         """API + web long : la ligne de donnees passe APRES le top-3."""
-        from aura import agents, llama_cerveau
+        from aura import llama_cerveau
         from aura.orchestrateur import RontoGPT
         self._isole_pipeline(monkeypatch)
         # Reseau coupe : les API publiques ne doivent jamais repondre a la place

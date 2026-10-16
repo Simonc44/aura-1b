@@ -176,3 +176,96 @@ jobs:
             exit 1
           }
           Write-Host "Syntaxe de l'installeur : OK"
+
+  # RUFF fait deux choses d'un coup. Le jeu de regles par DEFAUT attrape des
+  # ERREURS (nom indefini, import mort, variable jamais lue, except nu), et
+  # surtout `target-version = "py311"` REFUSE toute syntaxe plus recente que
+  # le Python annonce par `requires-python`. C'est exactement la classe de bug
+  # que mypy ne PEUT PAS voir (ses stubs numpy exigent 3.12) : une f-string
+  # multiligne avait rendu `aura/llama_cerveau.py` incompilable pour tout
+  # utilisateur en 3.11, sans qu'aucun controle ne s'en apercoive.
+  lint:
+    name: ruff (erreurs + compatibilite py311)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Dependances (metadonnees du projet, groupe dev inclus)
+        run: uv sync --frozen
+
+      - name: ruff check .
+        run: uv run --frozen ruff check .
+
+  # LE PLANCHER DE VERSION, verifie sur le plus ancien Python annonce.
+  # `compileall` ne demande AUCUNE dependance : en quelques secondes il
+  # prouve que tous les fichiers se laissent au moins PARSER par 3.11. Ruff
+  # ne le remplace pas — il lit la grammaire de sa propre facon, alors que
+  # ce job utilise le vrai interpreteur.
+  compat-311:
+    name: Python 3.11 (le plancher annonce)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Tous les .py compilent sous 3.11
+        run: python -m compileall -q aura rontogpt tests scripts
+
+  # AVIS DE SECURITE connus sur les versions FIGEES du verrou. Une dependance
+  # qui gagne un avis fait echouer ce job, et c'est voulu : c'est le moment de
+  # decider. Un seul avis est accepte aujourd'hui, `diskcache` (tire par
+  # llama-cpp-python) : AUCUNE version corrective n'est publiee, et le retirer
+  # voudrait dire retirer le moteur du cerveau. Le jour ou un correctif sort,
+  # retirer le --ignore-vuln et monter de version.
+  securite:
+    name: Dependances figees (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Dependances (metadonnees du projet)
+        run: uv sync --frozen
+
+      - name: pip-audit (versions figees, avis corriges inclus)
+        run: |
+          uvx --from pip-audit==2.10.1 pip-audit \
+            --path .venv/lib/python3.12/site-packages \
+            --ignore-vuln PYSEC-2026-2447
+
+  # La TUI est du TypeScript, et son package.json declare `check: tsc
+  # --noEmit` depuis toujours — mais AUCUNE CI ne l'appelait. Il passait donc
+  # seulement parce que personne ne le lancait : le meme genre de faux
+  # invariant que le badge mypy avant.
+  tui:
+    name: TUI TypeScript (tsc --noEmit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # `npm ci` et non `bun install` : le VERROU versionne du dossier tui/
+      # est package-lock.json. Le postinstall de `bun` (devDependency) est
+      # ignore par npm 11, ce qui est sans effet ici : on ne veut que `tsc`.
+      - name: Installer (verrou npm)
+        working-directory: tui
+        run: npm ci
+
+      - name: tsc --noEmit
+        working-directory: tui
+        run: npm run check

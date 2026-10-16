@@ -114,8 +114,8 @@ def verifier_code(code: str, budget: int = _BUDGET_INSTRUCTIONS) -> dict:
     fn = env.get("resoudre")
     if not callable(fn):
         raise ValueError("fonction resoudre absente")
-    nb_asserts = sum(1 for l in code.splitlines()
-                     if l.strip().startswith("assert "))
+    nb_asserts = sum(1 for ligne in code.splitlines()
+                     if ligne.strip().startswith("assert "))
     if nb_asserts == 0:
         raise ValueError("aucun assert fourni")
     LOG.info("[potcode] code valide : %d asserts passes", nb_asserts)

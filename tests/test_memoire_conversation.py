@@ -64,7 +64,7 @@ class TestFenetreGlissante:
         f = memoire.fenetre()
         assert len(f) == 8                       # 4 tours = 8 messages
         assert f[-1]["content"] == "a9"          # le plus recent au bout
-        assert all(t["content"] not in (f"u0", f"a0") for t in f[:2])
+        assert all(t["content"] not in ("u0", "a0") for t in f[:2])
 
     def test_vider_keeps_fichier(self, memoire):
         memoire.ajouter("user", "secret : PIN-1234")

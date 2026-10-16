@@ -24,11 +24,17 @@ import os
 import time
 
 
-from . import expert_symbolique, memoire_web, filtre_instantane
+# REEXPORTS (convention du module : `# noqa: F401 (reexport)`). Ces noms ne
+# servent PAS dans ce fichier, mais ils SONT son API : les tests et les
+# extensions les lisent en `orch.<nom>` ou `orchestrateur.<nom>`. Les
+# supprimer casse 71 tests a l'import — c'est arrive en nettoyant les imports
+# "inutilises", et rien d'autre ne l'aurait signale.
+from . import memoire_web  # noqa: F401 (reexport)
+from . import llama_cerveau  # noqa: F401 (reexport)
+from . import agents  # noqa: F401 (reexport)
+from . import expert_symbolique, filtre_instantane
 from . import clarification
-from . import llama_cerveau
 from . import arbre_reflexion
-from . import agents
 from .memoire_conversation import MemoireConversation
 from .routeur import RouteurIntelligent
 from .experts_rontogpt import ExpertsMixin, _SEUIL_CONFIANCE  # noqa: F401 (reexport)
@@ -39,7 +45,8 @@ from .pipeline_rontogpt import PipelineMixin
 from .regles_reponse import (  # noqa: F401 -- reexportes : lus par les tests via orch.*
     _BRIBE, _RE_REFUS, _CAPACITE, _IDENTITE, _est_bribe, _est_meta_ia, _est_refus, _recopie,
     _repli_extractif, _reponse_temps, _retirer_refus_tete)
-from .detection_demande import _SYSTEME_REDACTION, _cle_reponse_pot, _est_redaction
+from .detection_demande import (  # noqa: F401 -- reexportes : lus via orch.*
+    _SYSTEME_REDACTION, _cle_reponse_pot, _est_redaction)
 
 LOG = logging.getLogger("aura.orchestrateur")
 

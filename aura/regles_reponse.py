@@ -284,8 +284,8 @@ def _reste_substantiel(texte: str) -> bool:
     # reponse).
     if not texte:
         return False
-    reste = "\n".join(l for l in texte.splitlines()
-                       if not _RE_LIGNE_SOURCE.match(l.strip()))
+    reste = "\n".join(ligne for ligne in texte.splitlines()
+                       if not _RE_LIGNE_SOURCE.match(ligne.strip()))
     return bool(reste.strip())
 
 

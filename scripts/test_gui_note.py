@@ -98,7 +98,6 @@ def main() -> int:
     if resultat["err"]:
         print("ERREUR chargement cerveau :", resultat["err"])
         return 1
-    ia = resultat["ia"]
     print("Cerveau charge dans la GUI en", round(time.time() - t0, 1), "s")
     fen.update()
 
@@ -152,14 +151,12 @@ def main() -> int:
         if i == len(questions) - 1:
             capture("gui_finale.png")
 
-    dt_total = time.time() - t0
     n = len(questions)
 
     # ---- epreuve d'ecriture, meme regle que le benchmark ----
     PROMPT_ECRITURE = ("redige un court paragraphe (4 phrases environ) "
                        "expliquant pourquoi l'eau est essentielle a la "
                        "vie sur terre")
-    avant_ecr = fen._journal.get("1.0", "end")
     fen._saisie.delete(0, "end")
     fen._saisie.insert(0, PROMPT_ECRITURE)
     fen._envoyer()

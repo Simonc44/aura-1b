@@ -59,9 +59,12 @@ def dechiffrer(conteneur: bytes, secret: str) -> bytes:
     if conteneur[:len(entete)] != entete:
         raise ValueError("pas un conteneur AUAE")
     off = len(entete)
-    sel = conteneur[off:off + SEL_TAILLE];            off += SEL_TAILLE
-    nonce = conteneur[off:off + NONCE_TAILLE];        off += NONCE_TAILLE
-    (taille_claire,) = struct.unpack("<Q", conteneur[off:off + 8]); off += 8
+    sel = conteneur[off:off + SEL_TAILLE]
+    off += SEL_TAILLE
+    nonce = conteneur[off:off + NONCE_TAILLE]
+    off += NONCE_TAILLE
+    (taille_claire,) = struct.unpack("<Q", conteneur[off:off + 8])
+    off += 8
     payload = conteneur[off:]
     cle = deriver_cle(secret, sel)
     aad = MAGIC_CHIFFRE + struct.pack("<BQ", VERSION, taille_claire)

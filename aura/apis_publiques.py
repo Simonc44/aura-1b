@@ -221,7 +221,7 @@ _LEXIQUE: dict[str, str] = {
     "€": "EUR", "euro": "EUR", "euros": "EUR",
     "$": "USD", "dollar": "USD", "dollars": "USD",
     "livre sterling": "GBP", "livres sterling": "GBP",
-    "franc suisse": "CHF", "francs suisses": "CHF", "franc suisse": "CHF",
+    "franc suisse": "CHF", "francs suisses": "CHF",
     "yen": "JPY", "yens": "JPY", "yuan": "CNY", "yuans": "CNY",
     "roupie": "INR", "roupies": "INR", "real": "BRL", "reals": "BRL",
     "peso": "MXN", "pesos": "MXN", "couronne": "SEK", "couronnes": "SEK",

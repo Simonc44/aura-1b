@@ -189,11 +189,15 @@ class MLPReLU(Modele):
     def _graphes(self, ctx, cible):
         p = self._avant(ctx)
         B = len(ctx)
-        dl = p.copy(); dl[np.arange(B), cible] -= 1; dl /= B
+        dl = p.copy()
+        dl[np.arange(B), cible] -= 1
+        dl /= B
         g = {}
-        g["W2"] = self._h.T @ dl; g["b2"] = dl.sum(0)
+        g["W2"] = self._h.T @ dl
+        g["b2"] = dl.sum(0)
         dh = (dl @ self.W2.T) * (self._x @ self.W1 + self.b1 > 0)
-        g["W1"] = self._x.T @ dh; g["b1"] = dh.sum(0)
+        g["W1"] = self._x.T @ dh
+        g["b1"] = dh.sum(0)
         self._grad_emb(dh @ self.W1.T, g)
         return g
 
@@ -235,14 +239,19 @@ class MLPGLU(Modele):
     def _graphes(self, ctx, cible):
         p = self._avant(ctx)
         B = len(ctx)
-        dl = p.copy(); dl[np.arange(B), cible] -= 1; dl /= B
+        dl = p.copy()
+        dl[np.arange(B), cible] -= 1
+        dl /= B
         g = {}
-        g["W2"] = self._h.T @ dl; g["b2"] = dl.sum(0)
+        g["W2"] = self._h.T @ dl
+        g["b2"] = dl.sum(0)
         dh = dl @ self.W2.T
         da = dh * self._g
         dgi = dh * self._a * self._g * (1 - self._g)
-        g["Wa"] = self._x.T @ da; g["ba"] = da.sum(0)
-        g["Wg"] = self._x.T @ dgi; g["bg"] = dgi.sum(0)
+        g["Wa"] = self._x.T @ da
+        g["ba"] = da.sum(0)
+        g["Wg"] = self._x.T @ dgi
+        g["bg"] = dgi.sum(0)
         MLPReLU._grad_emb(self, da @ self.Wa.T + dgi @ self.Wg.T, g)
         return g
 
@@ -258,9 +267,12 @@ class PolyAct(Modele):
         Kd = self.K * self.d
         s = (2 / Kd) ** .5
         self.E = rng.normal(0, .1, (self.V, self.d))
-        self.Wa = rng.normal(0, s, (Kd, self.H)); self.ba = np.zeros(self.H)
-        self.Wb = rng.normal(0, s, (Kd, self.H)); self.bb = np.zeros(self.H)
-        self.Wc = rng.normal(0, s, (Kd, self.H)); self.bc = np.zeros(self.H)
+        self.Wa = rng.normal(0, s, (Kd, self.H))
+        self.ba = np.zeros(self.H)
+        self.Wb = rng.normal(0, s, (Kd, self.H))
+        self.bb = np.zeros(self.H)
+        self.Wc = rng.normal(0, s, (Kd, self.H))
+        self.bc = np.zeros(self.H)
         self.W2 = rng.normal(0, (1 / self.H) ** .5, (self.H, self.V))
         self.b2 = np.zeros(self.V)
         for k in ("E", "Wa", "ba", "Wb", "bb", "Wc", "bc", "W2", "b2"):
@@ -284,17 +296,23 @@ class PolyAct(Modele):
     def _graphes(self, ctx, cible):
         p = self._avant(ctx)
         B = len(ctx)
-        dl = p.copy(); dl[np.arange(B), cible] -= 1; dl /= B
+        dl = p.copy()
+        dl[np.arange(B), cible] -= 1
+        dl /= B
         g = {}
-        g["W2"] = self._h.T @ dl; g["b2"] = dl.sum(0)
+        g["W2"] = self._h.T @ dl
+        g["b2"] = dl.sum(0)
         dh = dl @ self.W2.T
         dpa = dh * (self._pa > 0)
         dpb = dh * (1 - np.tanh(self._pb) ** 2)
         sc = sigmoide(self._pc)
         dpc = dh * (sc + self._pc * sc * (1 - sc))       # d/dx [x*sig(x)]
-        g["Wa"] = self._x.T @ dpa; g["ba"] = dpa.sum(0)
-        g["Wb"] = self._x.T @ dpb; g["bb"] = dpb.sum(0)
-        g["Wc"] = self._x.T @ dpc; g["bc"] = dpc.sum(0)
+        g["Wa"] = self._x.T @ dpa
+        g["ba"] = dpa.sum(0)
+        g["Wb"] = self._x.T @ dpb
+        g["bb"] = dpb.sum(0)
+        g["Wc"] = self._x.T @ dpc
+        g["bc"] = dpc.sum(0)
         dx = dpa @ self.Wa.T + dpb @ self.Wb.T + dpc @ self.Wc.T
         MLPReLU._grad_emb(self, dx, g)
         return g
@@ -332,11 +350,15 @@ class RNNElman(Modele):
     def _graphes(self, ctx, cible):
         p = self._avant(ctx)
         B = len(ctx)
-        dl = p.copy(); dl[np.arange(B), cible] -= 1; dl /= B
+        dl = p.copy()
+        dl[np.arange(B), cible] -= 1
+        dl /= B
         g = {}
-        g["W2"] = self._hfin.T @ dl; g["b2"] = dl.sum(0)
+        g["W2"] = self._hfin.T @ dl
+        g["b2"] = dl.sum(0)
         dh = dl @ self.W2.T
-        g["Wx"] = np.zeros_like(self.Wx); g["Wh"] = np.zeros_like(self.Wh)
+        g["Wx"] = np.zeros_like(self.Wx)
+        g["Wh"] = np.zeros_like(self.Wh)
         g["bh"] = np.zeros_like(self.bh)
         gE = np.zeros_like(self.E)
         for t in range(self.K, 0, -1):
@@ -373,7 +395,8 @@ class ConvMulti(Modele):
         self.W2 = rng.normal(0, (1 / (len(self.noyaux) * self.Hc)) ** .5,
                              (len(self.noyaux) * self.Hc, self.V))
         self.b2 = np.zeros(self.V)
-        self._enr("W2"); self._enr("b2")
+        self._enr("W2")
+        self._enr("b2")
 
     def _avant(self, ctx):
         self._ctx = ctx
@@ -397,7 +420,9 @@ class ConvMulti(Modele):
     def _graphes(self, ctx, cible):
         p = self._avant(ctx)
         B = len(ctx)
-        dl = p.copy(); dl[np.arange(B), cible] -= 1; dl /= B
+        dl = p.copy()
+        dl[np.arange(B), cible] -= 1
+        dl /= B
         g = {"W2": self._h.T @ dl, "b2": dl.sum(0),
              "E": np.zeros_like(self.E)}
         dh = dl @ self.W2.T
@@ -405,16 +430,19 @@ class ConvMulti(Modele):
         for k in self.noyaux:
             feats, act, idx = self._cache[k]
             Hc = self.Hc
-            dhc = dh[:, dec:dec + Hc]; dec += Hc
+            dhc = dh[:, dec:dec + Hc]
+            dec += Hc
             dact = np.zeros_like(act)
             np.put_along_axis(dact, idx[:, None, :], dhc[:, None, :], axis=1)
             Wk = getattr(self, f"Wc{k}")
-            gW = np.zeros_like(Wk); gb = dact.sum(1).sum(0)
+            gW = np.zeros_like(Wk)
+            gb = dact.sum(1).sum(0)
             dfeats = np.zeros_like(feats)
             for ppos in range(act.shape[1]):
                 gW += feats[:, ppos, :].T @ dact[:, ppos, :]
                 dfeats[:, ppos, :] = dact[:, ppos, :] @ Wk.T
-            g[f"Wc{k}"] = gW; g[f"bc{k}"] = gb
+            g[f"Wc{k}"] = gW
+            g[f"bc{k}"] = gb
             # re-injecter dans les embeddings
             for ppos in range(act.shape[1]):
                 piece = dfeats[:, ppos, :].reshape(B, k, self.d)
@@ -453,8 +481,10 @@ def verifie_gradient(cls, V, K, d, H, graine=0, eps=1e-4, n=40):
         err = 0.0
         for i in indices:
             orig = flat[i]
-            flat[i] = orig + eps; lp = perte()
-            flat[i] = orig - eps; lm = perte()
+            flat[i] = orig + eps
+            lp = perte()
+            flat[i] = orig - eps
+            lm = perte()
             flat[i] = orig
             num = (lp - lm) / (2 * eps)
             ana = g[k].ravel()[i]

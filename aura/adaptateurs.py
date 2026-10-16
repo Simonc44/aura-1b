@@ -261,12 +261,19 @@ def _limiter() -> None:
             _REGISTRE[vieux] = entree
             _REGISTRE.move_to_end(vieux)
             continue
+        libere = True
         if lib is not None:
             try:
                 lib.llama_adapter_lora_free(entree["ptr"])
-            except Exception:
-                pass
-        LOG.info("[adaptateurs] LRU : %s libere de la memoire", vieux)
+            except Exception as e:
+                # La memoire de l'adaptateur reste attachee : le log d'info
+                # ci-dessous ne doit PAS annoncer une liberation qui n'a pas
+                # eu lieu.
+                libere = False
+                LOG.warning("[adaptateurs] liberation de %s impossible (%s) : "
+                            "memoire de l'adaptateur conservee", vieux, e)
+        if libere:
+            LOG.info("[adaptateurs] LRU : %s libere de la memoire", vieux)
 
 
 def _modele_brut(llm):

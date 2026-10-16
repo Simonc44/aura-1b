@@ -51,8 +51,8 @@ def main() -> int:
                        "sources_A": a.splitlines()[:6],
                        "sources_B": b.splitlines()[:6]})
         print(f"\n## {q}\n  -> {reformulee}")
-        print("  A:", " | ".join(l[:90] for l in a.splitlines()[:3]))
-        print("  B:", " | ".join(l[:90] for l in b.splitlines()[:3]))
+        print("  A:", " | ".join(ligne[:90] for ligne in a.splitlines()[:3]))
+        print("  B:", " | ".join(ligne[:90] for ligne in b.splitlines()[:3]))
     Path(args.sortie).write_text(json.dumps(sortie, ensure_ascii=False, indent=2),
                                  encoding="utf-8")
     return 0

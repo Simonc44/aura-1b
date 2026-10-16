@@ -1,7 +1,6 @@
 """Tests des 5 ameliorations : multi-LoRA, dynamic compute, RLSS, triplets, verrou."""
 import json
 
-import pytest
 
 from aura import agents, rlss, serveur_lora, verrou
 

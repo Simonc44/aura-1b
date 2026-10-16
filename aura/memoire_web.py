@@ -69,8 +69,8 @@ def limiter_morceaux(contexte: str, maximum: int | None = None,
     if maximum is None:
         maximum = limite_morceaux(question)
     maximum = max(1, min(int(maximum), RAG_MAX_ABSOLU))
-    lignes = list(dict.fromkeys(l.rstrip() for l in contexte.splitlines()
-                                if l.strip()))
+    lignes = list(dict.fromkeys(ligne.rstrip() for ligne in contexte.splitlines()
+                                if ligne.strip()))
     if len(lignes) <= maximum:
         return contexte
     LOG.info("[rag] contexte borne : %d -> %d morceaux", len(lignes), maximum)
@@ -263,11 +263,13 @@ def chercher_iteratif(question: str, cible: str = "",
             # Un extrait pertinent peut utiliser des synonymes absents de la
             # requête. Garder les premiers candidats permet au reranker
             # sémantique de les sauver au lieu de perdre toute la recherche.
-            lignes = [l.strip() for l in resultat.splitlines() if l.strip()]
+            lignes = [ligne.strip() for ligne in resultat.splitlines()
+                      if ligne.strip()]
         if lignes:
             contextes.extend(lignes)
             # Une source directement pertinente suffit à éviter un appel reseau.
-            if (cible_courte and any(mots(l) & termes_cible for l in lignes)):
+            if (cible_courte and any(mots(ligne) & termes_cible
+                                     for ligne in lignes)):
                 break
             if not cible_courte and len(contextes) >= 3:
                 break
@@ -289,7 +291,8 @@ def _reranker_preuves(question: str, cible: str,
     """
     # APPLICATION DU BRIDAGE : jamais plus de RAG_MAX_ABSOLU morceaux
     maximum = min(maximum, RAG_MAX_ABSOLU)
-    candidates = list(dict.fromkeys(l.strip() for l in lignes if l.strip()))
+    candidates = list(dict.fromkeys(ligne.strip() for ligne in lignes
+                                    if ligne.strip()))
     if not candidates:
         return ""
 

@@ -17,7 +17,7 @@ def main(entree: str, sortie: str) -> int:
         if name == "general.architecture":
             continue  # regenere par GGUFWriter selon arch="llama"
         parts = field.parts
-        data = quons = None
+        data = None
         try:
             if len(parts) > -1:
                 data = b"".join(p.tobytes() for p in parts[-4:]) if False else None

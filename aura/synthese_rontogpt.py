@@ -65,8 +65,10 @@ class SyntheseMixin:
                 if brique:
                     systeme_final = (f"{personnalite}\n\n{brique}"
                                      if personnalite else brique)
-            except Exception:
-                pass
+            except Exception as e:
+                # Exemple de style absent : la reponse est moins bien guidee,
+                # jamais fausse. Debug suffit — c'est une option de style.
+                LOG.debug("[synthese] exemple de style ignore : %s", e)
         # DETECTEUR DE CONCEPTS : la question releve-t-elle d'un concept
         # abstrait connu (bibliotheque MiniLM) ? Alors un bloc LEXIQUE est
         # ajoute au prompt systeme : le 1B recopie une formulation exacte

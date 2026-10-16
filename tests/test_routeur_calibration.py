@@ -9,8 +9,6 @@ produisait plus la meme ponderation d'adaptateurs.
 Le correctif est l'echelle de Platt. Ces tests verrouillent la continuite :
 les deux regimes rendent une probabilite, sur la meme echelle.
 """
-import numpy as np
-import pytest
 
 from aura import routeur
 
@@ -39,7 +37,7 @@ def test_les_deux_regimes_rendent_une_probabilite(monkeypatch, tmp_path):
     for coupe in (150, len(questions)):
         monkeypatch.setattr(routeur, "exemples_entrainement",
                             lambda q=questions[:coupe],
-                            l=labels[:coupe]: (q, l))
+                            etiquettes=labels[:coupe]: (q, etiquettes))
         r = routeur.RouteurIntelligent(dossier_cache=tmp_path / f"c{coupe}")
         r._entrainer_classifieur()
         assert hasattr(r._classifieur, "predict_proba"), (

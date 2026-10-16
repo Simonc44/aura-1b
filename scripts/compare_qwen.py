@@ -3,7 +3,6 @@
 Memes questions, memes regles (temp 0.1, 150 tokens max), reponses verifiables.
 Usage : python scripts/compare_qwen.py   (necessite qwen2.5:1.5b dans Ollama)
 """
-import json
 import time
 
 import requests

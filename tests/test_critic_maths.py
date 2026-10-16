@@ -4,7 +4,6 @@ Les deux corrections des bugs trouvés en test à froid :
 - « 15 divise par 3 plus 4 puissance 2 » → 16 (au lieu de 21)
 - « capitale de l australie » → Sydney (au lieu de Canberra)
 """
-import pytest
 
 from aura import filtre_instantane
 from aura.orchestrateur import RontoGPT

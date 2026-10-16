@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Callable
 
 from . import memoire_web, filtre_instantane
 from . import registre_experts
-from . import llama_cerveau, raisonneur, graphe_faits
+from . import llama_cerveau, graphe_faits
 from . import logique as solveur_logique
 from . import potcode
 from . import cache_reponses
@@ -742,8 +742,9 @@ class PipelineMixin:
                 for s, o in self._chaine_faits:
                     try:
                         graphe_faits.renforcer(s, o)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        LOG.debug("[graphe] renforcement de %s oublie : %s",
+                                  s, e)
         # NETTOYAGE FINAL AVANT LIVRAISON ET MEMORISATION : quoi qu'aient
         # produit la double passe ou la verification web, aucun libelle de
         # plan, aucune phrase copiee ni fin tronquee ne doit etre servi

@@ -41,13 +41,13 @@ _H = 36                       # hauteur
 _NL = chr(10)
 
 
-def _coins_bas(canvas: tk.Canvas, l: int, h: int, r: float,
+def _coins_bas(canvas: tk.Canvas, largeur: int, h: int, r: float,
                fill: str) -> None:
     """Rectangle plein en haut, coins INFERIEURS arrondis (notch)."""
-    pts: list[float] = [0.0, 0.0, float(l), 0.0, float(l), h - r]
+    pts: list[float] = [0.0, 0.0, float(largeur), 0.0, float(largeur), h - r]
     for i in range(9):
         a = math.radians(90 * i / 8)
-        pts.append(l - r + r * math.sin(a))
+        pts.append(largeur - r + r * math.sin(a))
         pts.append(h - r + r * math.cos(a))
     for i in range(9):
         a = math.radians(90 * i / 8)

@@ -21,9 +21,6 @@ Invariants (a preserver dans tout le codebase) :
 3. aucune reforge sans cle privee presente (exit code 2 sinon).
 """
 import logging
-import os
-import subprocess
-import sys
 from pathlib import Path
 
 LOG = logging.getLogger("aura.verrou")

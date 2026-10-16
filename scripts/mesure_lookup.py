@@ -216,18 +216,18 @@ def main(argv=None) -> int:
 
 def _tableau(lignes: list[dict]) -> None:
     par_var: dict[str, list[dict]] = {}
-    for l in lignes:
-        par_var.setdefault(l["variante"], []).append(l)
+    for ligne in lignes:
+        par_var.setdefault(ligne["variante"], []).append(ligne)
     print(f"\n{'variante':16s} {'moy tok/s':>9s} {'moy taux':>9s} "
           f"{'taux riche':>11s} {'taux ctrl':>10s}")
     for v, ls in par_var.items():
-        riches = [l for l in ls if l["prompt"].startswith("riche")]
-        ctrls = [l for l in ls if l["prompt"].startswith("ctrl")]
+        riches = [ligne for ligne in ls if ligne["prompt"].startswith("riche")]
+        ctrls = [ligne for ligne in ls if ligne["prompt"].startswith("ctrl")]
         moy = lambda xs: sum(xs) / len(xs) if xs else 0.0  # noqa: E731
-        print(f"{v:16s} {moy([l['tok_s'] for l in ls]):9.2f} "
-              f"{moy([l['taux'] for l in ls]):9.3f} "
-              f"{moy([l['taux'] for l in riches]):11.3f} "
-              f"{moy([l['taux'] for l in ctrls]):10.3f}")
+        print(f"{v:16s} {moy([ligne['tok_s'] for ligne in ls]):9.2f} "
+              f"{moy([ligne['taux'] for ligne in ls]):9.3f} "
+              f"{moy([ligne['taux'] for ligne in riches]):11.3f} "
+              f"{moy([ligne['taux'] for ligne in ctrls]):10.3f}")
 
 
 if __name__ == "__main__":

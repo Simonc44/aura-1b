@@ -1,7 +1,7 @@
 """Tests RontoGPT : cerveau Llama 3.2 1B + experts symboliques."""
 import numpy as np
 
-from aura import expert_symbolique, memoire_web, routeur, autoamelioration
+from aura import expert_symbolique, routeur, autoamelioration
 from aura.orchestrateur import RontoGPT
 from aura import llama_cerveau
 

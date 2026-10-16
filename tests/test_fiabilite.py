@@ -5,7 +5,7 @@ from aura import llama_cerveau
 
 def _ia(monkeypatch):
     """RontoGPT sans GGUF requis (llm faux) + cache niveau 0 neutre."""
-    from aura import filtre_instantane, llama_cerveau
+    from aura import filtre_instantane
     monkeypatch.setattr(filtre_instantane, "repondre", lambda q: None)
     monkeypatch.setattr(filtre_instantane, "enregistrer", lambda q, r: None)
     monkeypatch.setattr(llama_cerveau, "generer", lambda *a, **k: "ok-llm")
@@ -56,7 +56,6 @@ class TestSeuilConfiance:
         from aura import filtre_instantane
         monkeypatch.setattr(filtre_instantane, "repondre", lambda q: None)
         monkeypatch.setattr(filtre_instantane, "enregistrer", lambda q, r: None)
-        from aura import llama_cerveau
         monkeypatch.setattr(llama_cerveau, "generer", lambda *a, **k: "ok-llm")
         ia = RontoGPT()
         monkeypatch.setattr(

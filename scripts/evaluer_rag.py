@@ -43,8 +43,9 @@ def main() -> int:
     args = parser.parse_args()
     from aura import rag_binaire
 
-    jeu = [json.loads(l) for l in JEU.read_text(encoding="utf-8").splitlines()
-           if l.strip()]
+    jeu = [json.loads(ligne)
+           for ligne in JEU.read_text(encoding="utf-8").splitlines()
+           if ligne.strip()]
     reponses, latences = [], []
     for item in jeu:
         t0 = time.perf_counter()

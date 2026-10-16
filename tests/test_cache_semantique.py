@@ -72,7 +72,7 @@ class TestIndexSemantique:
         assert f0._vecteurs.shape == (1, 384)
 
     def test_hit_semantique_que_le_tfidf_rate(self, monkeypatch, tmp_path):
-        fichier = _isole(monkeypatch, tmp_path)
+        _isole(monkeypatch, tmp_path)        # effet de bord : isole le cache
         f0.enregistrer(_Q_LONGUE, "Je parle.")
         # 1) le vecteur trouve la reformulation
         assert f0.repondre_cache(_Q_COURTE) == "Je parle."

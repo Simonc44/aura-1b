@@ -23,6 +23,11 @@ import os
 import tomllib
 from pathlib import Path
 
+# Declare ICI (et non plus bas) : `_lire_toml` peut etre appele pendant
+# l'import du module, AVANT l'ancien emplacement de cette ligne — le logger
+# aurait alors ete un nom indefini au moment precis ou on en a besoin.
+logger = logging.getLogger(__name__)
+
 _RACINE = Path(__file__).resolve().parent.parent
 _CHEMIN = _RACINE / "aura.toml"
 
@@ -79,8 +84,11 @@ def _lire_toml(chemin: Path | None = None) -> dict:
         if c.is_file():
             with open(c, "rb") as f:
                 return tomllib.load(f)
-    except Exception:
-        pass
+    except Exception as e:
+        # Absent ou corrompu : les defauts du code prennent la main. Ce n'est
+        # pas une erreur, mais c'est LA premiere chose a regarder quand un
+        # reglage ne s'applique pas — donc on le dit au lieu de le taire.
+        logger.debug("config %s ignoree : %s", c, e)
     return {}
 
 
@@ -88,9 +96,6 @@ def _vers_env(valeur) -> str:
     if isinstance(valeur, bool):
         return "1" if valeur else "0"
     return str(valeur)
-
-
-logger = logging.getLogger(__name__)
 
 
 def _conflits(fichier: dict, nom: str) -> dict[str, tuple[str, str]]:
@@ -193,8 +198,8 @@ def version() -> str:
         v = (donnees.get("project") or {}).get("version") or donnees.get("version")
         if v:
             return str(v)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("version illisible dans pyproject.toml (%s) : 0.0.0", e)
     return "0.0.0"
 
 

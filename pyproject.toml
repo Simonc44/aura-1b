@@ -2,6 +2,17 @@
 name = "aura-1b"
 version = "0.1.0"
 description = "IA hybride neuro-symbolique : orchestrateur LLM + expert symbolique (PGS) + memoire web (RAG)"
+# LICENCE (arbitrage) : le depot a porte DEUX licences contradictoires —
+# `LICENSE` en GPL-3.0, `LICENSE.mit.txt` en MIT, et un CONTRIBUTING qui
+# annoncait MIT. C'est le fichier `LICENSE` qui fait foi : GPL-3.0-or-later.
+# `license-files` embarque le texte dans la wheel : sans lui, `pip show`
+# n'affichait AUCUNE licence.
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "Simon Chusseau", email = "simon.chusseau@gmail.com" }]
+# `readme` : sans lui la wheel n'avait aucune description longue (twine
+# avertissait `long_description missing`) et la page du paquet restait vide.
+readme = "README.md"
 requires-python = ">=3.11"  # tomllib (aura/config.py) n'existe qu'a partir de 3.11
 dependencies = [
     "numpy>=1.26",
@@ -28,6 +39,11 @@ dependencies = [
 rontogpt = "aura.__main__:main"
 aura = "aura.__main__:main"  # alias historique
 
+[project.urls]
+Homepage = "https://github.com/Simonc44/rontogpt"
+Repository = "https://github.com/Simonc44/rontogpt"
+Issues = "https://github.com/Simonc44/rontogpt/issues"
+
 [project.optional-dependencies]
 mamba = ["torch>=2.2", "transformers>=4.46"]
 rwkv_legacy = ["rwkv>=0.8", "tiktoken>=0.5"]
@@ -43,6 +59,11 @@ dev = [
     # echecs fantomes ont survecu sur `main` (cf. tests/conftest.py).
     "pytest-randomly>=5.0",
     "mypy>=1.10",
+    # Linter + garde-fou de version : `target-version = "py311"` (voir
+    # [tool.ruff]) refuse toute syntaxe plus recente que le Python annonce
+    # par `requires-python`. C'est ce qui manquait quand
+    # `aura/llama_cerveau.py` est devenu incompilable sous 3.11.
+    "ruff>=0.17",
 ]
 
 [[tool.uv.index]]
@@ -79,7 +100,37 @@ exclude = ["tui/node_modules", "adaptateurs/_archive_llama_3.2"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
+[tool.ruff]
+# Cible : le PLUS ANCIEN Python supporte (`requires-python`). Indispensable :
+# ruff rapporte en `invalid-syntax` ce qui ne compile pas sous cette version
+# (par ex. une f-string multiligne, PEP 701, valide seulement en 3.12) — la
+# classe de bug que mypy ne peut PAS voir, ses stubs numpy exigeant 3.12.
+# C'est exactement ainsi que `aura/llama_cerveau.py` est reste casse sous 3.11.
+target-version = "py311"
+extend-exclude = [
+    ".cache_aef",
+    "dist",
+    "adaptateurs",
+    "tui/node_modules",
+    # Les notebooks Colab (`scripts/colab_lora_gemma.ipynb`) ne sont ni livres
+    # ni executes par la suite : les regles de style dans leurs cellules ne
+    # regardent personne. Si l'un devient un vrai livrable, retirer cette
+    # ligne plutot que de le laisser hors du filet.
+    "*.ipynb",
+]
+
+[tool.ruff.lint]
+# Jeu par DEFAUT de ruff (E4/E7/E9 + F). Il ne juge pas le style, il attrape
+# des erreurs : nom indefini, import inutilise, variable jamais lue, except nu.
+# Pas de E501 volontairement : une ligne longue n'est pas un bug.
+select = ["E4", "E7", "E9", "F"]
+
 [tool.mypy]
+# 3.12 et NON 3.11, bien que `requires-python` annonce 3.11 : les stubs de
+# numpy utilisent `type X = ...` (PEP 695), que mypy refuse de lire sous
+# 3.11 — `mypy --python-version 3.11` s'arrete sur numpy lui-meme. Ce n'est
+# donc PAS mypy qui garde la compatibilite 3.11 : c'est ruff, dont le
+# `target-version = "py311"` refuse toute syntaxe plus recente.
 python_version = "3.12"
 # Stubs absents pour les libs scientifiques : on n'insiste pas dessus.
 [[tool.mypy.overrides]]

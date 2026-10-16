@@ -12,7 +12,6 @@ les corrections les plus recemment utiles sont priorisées.
 import json
 import os
 import time
-from pathlib import Path
 
 import logging
 import re

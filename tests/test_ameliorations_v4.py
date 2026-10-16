@@ -193,7 +193,7 @@ class TestThinkCerveau:
         return capture
 
     def test_think_pose_l_instruction_meme_avec_systeme(self, monkeypatch):
-        from aura import llama_cerveau, serveur_lora
+        from aura import llama_cerveau
         capture = self._serveur(monkeypatch)
         monkeypatch.setenv("AURA_THINK_CAP_S", "0")   # budget double, hors plafond
         r = llama_cerveau.generer("quel age a Paul ?", systeme="SYS",
@@ -293,7 +293,7 @@ class TestReflexionTronqueeServeur:
         monkeypatch.setattr(serveur_lora, "chat", faux_chat)
 
     def test_bloc_non_ferme_ne_sort_pas_comme_reponse(self, monkeypatch):
-        from aura import llama_cerveau, serveur_lora
+        from aura import llama_cerveau
         self._serveur(monkeypatch, f"{OUV_PENSEE}Je calcule... 3+3=6")
         r = llama_cerveau.generer("combien font 3+3 ?", think=True)
         assert OUV_PENSEE not in r
@@ -301,7 +301,7 @@ class TestReflexionTronqueeServeur:
         assert "Reflexion interrompue" in r
 
     def test_reflexion_non_fermee_est_detournee(self, monkeypatch):
-        from aura import llama_cerveau, serveur_lora
+        from aura import llama_cerveau
         self._serveur(monkeypatch, f"{OUV_PENSEE}raisonnement coupe")
         llama_cerveau.generer("q", think=True)
         # detournee, pas jetee : elle part dans la memoire du tour

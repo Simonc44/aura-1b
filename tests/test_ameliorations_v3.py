@@ -51,8 +51,10 @@ class TestVerrouServeur:
 
         t1 = threading.Thread(target=travail)
         t2 = threading.Thread(target=travail)
-        t1.start(); t2.start()
-        t1.join(timeout=5); t2.join(timeout=5)
+        t1.start()
+        t2.start()
+        t1.join(timeout=5)
+        t2.join(timeout=5)
         # les deux ont abouti, aucun entrelacement destructeur
         assert serveur_lora._actif == (("math", 1.0),)
 

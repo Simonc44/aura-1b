@@ -12,9 +12,11 @@ Aucune dependance externe : lecture directe de l'API Windows / /proc.
 """
 import hashlib
 import json
+import logging
 import os
 import platform
-import struct
+
+LOG = logging.getLogger(__name__)
 
 
 def _cpu_windows() -> dict:
@@ -22,7 +24,6 @@ def _cpu_windows() -> dict:
     info = {"modele": platform.processor() or "CPU", "coeurs_physiques": 0}
     try:
         import ctypes
-        from ctypes import wintypes
 
         class _SYSTEM_INFO(ctypes.Structure):
             _fields_ = [("wProcessorArchitecture", ctypes.c_ushort),
@@ -79,8 +80,10 @@ def _cpu_linux() -> dict:
                     coeur = val
                     ids.add((physique, coeur))
         info["coeurs_physiques"] = len(ids) or info["coeurs_logiques"]
-    except Exception:
-        pass
+    except Exception as e:
+        # On retombe sur les coeurs logiques : moins juste, mais jamais faux
+        # au point de faire deborder la memoire.
+        LOG.debug("coeurs physiques non detailles : %s", e)
     return info
 
 
@@ -113,8 +116,9 @@ def ram_octets() -> int:
             for ligne in f:
                 if ligne.startswith("MemTotal"):
                     return int(ligne.split()[1]) * 1024
-    except Exception:
-        pass
+    except Exception as e:
+        # 0 = "RAM inconnue" pour tout le module (marge memoire prudente).
+        LOG.debug("RAM non lue dans /proc/meminfo : %s", e)
     return 0
 
 
@@ -136,7 +140,6 @@ def _a_avx2() -> bool:
             return False
     try:
         # llama-cpp-python embarque le sien ; on sonde le CPU directement.
-        import ctypes
 
         # fonction CPUID inaccessible depuis Python pur ; heuristique :
         # tout CPU >= Haswell (2013) a AVX2. On lit la famille du registre.

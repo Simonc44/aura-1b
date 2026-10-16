@@ -52,7 +52,7 @@ def generer(chemin_r1: str = None, chemin_sortie: str = "donnees_bilingues.jsonl
                     d = json.loads(ligne)
                     if "user" in d and "assistant" in d:
                         exemples.append(d)
-                except:
+                except json.JSONDecodeError:
                     pass
         print(f"francais : {len(exemples) - len(EXEMPLES_ANGLAIS)} exemples depuis R1-U300")
 

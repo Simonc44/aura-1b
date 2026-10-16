@@ -14,8 +14,10 @@ Usage : python -m aura.gui [--smoke]   (--smoke : ferme seul apres 2,5 s)
 from __future__ import annotations
 
 import queue
+import re as _re
 import threading
 import time
+import webbrowser
 from functools import partial
 import tkinter as tk
 
@@ -39,8 +41,6 @@ _SEC = "#D8D8D8"
 _POLICE = "Segoe UI"
 _POLICE_MONO = "Consolas"
 _NL = chr(10)  # saute le filtre shell sur "n" + "ul"
-import webbrowser
-import re as _re
 
 # marges d'affichage dans le journal (influence la largeur des bulles)
 _MARGE_TOI = 340
@@ -185,10 +185,10 @@ class FenetreRontoGPT(tk.Tk):
 
     def _centrer(self) -> None:
         self.update_idletasks()
-        l, h = 980, 680
-        x = max(0, (self.winfo_screenwidth() - l) // 3)
-        y = max(0, (self.winfo_screenheight() - h) // 3)
-        self.geometry(f"{l}x{h}+{x}+{y}")
+        largeur, hauteur = 980, 680
+        x = max(0, (self.winfo_screenwidth() - largeur) // 3)
+        y = max(0, (self.winfo_screenheight() - hauteur) // 3)
+        self.geometry(f"{largeur}x{hauteur}+{x}+{y}")
 
     # ---------------- corps : apercu a gauche, chat a droite ----------------
     def _carte_titre(self, parent, titre: str, couleur: str) -> tk.Frame:
@@ -383,20 +383,21 @@ class FenetreRontoGPT(tk.Tk):
         for enfant in self._conteneur_saisie.winfo_children():
             enfant.destroy()
         fond = "#FFFFFF" if actif else _CARTE
-        l = self._conteneur_saisie.winfo_width()
-        h = 42
-        if l <= 1:  # premier appel : largeur pas encore calculee
-            l = 620
-        c = tk.Canvas(self._conteneur_saisie, width=l, height=h,
+        largeur = self._conteneur_saisie.winfo_width()
+        hauteur = 42
+        if largeur <= 1:  # premier appel : largeur pas encore calculee
+            largeur = 620
+        c = tk.Canvas(self._conteneur_saisie, width=largeur, height=hauteur,
                       bg=_FOND_APP, highlightthickness=0)
         c.pack(fill="both", expand=True)
-        c.create_rectangle(8, 0, l - 8, h, fill=fond, outline="")
-        c.create_rectangle(0, 6, l, h - 6, fill=fond, outline="")
-        c.create_oval(0, 6, 16, h - 6, fill=fond, outline="")
-        c.create_oval(l - 16, 6, l, h - 6, fill=fond, outline="")
+        c.create_rectangle(8, 0, largeur - 8, hauteur, fill=fond, outline="")
+        c.create_rectangle(0, 6, largeur, hauteur - 6, fill=fond, outline="")
+        c.create_oval(0, 6, 16, hauteur - 6, fill=fond, outline="")
+        c.create_oval(largeur - 16, 6, largeur, hauteur - 6,
+                      fill=fond, outline="")
 
         receptacle = tk.Frame(c, bg=fond, bd=0)
-        c.create_window(14, h // 2, anchor="w", window=receptacle)
+        c.create_window(14, hauteur // 2, anchor="w", window=receptacle)
         self._saisie = tk.Entry(receptacle, bg=fond, fg=_TEXTE,
                                 relief="flat", borderwidth=0,
                                 font=(_POLICE, 10), insertbackground=_TEXTE,

@@ -16,7 +16,6 @@ import os
 import sys
 
 import numpy as np
-import torch
 import gguf
 
 from scripts.intervention_tl import charger, vecteur_concept

@@ -14,7 +14,7 @@ import numpy as np
 from llama_cpp import Llama
 
 from aura.llama_cerveau import chemin_gguf
-from balayage_couches_cvec import COUCHES, N_COUCHES, N_EMBD, buffer_couche, extraire_concepts
+from balayage_couches_cvec import COUCHES, N_COUCHES, N_EMBD, extraire_concepts
 from eval_cvec_prod import EVAL, juste
 from test_cvec_prod import appliquer, generer, score_langue
 

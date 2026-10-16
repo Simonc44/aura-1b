@@ -392,7 +392,6 @@ class RouteurIntelligent:
         if self._proto_vecs is not None:
             return
         from sklearn.feature_extraction.text import TfidfVectorizer
-        from sklearn.metrics.pairwise import cosine_similarity
 
         vect = TfidfVectorizer(analyzer="char", ngram_range=(2, 4), max_features=2000)
         corpus = []

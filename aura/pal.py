@@ -17,11 +17,10 @@ aux questions du quotidien que `_calcul_direct` ne couvre pas :
 Tout est deterministe : une reponse de PAL ne peut pas etre fausse, elle
 peut au pire ne pas etre produite (None = le LLM prend la main).
 """
-import ast
 import calendar
 import re
 import unicodedata
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from . import filtre_instantane as _f0
 

@@ -37,7 +37,7 @@ class TestMLT:
         assert graphe_faits.renforcer("Paris", "France") is True
         # 1.0 initial + 2 renforcements = 3.0 (fichier reecrit a l'etat final)
         contenu = graphe_tmp.read_text(encoding="utf-8")
-        triplets = [json.loads(l) for l in contenu.strip().splitlines()]
+        triplets = [json.loads(ligne) for ligne in contenu.strip().splitlines()]
         paris = next(t for t in triplets if t["s"] == "Paris")
         assert paris["f"] == 3.0
 

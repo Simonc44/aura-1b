@@ -16,7 +16,6 @@ Usage        : python -m aura.gui_web   (--smoke : ferme seul apres 2,5 s)
 from __future__ import annotations
 
 import json
-import os
 import sys
 import threading
 import time
