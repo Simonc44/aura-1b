@@ -99,3 +99,34 @@ def test_decharger_ferme_le_modele_et_rend_la_ram(cerveau_isole):
 def test_decharger_sans_cerveau_ne_leve_pas(cerveau_isole):
     lc.decharger()          # jamais charge : no-op
     assert lc._llm is None
+
+
+def test_une_lecture_ratee_ne_devient_pas_definitive(monkeypatch):
+    """Un en-tete illisible UNE fois ne doit pas condamner tout le processus.
+
+    `gguf_meta.famille()` ne leve jamais : elle rend '' quand la lecture
+    echoue. La memoriser comme un succes rendait la famille — et donc les
+    balises de fin de tour — definitivement fausses : le cerveau s'appelait
+    « inconnu » et Gemma recevait les balises generiques.
+
+    Mesure du 16 oct. 2026 : sous charge, la premiere lecture a echoue une
+    fois et 5 tests sur 1151 sont tombes, TOUS avec la meme valeur
+    `'inconnu-1b'` — la trace d'un vide resservi a tout le monde.
+    """
+    from aura import gguf_meta
+
+    monkeypatch.setattr(lc, "_FAMILLE_CACHE", None)
+    monkeypatch.setattr(gguf_meta, "famille", lambda _chemin: "")
+
+    assert lc.famille() == ""
+    assert lc._FAMILLE_CACHE is None, "un echec ne se memorise pas"
+
+    # La lecture suivante doit VRAIMENT relire, et aboutir.
+    monkeypatch.setattr(gguf_meta, "famille", lambda _chemin: "gemma3")
+    assert lc.famille() == "gemma3"
+    assert lc._FAMILLE_CACHE == "gemma3", "le succes, lui, se memorise"
+
+    # Et une fois memorise, on ne relit plus le fichier (cout d'un os.open).
+    monkeypatch.setattr(gguf_meta, "famille",
+                        lambda _chemin: pytest.fail("relu inutilement"))
+    assert lc.famille() == "gemma3"

@@ -168,15 +168,34 @@ def famille() -> str:
 
     Renvoie '' si le fichier est illisible : l'appelant retombe alors sur
     les balises generiques (qui n'ont jamais casse personne).
+
+    SEUL UN RESULTAT NON VIDE SE MEMORISE. `gguf_meta.famille()` ne LEVE
+    jamais : elle rend '' quand l'en-tete est illisible, ce qui est une
+    PANNE et non un fait. La memoriser faisait d'un hoquet de lecture un
+    etat DEFINITIF pour tout le processus : le cerveau s'appelait
+    « inconnu », ses balises de fin de tour (Gemma : `<end_of_turn>`) etaient
+    remplacees par les generiques, et rien ne le disait.
+
+    Mesure du 16 oct. 2026 : sous charge (une compilation pip-audit en
+    parallele), la premiere lecture a echoue une fois et 5 tests sur 1151
+    sont tombes, TOUS avec `assert 'inconnu-1b' == '-1b'` — la meme valeur
+    vide resservie a tout le monde. La cause exacte du hoquet n'a pas ete
+    identifiee (lecture d'en-tete de quelques Ko) ; ce qui est corrige ici,
+    c'est sa PERMANENCE.
     """
     global _FAMILLE_CACHE
     if _FAMILLE_CACHE is None:
         try:
             from . import gguf_meta
-            _FAMILLE_CACHE = gguf_meta.famille(_CHEMIN_GGUF)
+            trouve = gguf_meta.famille(_CHEMIN_GGUF)
         except Exception as e:      # noqa: BLE001 — jamais bloquant
             LOG.info("[llama] famille illisible (%s) : balises generiques", e)
-            _FAMILLE_CACHE = ""
+            return ""
+        if not trouve:
+            LOG.info("[llama] en-tete illisible : balises generiques "
+                     "(nouvelle tentative au prochain appel)")
+            return ""
+        _FAMILLE_CACHE = trouve
     return _FAMILLE_CACHE
 
 
