@@ -8,13 +8,7 @@
  */
 import { BASE, etat, formaterDuree, reinitialiser, repondre, sante } from "./client";
 import type { Evenement } from "./client";
-
-let echecs = 0;
-
-function controle(nom: string, ok: boolean, detail: string): void {
-  if (!ok) echecs += 1;
-  console.log(`${ok ? "OK  " : "ECHEC"} ${nom}${detail ? ` — ${detail}` : ""}`);
-}
+import { controle, terminer } from "./smoke_commun";
 
 /** Joue une question et resume ce qui est reellement arrive. */
 async function jouer(question: string) {
@@ -81,5 +75,4 @@ controle("le flux se termine et ne bloque pas le TUI",
 const r = await reinitialiser();
 controle("POST /v1/reset repond ok", r.ok, r.detail);
 
-console.log(`\n${echecs === 0 ? "TOUT EST OK" : `${echecs} controle(s) en echec`}`);
-process.exit(echecs === 0 ? 0 : 1);
+terminer("TOUT EST OK");

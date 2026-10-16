@@ -8,12 +8,7 @@
 import { TextRenderable } from "@opentui/core";
 import { createTestRenderer } from "@opentui/core/testing";
 import { libelleAttente } from "./affichage";
-
-let echecs = 0;
-function controle(nom: string, ok: boolean, detail: string): void {
-  if (!ok) echecs += 1;
-  console.log(`${ok ? "OK  " : "ECHEC"} ${nom}${detail ? ` — ${detail}` : ""}`);
-}
+import { controle, terminer } from "./smoke_commun";
 
 const ecran = await createTestRenderer({ width: 90, height: 6 });
 const ligne = new TextRenderable(ecran.renderer, { content: "" });
@@ -44,8 +39,4 @@ controle("le compte progresse (42 morceaux à 9 s)",
   frame.split("\n")[0]?.trim() ?? "");
 
 ecran.renderer.destroy();
-if (echecs > 0) {
-  console.log(`\n${echecs} échec(s)`);
-  process.exit(1);
-}
-console.log("\ntous les contrôles d'attente passent");
+terminer("tous les contrôles d'attente passent", "échec(s)");

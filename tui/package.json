@@ -8,6 +8,7 @@
     "start": "bun src/index.ts",
     "check": "tsc --noEmit",
     "smoke": "bun src/smoke.ts",
+    "smoke:attente": "bun src/smoke_attente.ts",
     "smoke:design": "bun src/smoke_design.ts"
   },
   "dependencies": {

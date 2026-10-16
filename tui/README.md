@@ -140,7 +140,8 @@ pas, d'ou le Bun local.
 ```cmd
 cd tui
 npm run smoke                            rem client : 6 controles contre l'API reelle
-npm run smoke:design                     rem design : 12 controles sur la frame peinte
+npm run smoke:attente                    rem attente : 3 controles sur la ligne d'attente
+npm run smoke:design                     rem design : 16 controles sur la frame peinte
 node_modules\bun\bin\bun.exe src\index.ts --smoke   rem ecran complet, sans humain
 ```
 
@@ -155,12 +156,19 @@ powershell -ExecutionPolicy Bypass -File tui\lancer_tui.ps1 -Smoke
 - `src/index.ts --smoke` monte vraiment l'ecran, joue une question, verifie
   qu'une reponse non vide a ete affichee, puis sort en 0.
 
+Les trois scripts partagent le meme harnais (`src/smoke_commun.ts`) : compteur
+et ligne `OK`/`ECHEC`, message final, code de sortie. Il vivait **recopie** dans
+les trois ; il n'existe plus qu'une fois, et les messages finaux restent ceux
+ci-dessus (ils sont cites plus bas).
+
 ## Ce qui est verifie, et ce qui ne l'est pas
 
 Verifie en machine (11 oct. 2026) :
 
 - `bun run src/smoke.ts` → **6/6 OK**, code de sortie 0 ;
-- `bun run src/smoke:design` → **15/15 OK**, code de sortie 0 : le decoupage (deux
+- `bun run src/smoke:attente` → **3/3 OK**, code de sortie 0 : pas de compteur
+  avant le premier morceau, compte reel des le premier, progression ensuite ;
+- `bun run src/smoke:design` → **16/16 OK**, code de sortie 0 : le decoupage (deux
   blocs de code avec leur langage, corps repris tel quel, section de deux sources,
   repli « ligne brute » quand aucun lien n'est trouve, bloc jamais referme cadre),
   puis la frame reellement peinte — cadres `╭─ python ─╮`, etiquettes, code sur ses

@@ -12,13 +12,7 @@ import { createTestRenderer } from "@opentui/core/testing";
 import { decouper } from "./design";
 import type { Segment } from "./design";
 import { TH, creerCorps, creerStyleCode } from "./affichage";
-
-let echecs = 0;
-
-function controle(nom: string, ok: boolean, detail: string): void {
-  if (!ok) echecs += 1;
-  console.log(`${ok ? "OK  " : "ECHEC"} ${nom}${detail ? ` — ${detail}` : ""}`);
-}
+import { controle, terminer } from "./smoke_commun";
 
 // -- 1. le découpage (aucun terminal requis) --------------------------------
 const REPONSE = [
@@ -158,5 +152,4 @@ controle("la fuite d'échafaudage s'affiche cadrée, sans marqueur à l'écran",
 
 await ecran.dispose();
 
-console.log(`\n${echecs === 0 ? "TOUT EST OK" : `${echecs} controle(s) en echec`}`);
-process.exit(echecs === 0 ? 0 : 1);
+terminer("TOUT EST OK");
