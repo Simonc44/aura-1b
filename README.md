@@ -455,6 +455,10 @@ uv run pytest -q --cov  # 72 % of aura/ + rontogpt/ (branch coverage)
 Test counts go stale the moment a test is added, so the number above is the
 one measured on this HEAD — `pytest --collect-only -q` prints the live one.
 
+**Where this repository stands, including what is wrong with it:**
+[a graded self-assessment out of 100 000](docs/AUTOEVALUATION_2026-10-16.md) —
+7 axes, and every point lost is tied to a measurement.
+
 **Coverage is measured, not claimed: 72 %** (branches included, 9535
 statements). Deliberately **no `--cov-fail-under`**: at this level a floor would
 stay green for years without guaranteeing anything, and one self-skipping test

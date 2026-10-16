@@ -506,6 +506,10 @@ Un décompte de tests devient faux dès qu'un test est ajouté : le nombre
 ci-dessus est celui **mesuré sur ce HEAD** — `pytest --collect-only -q`
 affiche le chiffre courant.
 
+**Où en est ce dépôt, y compris ce qui ne va pas :**
+[une autoévaluation chiffrée sur 100 000](docs/AUTOEVALUATION_2026-10-16.md) —
+7 axes, et chaque point perdu est rattaché à une mesure.
+
 **La couverture est mesurée, pas annoncée : 72 %** (branches comprises, 9535
 instructions). **Pas de `--cov-fail-under`, volontairement** : à ce niveau, un
 plancher passerait au vert pendant des années sans rien garantir, et un seul
