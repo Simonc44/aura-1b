@@ -100,11 +100,17 @@ uv run pytest -q --cov  # coverage (source + branch come from pyproject.toml)
 ## 🧪 Testing your change
 
 - `pytest -q` locally. On a complete machine (the GGUF brain, `lang.db`) that
-  is **1159 passed, 0 skipped**; a test that needs a file you do not have still
-  skips by design. What is *not* allowed is a test that skips **everywhere**:
-  the three that did are gone — two now measure against **synthetic** files (an
-  lm-eval tasks tree, a GGUF header) and one was retired because its subject had
-  moved. Details: `ARCHITECTURE.md` §3decies.
+  is **1159 passed, 0 skipped**. What is *not* allowed is a test that skips
+  **everywhere**: the three that did are gone — two now measure against
+  **synthetic** files (an lm-eval tasks tree, a GGUF header) and one was retired
+  because its subject had moved. Details: `ARCHITECTURE.md` §3decies.
+- **Without the 807 MB brain, seven tests FAIL** — they do not skip. Measured on
+  CI on 16 Oct 2026: they assert a name derived from the brain file, so with no
+  `modeles/*.gguf` they compare `'inconnu-1b'` against `'-1b'`
+  (`tests/test_aura.py`, `tests/test_fiabilite.py`, `tests/test_clarification.py`
+  ×2, `tests/test_jev.py`, `tests/test_couplage_architecture.py` ×2). That is a
+  **known defect**, not a surprise: it is what keeps the CI red, and it is
+  counted in `docs/AUTOEVALUATION_2026-10-16.md`.
 - The suite runs in a **random order** (`pytest-randomly`): a test that only
   passes because another ran before it is a bug in the test, not bad luck.
 - **Coverage: `uv run pytest -q --cov`.** Source and branch are read from

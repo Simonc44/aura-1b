@@ -805,6 +805,28 @@ empêche de publier un **score de hasard** comme un score — n'était donc vér
 nulle part. Les deux tests réécrits ont été vérifiés en **cassant** la règle qu'ils
 verrouillent : ils tombent, ils ne sont pas décoratifs.
 
+### Et la CI, elle, était rouge (mesure du 16 oct. 2026)
+
+Pendant que ces trois sauts disparaissaient, une requête a montré ce que la
+documentation **supposait** : les **30 derniers runs de `Tests` sont rouges**,
+depuis au moins le 11 oct. 2026, y compris sur des commits antérieurs à ce
+chantier — le badge vert du README n'a donc rien mesuré pendant trois semaines.
+
+Deux causes, une seule élucidée :
+
+* **les quatre entrées de la matrice** tombent parce que **sept tests exigent le
+  cerveau local** et assertent un nom dérivé de son nom de fichier — sans
+  `modeles/*.gguf` ils comparent `'inconnu-1b'` à `'-1b'`. La doc disait qu'ils
+  « se sautent » : ils **échouent**. C'est exactement le défaut que cette
+  section décrit, un cran plus loin : un test dont le sujet est l'état du disque ;
+* **`mypy aura/`** tombe aussi, **sans le dire** : le job n'annote rien, et le
+  journal du runner n'est pas lisible sans jeton. Même version (2.3.1, celle du
+  verrou), même configuration, **0 erreur sur 74 fichiers** ici, cache vidé ou
+  non — mais le job tourne sous Linux. Le workflow annote désormais ses erreurs.
+
+`docs/AUTOEVALUATION_2026-10-16.md` porte la déduction (1 500 points) et la date
+de la correction.
+
 ### Le bug que seule la charge a montré
 
 En lançant la suite pendant qu'une compilation `pip-audit` tournait, **5 tests sur

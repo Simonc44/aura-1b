@@ -164,10 +164,23 @@ jobs:
       - name: Dependances (metadonnees du projet, groupe dev inclus)
         run: uv sync --frozen
 
+      # Un echec de typage DOIT dire ses erreurs ici. Sans cela, la raison d'un
+      # job rouge n'existe que dans le journal du runner, illisible sans jeton
+      # — c'est exactement ce qui a laisse ce job rouge et MUET pendant trois
+      # semaines, alors que `mypy aura/` passe (0 erreur, 74 fichiers) sur un
+      # poste de developpement. Le statut de sortie reste celui de mypy.
       - name: mypy aura/
         env:
           PYTHONIOENCODING: utf-8
-        run: uv run --frozen mypy aura/
+        shell: bash
+        run: |
+          uv run --frozen mypy aura/ 2>&1 | tee mypy_sortie.txt
+          statut=${PIPESTATUS[0]}
+          if [ "$statut" -ne 0 ]; then
+            { grep -E ": (error|note):" mypy_sortie.txt || true; } | head -15 \
+              | while IFS= read -r ligne; do echo "::error::$ligne"; done
+          fi
+          exit "$statut"
 
   installateur:
     name: Syntaxe de l'installeur PowerShell

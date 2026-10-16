@@ -1,6 +1,6 @@
 # Autoevaluation chiffree du depot — 16 oct. 2026
 
-**Note : 79 000 / 100 000** (~79 %).
+**Note : 77 500 / 100 000** (~78 %).
 
 Ce n'est pas une note d'ecole et ce n'est pas un standard externe : la grille est
 ecrite ici, en 7 axes, et **chaque point perdu a une raison mesurable**. Les
@@ -16,10 +16,10 @@ est discutable ; les chiffres ne le sont pas.
 | B. Filet de tests | 20 000 | **15 000** | 28 % du code jamais execute par la suite (−2 500), aucun plancher de couverture (−1 500), 3 tests qui ne mesuraient rien pendant des semaines (−1 000) |
 | C. Typage et lint | 10 000 | **9 000** | `mypy aura/` seulement : `tests/` (11 104 lignes) et `scripts/` (9 880) hors typage (−1 000) |
 | D. Securite des dependances | 12 000 | **8 500** | un `.venv` local a pu deriver sans que rien ne le dise (−1 500), 1 alerte Dependabot non instruite (−1 500), `pip-audit -r` inutilisable sous Windows (−500) |
-| E. CI et reproductibilite | 13 000 | **10 500** | aucun runner ici, donc le vert GitHub reste une inference (−1 500), 2 jobs non executables depuis ce poste (−1 000) |
+| E. CI et reproductibilite | 13 000 | **9 000** | la CI est **ROUGE** sur `main` depuis au moins le 11 oct., 5 jobs sur 11 (−2 000), dont un `mypy` qui echoue **en silence** (−1 000), 2 jobs non executables depuis ce poste (−1 000) |
 | F. Architecture et lisibilite | 15 000 | **11 500** | 74 modules pour un 1B (−1 500), couverture tres inegale entre modules (−1 000), l'elagage du plus gros module est chiffre mais non fait (−1 000) |
 | G. Mesures et honnetete des benchmarks | 15 000 | **13 000** | pas de banc externe complet (−1 000), aucun classement defendable face aux 3B/8B (−1 000) |
-| **Total** | **100 000** | **79 000** | |
+| **Total** | **100 000** | **77 500** | |
 
 ## Ce qui a ete mesure sur ce HEAD
 
@@ -35,6 +35,7 @@ est discutable ; les chiffres ne le sont pas.
 | Verrou | 172 paquets figes, audites | `uv.lock` |
 | Taille du code | 41 755 lignes Python (`aura` 20 656, `tests` 11 104, `scripts` 9 880), 1 448 TS, 3 558 Markdown, 298 fichiers suivis | `git ls-files … \| xargs wc -l` |
 | CI | **8 jobs** : suite Ubuntu+Windows × 3.11/3.12, chaine `.aef`, typage, installeur, lint, compat-311, securite, TUI | `.github/workflows/tests.yml` |
+| CI sur `main` | **ROUGE** : les 4 jobs de tests **et** `mypy` echouent, sur les **30 derniers runs** (depuis au moins le 11 oct. 2026) | API GitHub `/actions/workflows/tests.yml/runs` |
 | Jobs de CI **rejoues ici** | **5** : suite (Windows, 3.12 seul), typage, lint, compat-311, TUI — plus l'**audit** du job `securite`, qui a parle (voir D) | les commandes ci-dessus |
 | Dependabot | **1 alerte moderee, non instruite** | message de `git push` (GitHub) |
 
@@ -87,7 +88,7 @@ qui le detecte (`scripts/audit_dependances.py`) n'existe que depuis le 16 oct. ;
 **une alerte Dependabot moderee reste non instruite** ; et `pip-audit --no-deps
 -r` ne peut pas aboutir sous Windows (deux causes, contournement documente).
 
-### E. CI et reproductibilite — 10 500 / 13 000
+### E. CI et reproductibilite — 9 000 / 13 000
 
 Huit jobs, une matrice Ubuntu + Windows × 3.11/3.12, les dependances tirees des
 **metadonnees du projet** (`uv sync --frozen`) et jamais d'une liste recopiee.
@@ -95,10 +96,32 @@ Huit jobs, une matrice Ubuntu + Windows × 3.11/3.12, les dependances tirees des
 compat-311, TUI), et l'audit du job `securite` a ete execute — il a trouve
 l'ecart du venv au lieu d'un vert de complaisance.
 
-Ce qui coute : il n'y a **pas de runner sur ce poste**, donc le vert GitHub
-reste une inference, pas une preuve ; la chaine `.aef` sous Linux et
-l'installeur PowerShell **n'ont pas ete executes** ; et la suite sous 3.11 n'a
-pas ete rejouee aujourd'hui (sa derniere mesure date de `§3septies`).
+**Correction du 16 oct. 2026, et elle coute 1 500 points.** Cette note avait
+d'abord ecrit que « le vert GitHub reste une inference » : c'etait faux, et
+verifiable en une requete. Les **30 derniers runs de `Tests` sont rouges**,
+depuis au moins le 11 oct. 2026, y compris sur des commits anterieurs a ce
+chantier. Cinq jobs sur onze tombent : les **quatre entrees de la matrice**
+(Ubuntu + Windows × 3.11/3.12) et **`mypy aura/`**.
+
+La cause des tests est etablie, et elle se lit **sans jeton** : le workflow
+transforme chaque echec en annotation. **Sept tests exigent le cerveau local**
+et assertent un nom derive de son nom de fichier ; sans `modeles/*.gguf` ils
+comparent `'inconnu-1b'` a `'-1b'`, et `aura.llama` journalise « GGUF
+introuvable ». La documentation affirmait qu'ils « se sautent » : c'est faux,
+ils **echouent** — la meme classe de defaut que §3decies, un test dont le sujet
+est l'etat du disque.
+
+La cause de `mypy` n'est **pas** identifiee : ce job n'annote rien, et l'API
+GitHub n'expose pas les journaux sans jeton. Ce qui est etabli : meme version
+(mypy 2.3.1, celle du verrou), meme configuration, **0 erreur sur 74 fichiers**
+en local, cache incremental vide ou non — et le job tourne sous Linux, alors
+qu'il passe ici sous Windows. Une etape qui annote les erreurs a ete ajoutee
+pour que le prochain run dise pourquoi, au lieu de rester muet trois semaines
+de plus.
+
+Ce qui coute encore : la chaine `.aef` sous Linux et l'installeur PowerShell
+**n'ont pas ete executes** depuis ce poste, et la suite sous 3.11 n'a pas ete
+rejouee aujourd'hui (sa derniere mesure date de `§3septies`).
 
 ### F. Architecture et lisibilite — 11 500 / 15 000
 
@@ -127,7 +150,9 @@ reste une zone aveugle du dossier de preuves.
 ## Ce que cette note ne vaut pas
 
 - La **grille est mienne** : changer les poids change la note. Les mesures, non.
-- L'axe CI est **partiellement infere** (pas de runner ici) : voir `§3nonies`.
+- L'axe CI est **corrige** (voir E) : la CI n'etait pas seulement « inferee »,
+  elle est **rouge**, et c'est une requete qui l'a dit. Le trou de `mypy` reste
+  ouvert : son journal n'est pas lisible depuis ce poste.
 - **Rien n'est verifie sur les chemins Linux** (`.aef`, installeur PowerShell).
 - L'alerte **Dependabot n'a pas ete lue** : elle peut valoir une deduction de
   plus, ou aucune.
@@ -143,3 +168,4 @@ reste une zone aveugle du dossier de preuves.
     cd tui && npx tsc --noEmit                         # 0
     /c/Users/admin/.local/bin/python3.11.exe -m compileall -q aura rontogpt tests scripts
     python scripts/audit_dependances.py                 # avis du verrou (et ecart du venv)
+    curl -s https://api.github.com/repos/Simonc44/rontogpt/actions/workflows/tests.yml/runs  # 30 runs, tous rouges
